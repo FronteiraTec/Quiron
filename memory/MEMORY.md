@@ -1,0 +1,3 @@
+- [nginx restart após rebuild](nginx-restart-apos-rebuild.md) — rebuild de backend/frontend exige `docker restart nginx_proxy` senão dá 502
+- [sempre rebuild e restart](sempre-rebuild-e-restart.md) — após cada alteração, rebuildar e reiniciar pra o usuário ver no ar
+- [autorização admin por tenant](autorizacao-admin-por-tenant.md) — JWT não carrega papel; guard de admin é no service via tenantRepository.buscarPapel

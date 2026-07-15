@@ -1,25 +1,52 @@
+/**
+ * Ponto de entrada da API (camada de aplicacao).
+ *
+ * Monta os middlewares globais, registra o agregador de rotas e o middleware
+ * de erros, e sobe o servidor. As responsabilidades ficam distribuidas nas
+ * camadas: routes -> controllers -> services -> repositories -> banco.
+ */
 const express = require("express")
 const cors = require("cors")
+const helmet = require("helmet")
+
+const routes = require("./routes")
+const { autenticar } = require("./middlewares/auth")
+const { errorHandler } = require("./middlewares/errorHandler")
+const { sincronizarCatalogo } = require("./rbac/sincronizarCatalogo")
 
 const app = express()
 
-// Middlewares
-app.use(cors())
-app.use(express.json())
+// --- Middlewares globais ---
+app.use(helmet()) // Cabecalhos de seguranca.
+app.use(cors()) // Libera requisicoes do frontend.
+app.use(express.json({ limit: "4mb" })) // Faz o parse do corpo JSON (limite maior por causa da foto de perfil em base64).
 
-// Health check (importante pra Docker)
+// --- Health check (usado pelo Docker) ---
 app.get("/health", (req, res) => {
   res.json({ status: "ok", message: "API is running" })
 })
 
-// Rota de teste
-app.get("/", (req, res) => {
-  res.send("Backend rodando 🚀")
+// --- Rotas da aplicacao ---
+app.use("/", routes)
+
+/**
+ * Exemplo de rota protegida (modelo para rotas que exigem Bearer Token).
+ */
+app.get("/protegido", autenticar, (req, res) => {
+  res.json({ mensagem: "Voce acessou uma rota protegida!", usuario: req.usuario })
 })
 
-// Porta
+// --- Tratamento central de erros (deve ser o ultimo middleware) ---
+app.use(errorHandler)
+
+// --- Sobe o servidor ---
 const PORT = process.env.PORT || 3000
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
+
+  // Mantem a tabela de permissoes em dia com o catalogo definido em codigo.
+  sincronizarCatalogo().catch((err) => {
+    console.error("Falha ao sincronizar catalogo de permissoes:", err)
+  })
 })

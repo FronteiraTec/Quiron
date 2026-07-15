@@ -1,6 +1,16 @@
 CREATE TYPE papelEnum AS ENUM ('admin', 'mentor', 'usuario');
 CREATE TYPE statusStartup AS ENUM ('ATIVA', 'PAUSADA', 'ENCERRADA');
 CREATE TYPE tarefaTipo AS ENUM('TEXTO', 'ANEXO', 'VIDEO', 'QUESTIONARIO');
+-- Tipos de pergunta (estilo Google Forms):
+--   TEXTO_CURTO    -> resposta curta de uma linha (sem alternativas)
+--   PARAGRAFO      -> resposta longa / descritiva (sem alternativas)
+--   ESCOLHA_UNICA  -> multipla escolha com UMA resposta (radio, tem alternativas)
+--   CAIXAS_SELECAO -> assinalar VARIAS respostas (checkbox, tem alternativas)
+CREATE TYPE perguntaTipo AS ENUM('TEXTO_CURTO', 'PARAGRAFO', 'ESCOLHA_UNICA', 'CAIXAS_SELECAO');
+-- Categoria de um evento do calendario da incubacao (evento.categoria).
+CREATE TYPE eventoCategoria AS ENUM (
+    'MENTORIA', 'WORKSHOP', 'ENTREGA', 'REUNIAO', 'EVENTO', 'PITCH', 'PRAZO', 'VISITA'
+);
 
 
 CREATE TABLE IF NOT EXISTS tenant (
@@ -16,6 +26,11 @@ CREATE TABLE IF NOT EXISTS tenant (
 	qtd_usuarios INTEGER DEFAULT 5,
 	qtd_startups INTEGER DEFAULT 10,
 	logo VARCHAR(255),
+	-- Configuracao de e-mail da incubadora (remetente exibido + reply-to).
+	-- O envio em si usa o SMTP compartilhado (variaveis de ambiente).
+	email_remetente_nome VARCHAR(100),
+	email_remetente VARCHAR(150),
+	email_reply_to VARCHAR(150),
     criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
     atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
 
@@ -30,13 +45,35 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email VARCHAR(150) NOT NULL,
 	celular VARCHAR(15) NOT NULL,
     senha_hash TEXT NOT NULL,
+    -- Foto/avatar do usuario (data URL base64 ou link), exibida no Perfil e,
+    -- na ausencia de logo de startup, no cabecalho da Sidebar.
+    foto_url TEXT,
     ROOT BOOLEAN DEFAULT FALSE,
+    -- Quando TRUE, o usuario e obrigado a trocar a senha no proximo login
+    -- (usado para senhas provisorias criadas pelo root/admin).
+    deve_redefinir_senha BOOLEAN NOT NULL DEFAULT FALSE,
     ultimo_login_ts TIMESTAMP,
     criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
     atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
 
     CONSTRAINT pk_usuarios PRIMARY KEY (id_usuario),
     CONSTRAINT uk_usuarios_email UNIQUE (email)
+);
+
+CREATE TABLE IF NOT EXISTS senha_reset (
+    id_reset INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_usuario INTEGER NOT NULL,
+    token_hash TEXT NOT NULL,
+    expira_ts TIMESTAMP NOT NULL,
+    usado BOOLEAN NOT NULL DEFAULT FALSE,
+    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_senha_reset PRIMARY KEY (id_reset),
+
+    CONSTRAINT fk_senha_reset_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE  IF NOT EXISTS tenant_usuarios (
@@ -226,6 +263,78 @@ CREATE TABLE IF NOT EXISTS startup_fase (
         ))
 );
 
+
+CREATE TABLE IF NOT EXISTS startup_canvas (
+    id_startup INTEGER NOT NULL,
+    bloco VARCHAR(30) NOT NULL,
+    conteudo TEXT NOT NULL DEFAULT '',
+    atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_startup_canvas PRIMARY KEY (id_startup, bloco),
+
+    CONSTRAINT fk_startup_canvas_startup
+        FOREIGN KEY (id_startup)
+        REFERENCES startup (id_startup)
+        ON DELETE CASCADE,
+
+    CONSTRAINT ck_startup_canvas_bloco
+        CHECK (bloco IN (
+            'parcerias_chave',
+            'atividades_chave',
+            'recursos_chave',
+            'proposta_valor',
+            'relacionamento_clientes',
+            'canais',
+            'segmentos_clientes',
+            'estrutura_custos',
+            'fontes_receita'
+        ))
+);
+
+
+CREATE TABLE IF NOT EXISTS startup_gut (
+    id_gut INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_startup INTEGER NOT NULL,
+    problema VARCHAR(255) NOT NULL,
+    gravidade SMALLINT NOT NULL,
+    urgencia SMALLINT NOT NULL,
+    tendencia SMALLINT NOT NULL,
+    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_startup_gut PRIMARY KEY (id_gut),
+
+    CONSTRAINT fk_startup_gut_startup
+        FOREIGN KEY (id_startup)
+        REFERENCES startup (id_startup)
+        ON DELETE CASCADE,
+
+    CONSTRAINT ck_startup_gut_gravidade CHECK (gravidade BETWEEN 1 AND 5),
+    CONSTRAINT ck_startup_gut_urgencia CHECK (urgencia BETWEEN 1 AND 5),
+    CONSTRAINT ck_startup_gut_tendencia CHECK (tendencia BETWEEN 1 AND 5)
+);
+
+
+CREATE TABLE IF NOT EXISTS startup_5w2h (
+    id_5w2h INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_startup INTEGER NOT NULL,
+    o_que TEXT NOT NULL,
+    por_que TEXT,
+    onde TEXT,
+    quando TEXT,
+    quem TEXT,
+    como TEXT,
+    quanto_custa TEXT,
+    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_startup_5w2h PRIMARY KEY (id_5w2h),
+
+    CONSTRAINT fk_startup_5w2h_startup
+        FOREIGN KEY (id_startup)
+        REFERENCES startup (id_startup)
+        ON DELETE CASCADE
+);
+
+
 CREATE TABLE IF NOT EXISTS questionarios (
 	id_questionario INTEGER GENERATED ALWAYS AS IDENTITY,
 	id_tenant INTEGER,
@@ -246,8 +355,12 @@ CREATE TABLE IF NOT EXISTS pergunta (
 	id_questionario INTEGER,
 	pergunta TEXT NOT NULL,
 	obrigatoria BOOLEAN DEFAULT FALSE,
-	multipla_escolha BOOLEAN DEFAULT FALSE,
-	
+	-- Tipo da pergunta (ver enum perguntaTipo). Substitui o antigo booleano
+	-- multipla_escolha: agora distingue texto/paragrafo/escolha-unica/caixas.
+	tipo perguntaTipo NOT NULL DEFAULT 'TEXTO_CURTO',
+	-- Posicao da pergunta dentro do questionario (1, 2, 3...).
+	ordem INTEGER NOT NULL DEFAULT 1,
+
 	CONSTRAINT pk_pergunta PRIMARY KEY (id_pergunta),
 	 CONSTRAINT fk_questionarios_perguntas_questionario
         FOREIGN KEY (id_questionario)
@@ -371,10 +484,17 @@ CREATE TABLE IF NOT EXISTS evento (
 
     titulo VARCHAR(150) NOT NULL,
     descricao TEXT,
+    -- Categoria exibida no calendario (cor/icone); ver enum eventoCategoria.
+    categoria eventoCategoria NOT NULL DEFAULT 'EVENTO',
 
     local VARCHAR(150),
     inicio_ts TIMESTAMP NOT NULL,
     fim_ts TIMESTAMP,
+
+    -- Nome do mentor responsavel (texto livre; nao ha selecao de usuario aqui).
+    mentor_nome VARCHAR(150),
+    -- Lista de anexos [{ nome, url }] em formato JSON.
+    anexos JSONB NOT NULL DEFAULT '[]',
 
     vagas INTEGER,
     obrigatorio BOOLEAN DEFAULT FALSE,
@@ -382,8 +502,32 @@ CREATE TABLE IF NOT EXISTS evento (
 
     criado_por INTEGER NOT NULL,
     criado_ts TIMESTAMP DEFAULT NOW(),
+    atualizado_ts TIMESTAMP DEFAULT NOW(),
 
     CONSTRAINT pk_evento PRIMARY KEY (id_evento)
+);
+
+-- ---------------------------------------------------------------------------
+-- Direcionamento do evento: quais startups o enxergam.
+-- Sem nenhuma linha para um id_evento -> evento GERAL (visivel a todas as
+-- startups incubadas do tenant). Com linhas -> visivel apenas as listadas.
+-- Admin/mentor sempre veem todos os eventos do tenant, independente disso.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS evento_startups (
+    id_evento INTEGER NOT NULL,
+    id_startup INTEGER NOT NULL,
+
+    CONSTRAINT pk_evento_startups PRIMARY KEY (id_evento, id_startup),
+
+    CONSTRAINT fk_evento_startups_evento
+        FOREIGN KEY (id_evento)
+        REFERENCES evento (id_evento)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_evento_startups_startup
+        FOREIGN KEY (id_startup)
+        REFERENCES startup (id_startup)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS evento_confirmacao (
@@ -419,4 +563,100 @@ CREATE TABLE IF NOT EXISTS audit_log (
     criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
 
     CONSTRAINT pk_audit_log PRIMARY KEY (id_log)
+);
+
+-- ---------------------------------------------------------------------------
+-- Preferencias visuais do usuario (perfil / cor do painel / personalizacoes).
+-- Relacao 1:1 com "usuarios": cada usuario tem no maximo uma linha de
+-- preferencias. Guarda o tema, as cores do painel e opcoes de layout.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS usuario_preferencias (
+    id_usuario INTEGER NOT NULL,
+
+    tema VARCHAR(10) NOT NULL DEFAULT 'claro',       -- claro / escuro
+    cor_primaria VARCHAR(7) NOT NULL DEFAULT '#4f46e5',
+    cor_secundaria VARCHAR(7) NOT NULL DEFAULT '#0ea5e9',
+    densidade VARCHAR(12) NOT NULL DEFAULT 'confortavel', -- confortavel / compacta
+    borda_arredondada INTEGER NOT NULL DEFAULT 12,   -- raio das bordas (px)
+    sidebar_recolhida BOOLEAN NOT NULL DEFAULT FALSE,
+    atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_usuario_preferencias PRIMARY KEY (id_usuario),
+    CONSTRAINT fk_usuario_preferencias_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE CASCADE
+);
+
+-- ---------------------------------------------------------------------------
+-- RBAC (Roles e Permissoes).
+--
+-- O catalogo de permissoes NAO e cadastrado manualmente: e sincronizado a
+-- partir de backend/src/rbac/catalogoPermissoes.js toda subida da API (ver
+-- backend/src/rbac/sincronizarCatalogo.js). As telas/rotas continuam usando
+-- o modelo atual (tenant_usuarios.papel / usuarios.root) - este RBAC roda em
+-- paralelo, como camada administrativa, sem substituir as checagens atuais.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS permissao (
+    id_permissao INTEGER GENERATED ALWAYS AS IDENTITY,
+    chave VARCHAR(150) NOT NULL,
+    modulo VARCHAR(60) NOT NULL,
+    recurso VARCHAR(60) NOT NULL,
+    acao VARCHAR(60) NOT NULL,
+    rotulo_modulo VARCHAR(100) NOT NULL,
+    rotulo_recurso VARCHAR(100) NOT NULL,
+    rotulo_acao VARCHAR(100) NOT NULL,
+    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_permissao PRIMARY KEY (id_permissao),
+    CONSTRAINT uq_permissao_chave UNIQUE (chave)
+);
+
+CREATE TABLE IF NOT EXISTS role (
+    id_role INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_tenant INTEGER NOT NULL,
+    nome VARCHAR(100) NOT NULL,
+    descricao VARCHAR(255),
+    -- Roles padrao criadas junto com o tenant (nao podem ser excluidas).
+    sistema BOOLEAN NOT NULL DEFAULT FALSE,
+    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+    atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_role PRIMARY KEY (id_role),
+    CONSTRAINT fk_role_tenant
+        FOREIGN KEY (id_tenant)
+        REFERENCES tenant (id_tenant)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_role_tenant_nome UNIQUE (id_tenant, nome)
+);
+
+CREATE TABLE IF NOT EXISTS role_permissao (
+    id_role INTEGER NOT NULL,
+    id_permissao INTEGER NOT NULL,
+
+    CONSTRAINT pk_role_permissao PRIMARY KEY (id_role, id_permissao),
+    CONSTRAINT fk_rp_role
+        FOREIGN KEY (id_role)
+        REFERENCES role (id_role)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_rp_permissao
+        FOREIGN KEY (id_permissao)
+        REFERENCES permissao (id_permissao)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS usuario_role (
+    id_usuario INTEGER NOT NULL,
+    id_role INTEGER NOT NULL,
+    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_usuario_role PRIMARY KEY (id_usuario, id_role),
+    CONSTRAINT fk_ur_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_ur_role
+        FOREIGN KEY (id_role)
+        REFERENCES role (id_role)
+        ON DELETE CASCADE
 );
