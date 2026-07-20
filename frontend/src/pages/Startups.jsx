@@ -7,7 +7,7 @@
  *
  * Endpoints:
  *   GET  /startups?id_tenant=  -> lista (com fase_atual e progresso_pct)
- *   GET  /fases?id_tenant=     -> fases da trilha, para o filtro
+ *   GET  /trilha?id_tenant=    -> arvore da trilha; as fases saem dela (filtro)
  *   POST /startups             -> cria uma startup
  */
 import { useEffect, useMemo, useState } from "react"
@@ -34,9 +34,7 @@ import { Add, Search, RocketLaunch } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
-
-const STATUS_ROTULO = { ATIVA: "Ativa", PAUSADA: "Pausada", ENCERRADA: "Concluída" }
-const STATUS_COR = { ATIVA: "success", PAUSADA: "warning", ENCERRADA: "default" }
+import { STATUS_ROTULO, STATUS_COR } from "../data/startupMeta"
 
 const FORM_VAZIO = { nome: "", cnpj: "" }
 
@@ -65,12 +63,13 @@ export default function Startups() {
     }
     setCarregando(true)
     try {
-      const [startupsRes, fasesRes] = await Promise.all([
+      const [startupsRes, trilhaRes] = await Promise.all([
         api.get("/startups", { params: { id_tenant: idTenant } }),
-        api.get("/fases", { params: { id_tenant: idTenant } }),
+        api.get("/trilha", { params: { id_tenant: idTenant } }),
       ])
       setStartups(startupsRes.data.startups)
-      setFases(fasesRes.data.fases)
+      // As fases sao os filhos diretos do programa (raiz da arvore).
+      setFases(trilhaRes.data.trilha.flatMap((programa) => programa.filhos || []))
     } catch (err) {
       setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar as startups." })
     } finally {
@@ -117,7 +116,7 @@ export default function Startups() {
 
   return (
     <AppLayout>
-      <Box sx={{ maxWidth: 1100, mx: "auto" }}>
+      <Box>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <RocketLaunch sx={{ color: "primary.main" }} />
@@ -164,7 +163,7 @@ export default function Startups() {
           >
             <MenuItem value="todas">Todas as fases</MenuItem>
             {fases.map((f) => (
-              <MenuItem key={f.id_fase} value={f.nome}>
+              <MenuItem key={f.id_no} value={f.nome}>
                 {f.nome}
               </MenuItem>
             ))}
@@ -187,7 +186,7 @@ export default function Startups() {
           </TextField>
         </Box>
 
-        <Paper sx={{ borderRadius: 3, overflow: "hidden" }}>
+        <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
           {carregando ? (
             <Box sx={{ textAlign: "center", py: 6 }}>
               <CircularProgress />

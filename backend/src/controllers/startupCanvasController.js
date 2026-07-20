@@ -5,7 +5,7 @@ const startupCanvasService = require("../services/startupCanvasService")
 
 async function listar(req, res, next) {
   try {
-    res.json({ blocos: await startupCanvasService.listar(req.params.id) })
+    res.json({ blocos: await startupCanvasService.listar(req.params.id, req.usuario) })
   } catch (err) {
     next(err)
   }
@@ -13,7 +13,7 @@ async function listar(req, res, next) {
 
 async function salvarBloco(req, res, next) {
   try {
-    const bloco = await startupCanvasService.salvarBloco(req.params.id, req.params.bloco, req.body.conteudo)
+    const bloco = await startupCanvasService.salvarBloco(req.params.id, req.params.bloco, req.body.conteudo, req.usuario)
     res.json({ bloco })
   } catch (err) {
     next(err)

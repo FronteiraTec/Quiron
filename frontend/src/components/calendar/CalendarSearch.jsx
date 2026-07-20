@@ -7,6 +7,7 @@ import { Search } from "@mui/icons-material"
 export default function CalendarSearch({ valor, onChange }) {
   return (
     <Box
+      data-tour="calendario-busca"
       sx={{
         mx: 2,
         mt: 1.5,

@@ -11,6 +11,15 @@ async function listar(req, res, next) {
   }
 }
 
+async function fila(req, res, next) {
+  try {
+    const entregas = await entregaService.listarFila(req.query.id_tenant, req.usuario)
+    res.json({ entregas })
+  } catch (err) {
+    next(err)
+  }
+}
+
 async function buscar(req, res, next) {
   try {
     res.json({ entrega: await entregaService.buscar(req.params.id) })
@@ -19,12 +28,20 @@ async function buscar(req, res, next) {
   }
 }
 
+async function detalhe(req, res, next) {
+  try {
+    res.json({ entrega: await entregaService.buscarDetalhe(req.params.id, req.usuario) })
+  } catch (err) {
+    next(err)
+  }
+}
+
 async function criar(req, res, next) {
   try {
-    const { id_tarefa, id_startup, texto_resposta, arquivo_url } = req.body
+    const { id_no, id_startup, texto_resposta, arquivo_url } = req.body
     // O autor da entrega e o usuario autenticado (vem do token).
     const entrega = await entregaService.criar({
-      idTarefa: id_tarefa,
+      idNo: id_no,
       idStartup: id_startup,
       idUsuario: req.usuario.id,
       textoResposta: texto_resposta,
@@ -38,9 +55,9 @@ async function criar(req, res, next) {
 
 async function responder(req, res, next) {
   try {
-    const { id_tarefa, id_startup, respostas } = req.body
+    const { id_no, id_startup, respostas } = req.body
     const entrega = await entregaService.responderQuestionario({
-      idTarefa: id_tarefa,
+      idNo: id_no,
       idStartup: id_startup,
       idUsuario: req.usuario.id,
       respostas,
@@ -51,4 +68,4 @@ async function responder(req, res, next) {
   }
 }
 
-module.exports = { listar, buscar, criar, responder }
+module.exports = { listar, fila, buscar, detalhe, criar, responder }

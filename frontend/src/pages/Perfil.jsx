@@ -97,7 +97,7 @@ export default function Perfil() {
 
   return (
     <AppLayout>
-      <Box sx={{ maxWidth: 900, mx: "auto" }}>
+      <Box>
         <Typography variant="h4" fontWeight={700} gutterBottom>
           Perfil
         </Typography>
@@ -116,7 +116,7 @@ export default function Perfil() {
             <CircularProgress />
           </Box>
         ) : (
-          <Paper sx={{ p: 3, borderRadius: 3 }} component="form" onSubmit={salvarDadosPerfil}>
+          <Paper sx={{ p: 3, borderRadius: 0 }} component="form" onSubmit={salvarDadosPerfil}>
             <SecaoTitulo icone={<Person />} titulo="Perfil" />
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <Box sx={{ position: "relative", width: 56, height: 56 }}>

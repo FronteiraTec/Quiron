@@ -208,7 +208,7 @@ export default function Tenants() {
 
   return (
     <AppLayout>
-      <Box sx={{ maxWidth: 1100, mx: "auto" }}>
+      <Box>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Business sx={{ color: "primary.main" }} />
@@ -230,7 +230,7 @@ export default function Tenants() {
           </Alert>
         )}
 
-        <Paper sx={{ borderRadius: 3, overflow: "hidden" }}>
+        <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
           {carregando ? (
             <Box sx={{ textAlign: "center", py: 6 }}>
               <CircularProgress />

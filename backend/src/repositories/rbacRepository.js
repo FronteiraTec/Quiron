@@ -3,6 +3,7 @@
  * Tabelas relacionadas: permissao, role, role_permissao, usuario_role.
  */
 const { query } = require("../config/db")
+const { ROLES_PADRAO, permissoesDaRole } = require("../rbac/rolesPadrao")
 
 /** Lista o catalogo completo de permissoes (sincronizado a partir do codigo). */
 async function listarPermissoesCatalogo() {
@@ -53,17 +54,36 @@ async function criarRole(idTenant, { nome, descricao, sistema = false }) {
 /** Cria as roles padrao (sistema) de um tenant recem-criado. */
 async function criarRolesPadrao(idTenant, client) {
   const executor = client || { query }
-  const PADRAO = [
-    { nome: "Administrador", descricao: "Acesso total a incubadora." },
-    { nome: "Mentor", descricao: "Acompanha e avalia as startups do programa." },
-    { nome: "Colaborador", descricao: "Acesso operacional basico." },
-  ]
-  for (const r of PADRAO) {
+
+  for (const r of ROLES_PADRAO) {
     await executor.query(
       `INSERT INTO role (id_tenant, nome, descricao, sistema)
        VALUES ($1, $2, $3, TRUE)
        ON CONFLICT (id_tenant, nome) DO NOTHING`,
       [idTenant, r.nome, r.descricao]
+    )
+
+    // Buscamos o id em vez de usar RETURNING: com ON CONFLICT DO NOTHING a
+    // linha nao volta quando a role ja existia, e esta funcao precisa ser
+    // idempotente (roda na criacao do tenant e de novo na migracao).
+    const { rows } = await executor.query(
+      `SELECT id_role FROM role WHERE id_tenant = $1 AND nome = $2`,
+      [idTenant, r.nome]
+    )
+    if (!rows[0]) continue
+
+    // Sem este bloco as roles nasciam vazias — criadas, visiveis na tela,
+    // marcadas como `sistema` (portanto nao excluiveis) e concedendo nada.
+    const chaves = permissoesDaRole(r.nome)
+    if (chaves.length === 0) continue
+
+    await executor.query(
+      `INSERT INTO role_permissao (id_role, id_permissao)
+       SELECT $1, p.id_permissao
+         FROM permissao p
+        WHERE p.chave = ANY($2::text[])
+       ON CONFLICT (id_role, id_permissao) DO NOTHING`,
+      [rows[0].id_role, chaves]
     )
   }
 }

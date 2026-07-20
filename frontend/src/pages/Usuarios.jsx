@@ -120,7 +120,7 @@ export default function Usuarios() {
 
   return (
     <AppLayout>
-      <Box sx={{ maxWidth: 1200, mx: "auto" }}>
+      <Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
           <People sx={{ color: "primary.main" }} />
           <Typography variant="h4" fontWeight={700}>

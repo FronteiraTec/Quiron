@@ -14,6 +14,14 @@
  *   rota     -> caminho do react-router
  *   badgeKey -> chave em `badges` p/ mostrar contagem pendente (ex.: "tarefas")
  *   novo     -> true exibe um ponto "novo" ao lado do item
+ *   permissao-> chave RBAC exigida para o item aparecer. Sem ela, o item e
+ *               visivel a qualquer um que tenha o menu daquele papel.
+ *
+ * SOBRE `permissao`: e so para nao OFERECER o que responderia 403 — quem
+ * autoriza e o backend, em `garantirPermissao`. Itens de dado proprio (Minha
+ * Startup, Minha Jornada, Perfil) nao levam chave: sao do usuario e nao passam
+ * por RBAC. Configuracoes tambem nao, porque a gestao de permissoes precisa
+ * continuar alcancavel mesmo se o admin errar a mao nas roles.
  */
 import {
   Dashboard,
@@ -25,10 +33,10 @@ import {
   Groups,
   SupervisorAccount,
   MenuBook,
+  LocalLibrary,
+  AutoAwesome,
   AccountTree,
   Timeline,
-  ViewModule,
-  Assignment,
   Quiz,
   Event,
   CalendarMonth,
@@ -38,8 +46,7 @@ import {
   RateReview,
   Feedback,
   Assessment,
-  ReceiptLong,
-  Policy,
+  TrendingUp,
   Person,
   Tune,
 } from "@mui/icons-material"
@@ -59,7 +66,7 @@ const MENU_ADMIN = [
     icone: <Business />,
     filhos: [
       { id: "tenants", texto: "Tenants", icone: <Apartment />, rota: "/tenants" },
-      { id: "usuarios", texto: "Usuarios", icone: <People />, rota: "/usuarios" },
+      { id: "usuarios", texto: "Usuarios", icone: <People />, rota: "/usuarios", permissao: "usuarios.usuarios.visualizar" },
       { id: "config", texto: "Configuracoes", icone: <Settings />, rota: "/configuracoes" },
     ],
   },
@@ -68,9 +75,9 @@ const MENU_ADMIN = [
     texto: "Startups",
     icone: <RocketLaunch />,
     filhos: [
-      { id: "startups-lista", texto: "Lista de startups", icone: <RocketLaunch />, rota: "/startups" },
-      { id: "startups-membros", texto: "Membros", icone: <Groups />, rota: "/startups/membros" },
-      { id: "startups-mentores", texto: "Mentores", icone: <SupervisorAccount />, rota: "/mentores" },
+      { id: "startups-lista", texto: "Lista de startups", icone: <RocketLaunch />, rota: "/startups", permissao: "startups.startups.visualizar" },
+      { id: "startups-membros", texto: "Membros", icone: <Groups />, rota: "/startups/membros", permissao: "startups.membros.visualizar" },
+      { id: "startups-mentores", texto: "Mentores", icone: <SupervisorAccount />, rota: "/mentores", permissao: "startups.mentores.visualizar" },
     ],
   },
   {
@@ -78,11 +85,9 @@ const MENU_ADMIN = [
     texto: "Programa",
     icone: <MenuBook />,
     filhos: [
-      { id: "programa-builder", texto: "Construtor", icone: <AccountTree />, rota: "/programa", novo: true },
-      { id: "fases", texto: "Fases", icone: <Timeline />, rota: "/fases" },
-      { id: "modulos", texto: "Modulos", icone: <ViewModule />, rota: "/modulos" },
-      { id: "tarefas", texto: "Tarefas", icone: <Assignment />, rota: "/tarefas", badgeKey: "tarefas" },
-      { id: "questionarios", texto: "Questionarios", icone: <Quiz />, rota: "/questionarios" },
+      { id: "programa-builder", texto: "Construtor", icone: <AccountTree />, rota: "/programa", permissao: "programa.trilha.visualizar" },
+      { id: "biblioteca", texto: "Biblioteca", icone: <LocalLibrary />, rota: "/biblioteca", permissao: "programa.biblioteca.visualizar" },
+      { id: "questionarios", texto: "Questionarios", icone: <Quiz />, rota: "/questionarios", permissao: "programa.questionarios.visualizar" },
     ],
   },
   {
@@ -91,7 +96,7 @@ const MENU_ADMIN = [
     icone: <Event />,
     filhos: [
       { id: "eventos-agenda", texto: "Agenda", icone: <CalendarMonth />, rota: "/eventos", badgeKey: "eventos" },
-      { id: "eventos-presenca", texto: "Presenca", icone: <HowToReg />, rota: "/eventos/presenca" },
+      { id: "eventos-presenca", texto: "Presenca", icone: <HowToReg />, rota: "/eventos/presenca", permissao: "eventos.presenca.visualizar" },
     ],
   },
   {
@@ -99,17 +104,22 @@ const MENU_ADMIN = [
     texto: "Avaliacoes",
     icone: <Grading />,
     filhos: [
-      { id: "entregas", texto: "Entregas", icone: <Inbox />, rota: "/entregas", badgeKey: "entregas" },
-      { id: "avaliacoes-lista", texto: "Avaliacoes", icone: <RateReview />, rota: "/avaliacoes" },
+      { id: "entregas", texto: "Entregas", icone: <Inbox />, rota: "/entregas", badgeKey: "entregas", permissao: "avaliacoes.entregas.visualizar" },
+      { id: "avaliacoes-lista", texto: "Avaliacoes", icone: <RateReview />, rota: "/avaliacoes", permissao: "avaliacoes.avaliacoes.visualizar" },
     ],
   },
   {
     id: "relatorios",
     texto: "Relatorios",
     icone: <Assessment />,
+    // Relatorios de gestao do programa. Logs e Auditoria saíram daqui: eram
+    // registro tecnico/de conformidade, nao material de decisao. A auditoria
+    // virou aba em Configuracoes.
     filhos: [
-      { id: "logs", texto: "Logs", icone: <ReceiptLong />, rota: "/logs" },
-      { id: "auditoria", texto: "Auditoria", icone: <Policy />, rota: "/auditoria" },
+      { id: "rel-progresso", texto: "Progresso das startups", icone: <TrendingUp />, rota: "/relatorios/progresso", permissao: "relatorios.progresso.visualizar" },
+      { id: "rel-entregas", texto: "Entregas e avaliacoes", icone: <Inbox />, rota: "/relatorios/entregas", permissao: "relatorios.entregas.visualizar" },
+      { id: "rel-gargalos", texto: "Gargalos do programa", icone: <Timeline />, rota: "/relatorios/gargalos", permissao: "relatorios.gargalos.visualizar" },
+      { id: "rel-engajamento", texto: "Engajamento e eventos", icone: <Groups />, rota: "/relatorios/engajamento", permissao: "relatorios.engajamento.visualizar" },
     ],
   },
   {
@@ -138,9 +148,8 @@ const MENU_MENTOR = [
     texto: "Programa",
     icone: <MenuBook />,
     filhos: [
-      { id: "programa-builder", texto: "Construtor", icone: <AccountTree />, rota: "/programa", novo: true },
-      { id: "fases", texto: "Fases", icone: <Timeline />, rota: "/fases" },
-      { id: "tarefas", texto: "Tarefas", icone: <Assignment />, rota: "/tarefas", badgeKey: "tarefas" },
+      { id: "programa-builder", texto: "Construtor", icone: <AccountTree />, rota: "/programa", permissao: "programa.trilha.visualizar" },
+      { id: "biblioteca", texto: "Biblioteca", icone: <LocalLibrary />, rota: "/biblioteca", permissao: "programa.biblioteca.visualizar" },
     ],
   },
   {
@@ -148,7 +157,7 @@ const MENU_MENTOR = [
     texto: "Avaliacoes",
     icone: <Grading />,
     filhos: [
-      { id: "entregas", texto: "Entregas", icone: <Inbox />, rota: "/entregas", badgeKey: "entregas" },
+      { id: "entregas", texto: "Entregas", icone: <Inbox />, rota: "/entregas", badgeKey: "entregas", permissao: "avaliacoes.entregas.visualizar" },
       { id: "feedback", texto: "Feedback", icone: <Feedback />, rota: "/feedback" },
     ],
   },
@@ -161,18 +170,12 @@ const MENU_MENTOR = [
 // ---------------------------------------------------------------------------
 const MENU_USUARIO = [
   { id: "dashboard", texto: "Dashboard", icone: <Dashboard />, rota: "/" },
+  { id: "minha-empresa", texto: "Minha Empresa", icone: <AutoAwesome />, rota: "/minha-empresa", novo: true },
+  { id: "jornada", texto: "Minha Jornada", icone: <Timeline />, rota: "/jornada", novo: true },
   { id: "minha-startup", texto: "Minha Startup", icone: <RocketLaunch />, rota: "/minha-startup" },
-  {
-    id: "programa",
-    texto: "Programa",
-    icone: <MenuBook />,
-    filhos: [
-      { id: "fases", texto: "Fases", icone: <Timeline />, rota: "/fases" },
-      { id: "modulos", texto: "Modulos", icone: <ViewModule />, rota: "/modulos" },
-      { id: "tarefas", texto: "Tarefas", icone: <Assignment />, rota: "/tarefas", badgeKey: "tarefas" },
-      { id: "questionarios", texto: "Questionarios", icone: <Quiz />, rota: "/questionarios" },
-    ],
-  },
+  // A trilha, para o incubado, e a Jornada — as telas de Fases/Modulos/Tarefas
+  // eram a visao administrativa dela e saíram.
+  { id: "questionarios", texto: "Questionarios", icone: <Quiz />, rota: "/questionarios" },
   { id: "eventos", texto: "Eventos", icone: <Event />, rota: "/eventos", badgeKey: "eventos" },
   { id: "perfil", texto: "Perfil", icone: <Person />, rota: "/perfil" },
 ]

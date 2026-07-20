@@ -27,7 +27,7 @@ function lerCampos(body) {
 async function listar(req, res, next) {
   try {
     const { id_tenant, inicio, fim } = req.query
-    res.json({ eventos: await eventoService.listar(id_tenant, { inicio, fim }, req.usuario.id) })
+    res.json({ eventos: await eventoService.listar(id_tenant, { inicio, fim }, req.usuario.id, req.usuario) })
   } catch (err) {
     next(err)
   }
@@ -35,7 +35,7 @@ async function listar(req, res, next) {
 
 async function buscar(req, res, next) {
   try {
-    res.json({ evento: await eventoService.buscar(req.params.id) })
+    res.json({ evento: await eventoService.buscar(req.params.id, req.usuario) })
   } catch (err) {
     next(err)
   }
@@ -98,6 +98,45 @@ async function listarParticipantes(req, res, next) {
   }
 }
 
+// --- Presenca (check-in marcado pelo admin) ---
+
+async function resumoPresenca(req, res, next) {
+  try {
+    const eventos = await eventoService.resumoPresenca(
+      req.query.id_tenant,
+      req.query.dias,
+      req.usuario
+    )
+    res.json({ eventos })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function listarPresenca(req, res, next) {
+  try {
+    res.json(await eventoService.listarPresenca(req.params.id, req.usuario))
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function marcarPresenca(req, res, next) {
+  try {
+    // Aceita uma pessoa (id_usuarios: 8) ou o lote da tela (id_usuarios: [8,9]).
+    const { id_usuarios, presente } = req.body
+    const marcados = await eventoService.marcarPresenca(
+      req.params.id,
+      id_usuarios,
+      presente,
+      req.usuario
+    )
+    res.json({ marcados })
+  } catch (err) {
+    next(err)
+  }
+}
+
 module.exports = {
   listar,
   buscar,
@@ -106,4 +145,7 @@ module.exports = {
   excluir,
   confirmarPresenca,
   listarParticipantes,
+  resumoPresenca,
+  listarPresenca,
+  marcarPresenca,
 }

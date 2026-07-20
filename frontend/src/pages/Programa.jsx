@@ -9,10 +9,9 @@
  *     selecionado, sem modal e sem trocar de pagina.
  *
  * Extras: Toolbar (expandir/recolher todos, "Visualizar como incubada"),
- * Toast com Desfazer apos exclusao, ConfirmDialog e responsividade (arvore
- * vira Drawer no mobile/tablet).
+ * ConfirmDialog e responsividade (arvore vira Drawer no mobile/tablet).
  *
- * Tudo local/mockado — nenhuma chamada de API.
+ * A arvore vem da API (/trilha) via usePrograma.
  */
 import { useMemo, useState } from "react"
 import {
@@ -22,9 +21,12 @@ import {
   Snackbar,
   Alert,
   Button,
+  Typography,
+  CircularProgress,
   useTheme,
   useMediaQuery,
 } from "@mui/material"
+import { AutoStories, Add } from "@mui/icons-material"
 import { AnimatePresence } from "framer-motion"
 import AppLayout from "../components/AppLayout"
 import { usePrograma } from "../hooks/usePrograma"
@@ -34,7 +36,7 @@ import InspectorPanel from "../components/programa/InspectorPanel"
 import ContextMenu from "../components/programa/ContextMenu"
 import ConfirmDialog from "../components/programa/ConfirmDialog"
 import PreviewIncubada from "../components/programa/PreviewIncubada"
-import { TIPO_META } from "../data/programaMock"
+import { TIPO_META } from "../data/trilhaMeta"
 
 const LARGURA_ARVORE = 380
 
@@ -79,36 +81,88 @@ export default function Programa() {
   const feedbackSalvo = () =>
     setToast({ texto: "Alteracoes salvas.", severidade: "success" })
 
-  // Fluxo de exclusao: abre confirmacao -> exclui -> toast com Desfazer.
+  /**
+   * Fluxo de exclusao: confirmacao -> exclui no servidor.
+   * Nao ha "Desfazer": recriar a subarvore geraria ids novos, e as entregas
+   * das startups apontariam para nos inexistentes. Por isso a confirmacao
+   * avisa que a acao e definitiva.
+   */
   const pedirExclusao = (no) => setConfirmar({ no })
-  const confirmarExclusao = () => {
+  const confirmarExclusao = async () => {
     const alvo = confirmar.no
-    const snapshot = prog.excluir(alvo.id)
     setConfirmar(null)
-    setToast({
-      texto: `${TIPO_META[alvo.tipo].label} "${alvo.nome}" excluida.`,
-      severidade: "info",
-      undo: () => {
-        prog.restaurar(snapshot)
-        setToast(null)
-      },
-    })
+
+    const r = await prog.excluir(alvo.id_no)
+
+    setToast(
+      r.ok
+        ? {
+            texto: `${TIPO_META[alvo.tipo].label} "${alvo.nome}" excluido.`,
+            severidade: "info",
+          }
+        : { texto: r.erro, severidade: "error" }
+    )
   }
 
   // Acoes disparadas pelo menu de contexto.
   const acoesMenu = {
     adicionar: prog.adicionar,
     alternarAtivo: prog.alternarAtivo,
-    duplicar: (no) => {
-      prog.duplicar(no.id)
+    duplicar: async (no) => {
+      await prog.duplicar(no.id_no)
       setToast({ texto: "Item duplicado.", severidade: "success" })
     },
     excluir: pedirExclusao,
   }
 
-  const arvoreEl = (
+  const arvoreEl = arvore ? (
     <ProgramTree arvore={arvore} termo={termo} ctx={ctx} matchIds={matchIds} />
-  )
+  ) : null
+
+  // Carregando a trilha do servidor.
+  if (prog.carregando) {
+    return (
+      <AppLayout>
+        <Box sx={{ display: "grid", placeItems: "center", height: "60vh" }}>
+          <CircularProgress />
+        </Box>
+      </AppLayout>
+    )
+  }
+
+  // Tenant ainda sem trilha: a arvore precisa de uma raiz antes de aceitar
+  // fases, entao o primeiro passo e criar o programa.
+  if (!arvore) {
+    return (
+      <AppLayout>
+        <Box sx={{ display: "grid", placeItems: "center", height: "60vh", px: 3 }}>
+          <Box sx={{ textAlign: "center", maxWidth: 460 }}>
+            <AutoStories sx={{ fontSize: 48, color: "primary.main", opacity: 0.7, mb: 1 }} />
+            <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
+              Comece sua trilha
+            </Typography>
+            <Typography color="text.secondary" sx={{ mb: 3 }}>
+              Sua incubadora ainda nao tem um programa. Crie a trilha para
+              comecar a montar fases, modulos e passos.
+            </Typography>
+            {prog.erro && (
+              <Alert severity="error" sx={{ mb: 2, borderRadius: "6px" }}>
+                {prog.erro}
+              </Alert>
+            )}
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => prog.criarPrograma()}
+              sx={{ textTransform: "none" }}
+            >
+              Criar trilha de incubacao
+            </Button>
+          </Box>
+        </Box>
+      </AppLayout>
+    )
+  }
 
   return (
     <AppLayout>
@@ -118,7 +172,7 @@ export default function Programa() {
           sx={{
             border: "1px solid",
             borderColor: "divider",
-            borderRadius: { xs: 0, md: "8px" },
+            borderRadius: 0,
             overflow: "hidden",
             height: "calc(100vh - 112px)",
             display: "flex",
@@ -187,21 +241,21 @@ export default function Programa() {
         aberto={Boolean(confirmar)}
         mensagem={
           confirmar
-            ? `Tem certeza que deseja excluir "${confirmar.no.nome}"? ${
-                TIPO_META[confirmar.no.tipo].childKey
-                  ? "Todo o conteudo dentro dela sera removido."
+            ? `Tem certeza que deseja excluir "${confirmar.no.nome}"?${
+                TIPO_META[confirmar.no.tipo].childTipo
+                  ? " Todo o conteudo dentro dele sera removido."
                   : ""
-              } Voce podera desfazer logo em seguida.`
+              } Esta acao nao pode ser desfeita.`
             : ""
         }
         onConfirmar={confirmarExclusao}
         onCancelar={() => setConfirmar(null)}
       />
 
-      {/* Toast (feedback ao salvar / excluir com Desfazer) */}
+      {/* Toast (feedback das acoes) */}
       <Snackbar
         open={Boolean(toast)}
-        autoHideDuration={toast?.undo ? 6000 : 3000}
+        autoHideDuration={toast?.severidade === "error" ? 6000 : 3000}
         onClose={() => setToast(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
@@ -211,13 +265,6 @@ export default function Programa() {
             variant="filled"
             onClose={() => setToast(null)}
             sx={{ borderRadius: "6px", alignItems: "center" }}
-            action={
-              toast.undo ? (
-                <Button color="inherit" size="small" onClick={toast.undo} sx={{ fontWeight: 700 }}>
-                  Desfazer
-                </Button>
-              ) : undefined
-            }
           >
             {toast.texto}
           </Alert>

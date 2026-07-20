@@ -16,11 +16,18 @@ import SidebarMobile from "./sidebar/SidebarMobile"
 import { useSidebar } from "../hooks/useSidebar"
 import { useAuthStore } from "../store/authStore"
 import { usePreferenciaStore } from "../store/preferenciaStore"
+import { usePermissaoStore } from "../store/permissaoStore"
 
-export default function AppLayout({ children }) {
+/**
+ * @param {boolean} [fullBleed] Remove o padding do main e faz o conteudo ocupar
+ *   exatamente a altura da viewport abaixo da Navbar (telas tipo calendario,
+ *   que gerenciam a propria rolagem interna).
+ */
+export default function AppLayout({ children, fullBleed = false }) {
   const usuario = useAuthStore((s) => s.usuario)
   const carregarUsuario = useAuthStore((s) => s.carregarUsuario)
   const carregarPreferencias = usePreferenciaStore((s) => s.carregar)
+  const carregarPermissoes = usePermissaoStore((s) => s.carregar)
 
   const theme = useTheme()
   const smUp = useMediaQuery(theme.breakpoints.up("sm"))
@@ -50,6 +57,13 @@ export default function AppLayout({ children }) {
     if (!usuario) carregarUsuario().catch(() => {})
     carregarPreferencias().catch(() => {})
   }, [usuario, carregarUsuario, carregarPreferencias])
+
+  // As permissoes do tenant, assim que sabemos qual e. Ficam aqui e nao no
+  // login porque o usuario tambem chega por /auth/me ao recarregar a pagina —
+  // carregar so no login deixaria o menu sem chaves apos um F5.
+  useEffect(() => {
+    if (usuario?.id_tenant) carregarPermissoes(usuario.id_tenant)
+  }, [usuario?.id_tenant, carregarPermissoes])
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
@@ -82,8 +96,10 @@ export default function AppLayout({ children }) {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          minWidth: 0,
+          p: fullBleed ? 0 : 3,
           width: { sm: `calc(100% - ${largura}px)` },
+          ...(fullBleed && { height: "100vh", display: "flex", flexDirection: "column" }),
           transition: (t) =>
             t.transitions.create("width", {
               easing: t.transitions.easing.easeInOut,
@@ -91,8 +107,12 @@ export default function AppLayout({ children }) {
             }),
         }}
       >
-        <Toolbar /> {/* espacador para o conteudo ficar abaixo da Navbar fixa */}
-        {children}
+        <Toolbar sx={{ flexShrink: 0 }} /> {/* espacador para o conteudo ficar abaixo da Navbar fixa */}
+        {fullBleed ? (
+          <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>{children}</Box>
+        ) : (
+          children
+        )}
       </Box>
     </Box>
   )

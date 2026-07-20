@@ -3,17 +3,18 @@
  *
  * Reune tarefas, reunioes, mentorias, eventos, entregas, prazos, workshops,
  * bancas, apresentacoes e vencimentos num unico calendario (tabela "evento",
- * distinguidos pelo campo categoria). Layout: sidebar (busca + calendarios +
- * mini calendario + proximos eventos) e area principal (toolbar + filtros +
- * grade do calendario). Clicar num evento abre o EventDrawer (nao um modal).
+ * distinguidos pelo campo categoria). Ocupa a viewport inteira (AppLayout em
+ * fullBleed): sidebar (busca + eventos do dia + filtros + mini calendario no
+ * rodape) e area principal (toolbar + grade do calendario). Clicar num evento
+ * abre o EventDrawer (nao um modal).
  */
 import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Box, Paper, Alert, IconButton, useTheme, useMediaQuery, Drawer } from "@mui/material"
 import { Menu as MenuIcon } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import CalendarSidebar from "../components/calendar/CalendarSidebar"
 import CalendarToolbar from "../components/calendar/CalendarToolbar"
-import CalendarFilters from "../components/calendar/CalendarFilters"
 import CalendarGrid from "../components/calendar/CalendarGrid"
 import EventDrawer from "../components/calendar/EventDrawer"
 import EventFormDrawer from "../components/calendar/EventFormDrawer"
@@ -66,6 +67,27 @@ export default function Eventos() {
   const abrirDetalhe = (evento) => setEventoSelecionado(evento)
   const fecharDetalhe = () => setEventoSelecionado(null)
 
+  // Deep link das notificacoes da Navbar (/eventos?data=<iso>&evento=<id>):
+  // posiciona o calendario na data e abre o detalhe assim que o evento chega.
+  const [parametros, setParametros] = useSearchParams()
+  const dataParam = parametros.get("data")
+  const eventoParam = parametros.get("evento")
+
+  useEffect(() => {
+    if (!dataParam) return
+    const data = new Date(dataParam)
+    if (!Number.isNaN(data.getTime())) calendario.irParaData(data)
+  }, [dataParam, calendario.irParaData])
+
+  useEffect(() => {
+    if (!eventoParam) return
+    const alvo = calendario.todosEventos.find((ev) => String(ev.id_evento) === eventoParam)
+    if (!alvo) return
+    setEventoSelecionado(alvo)
+    // Limpa a query para o drawer nao reabrir sozinho depois de fechado.
+    setParametros({}, { replace: true })
+  }, [eventoParam, calendario.todosEventos, setParametros])
+
   const abrirNovaAtividade = (data) => {
     setEventoEditar(null)
     setDataParaNovo(data || calendario.dataReferencia)
@@ -107,20 +129,24 @@ export default function Eventos() {
       onAlternarMeus={calendario.alternarSomenteMeus}
       dataSelecionada={calendario.dataReferencia}
       onSelecionarData={calendario.irParaData}
-      eventos={calendario.todosEventos}
+      eventos={calendario.eventos}
+      todosEventos={calendario.todosEventos}
       onSelecionarEvento={abrirDetalhe}
     />
   )
 
   return (
-    <AppLayout>
-      <Box sx={{ height: "calc(100vh - 112px)", display: "flex", flexDirection: "column" }}>
+    <AppLayout fullBleed>
+      <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         {!idTenant ? (
-          <Alert severity="info">
+          <Alert severity="info" sx={{ m: 3 }}>
             Seu usuario nao esta vinculado a nenhuma incubadora, entao nao ha calendario para exibir.
           </Alert>
         ) : (
-          <Paper sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", borderRadius: 3, overflow: "hidden" }}>
+          <Paper
+            elevation={0}
+            sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", borderRadius: 0, overflow: "hidden" }}
+          >
             {calendario.aviso && (
               <Alert severity={calendario.aviso.tipo} onClose={calendario.limparAviso} sx={{ borderRadius: 0 }}>
                 {calendario.aviso.texto}
@@ -147,8 +173,6 @@ export default function Eventos() {
               </Box>
             </Box>
 
-            <CalendarFilters categoriasAtivas={calendario.categoriasAtivas} onSelecionar={calendario.mostrarSomenteCategoria} />
-
             <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
               {mdUp ? (
                 conteudoSidebar
@@ -160,14 +184,18 @@ export default function Eventos() {
                 </Drawer>
               )}
 
-              <CalendarGrid
-                dataReferencia={calendario.dataReferencia}
-                visao={calendario.visao}
-                eventos={calendario.eventos}
-                carregando={calendario.carregando}
-                onSelecionarEvento={abrirDetalhe}
-                onSelecionarDia={irParaDia}
-              />
+              {/* O wrapper existe para o tour ter um alvo estavel: cada visao
+                  do CalendarGrid renderiza uma raiz diferente. */}
+              <Box data-tour="calendario-grade" sx={{ flex: 1, minWidth: 0, display: "flex" }}>
+                <CalendarGrid
+                  dataReferencia={calendario.dataReferencia}
+                  visao={calendario.visao}
+                  eventos={calendario.eventos}
+                  carregando={calendario.carregando}
+                  onSelecionarEvento={abrirDetalhe}
+                  onSelecionarDia={irParaDia}
+                />
+              </Box>
             </Box>
           </Paper>
         )}

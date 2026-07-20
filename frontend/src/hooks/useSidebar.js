@@ -9,12 +9,27 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { useMediaQuery, useTheme } from "@mui/material"
 import { useAuthStore } from "../store/authStore"
+import { usePermissaoStore } from "../store/permissaoStore"
 import { useSidebarPreferences } from "./useSidebarPreferences"
 import {
   menuPorPapel,
   resolverPapel,
   achatarMenu,
 } from "../components/sidebar/menuConfig"
+
+/**
+ * Remove do menu o que o usuario nao tem permissao de abrir, e os grupos que
+ * ficam vazios por consequencia — um grupo "Relatorios" sem nenhum relatorio
+ * dentro so ocuparia espaco para abrir e nao mostrar nada.
+ */
+function filtrarPorPermissao(menu, pode) {
+  return menu
+    .map((item) => {
+      if (!item.filhos) return item
+      return { ...item, filhos: item.filhos.filter((f) => pode(f.permissao)) }
+    })
+    .filter((item) => (item.filhos ? item.filhos.length > 0 : pode(item.permissao)))
+}
 
 /**
  * @param {object} params
@@ -32,8 +47,20 @@ export function useSidebar({ onNavegar } = {}) {
   const prefs = useSidebarPreferences()
 
   // --- Papel + menu ---
+  //
+  // Duas camadas: o PAPEL escolhe qual menu (admin/mentor/usuario/root) — sao
+  // navegacoes de formatos diferentes, nao subconjuntos uma da outra — e a
+  // PERMISSAO poda desse menu o que daria 403.
   const papel = useMemo(() => resolverPapel(usuario), [usuario])
-  const menu = useMemo(() => menuPorPapel(papel), [papel])
+  const chaves = usePermissaoStore((s) => s.chaves)
+  const pode = usePermissaoStore((s) => s.pode)
+  const menu = useMemo(
+    () => filtrarPorPermissao(menuPorPapel(papel), pode),
+    // `chaves` entra na lista porque `pode` e estavel (zustand) e nao
+    // dispararia o recalculo sozinho quando as permissoes chegassem.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [papel, pode, chaves]
+  )
   const itensPlanos = useMemo(() => achatarMenu(menu), [menu])
 
   // --- Deteccao de rota ativa ---

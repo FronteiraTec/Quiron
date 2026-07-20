@@ -5,7 +5,7 @@ const questionarioService = require("../services/questionarioService")
 
 async function listar(req, res, next) {
   try {
-    res.json({ questionarios: await questionarioService.listar(req.query.id_tenant) })
+    res.json({ questionarios: await questionarioService.listar(req.query.id_tenant, req.usuario) })
   } catch (err) {
     next(err)
   }
@@ -13,7 +13,7 @@ async function listar(req, res, next) {
 
 async function buscar(req, res, next) {
   try {
-    res.json({ questionario: await questionarioService.buscar(req.params.id) })
+    res.json({ questionario: await questionarioService.buscar(req.params.id, req.usuario) })
   } catch (err) {
     next(err)
   }

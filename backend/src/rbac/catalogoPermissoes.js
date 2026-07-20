@@ -43,6 +43,7 @@ const CATALOGO_PERMISSOES = [
       {
         recurso: "mentores",
         rotulo: "Mentores",
+        // Gestao da lista de mentores pelo admin: quem acompanha quem.
         acoes: [
           { acao: "visualizar", rotulo: "Visualizar" },
           { acao: "vincular", rotulo: "Vincular" },
@@ -80,14 +81,16 @@ const CATALOGO_PERMISSOES = [
   {
     modulo: "programa",
     rotulo: "Programa",
+    // Fases, Modulos e Tarefas eram TRES recursos porque eram tres CRUDs. A
+    // refatoracao os unificou em /trilha — um recurso so, com os tres niveis
+    // como nos da mesma arvore —, entao as chaves antigas foram removidas (ver
+    // a migracao 005). Jornada nao entra aqui de proposito: e a mesma trilha
+    // vista pelo incubado, sobre os dados da propria startup, e exigir
+    // permissao para alguem ver o proprio progresso so criaria um jeito novo
+    // de travar o incubado fora do sistema.
     recursos: [
-      { recurso: "fases", rotulo: "Fases", acoes: ACOES_CRUD_PADRAO },
-      { recurso: "modulos", rotulo: "Modulos", acoes: ACOES_CRUD_PADRAO },
-      {
-        recurso: "tarefas",
-        rotulo: "Tarefas",
-        acoes: [...ACOES_CRUD_PADRAO, { acao: "aprovar", rotulo: "Aprovar" }],
-      },
+      { recurso: "trilha", rotulo: "Trilha do programa", acoes: ACOES_CRUD_PADRAO },
+      { recurso: "biblioteca", rotulo: "Biblioteca de conteudos", acoes: ACOES_CRUD_PADRAO },
       { recurso: "questionarios", rotulo: "Questionarios", acoes: ACOES_CRUD_PADRAO },
     ],
   },
@@ -106,10 +109,12 @@ const CATALOGO_PERMISSOES = [
       {
         recurso: "avaliacoes",
         rotulo: "Avaliacoes",
+        // "Reabrir" saiu: nunca existiu no sistema e nao ha como existir do
+        // jeito que o dominio funciona — o reenvio APAGA as avaliacoes
+        // anteriores (jornadaRepository.reenviar), entao nao ha o que reabrir.
         acoes: [
           { acao: "visualizar", rotulo: "Visualizar" },
           { acao: "avaliar", rotulo: "Avaliar" },
-          { acao: "reabrir", rotulo: "Reabrir avaliacao" },
         ],
       },
     ],
@@ -174,14 +179,54 @@ const CATALOGO_PERMISSOES = [
           { acao: "gerenciar", rotulo: "Gerenciar roles e permissoes" },
         ],
       },
+      // A auditoria (quem fez o que, e quando) e registro de conformidade, nao
+      // relatorio de gestao: mora junto das demais configuracoes da incubadora.
+      {
+        recurso: "auditoria",
+        rotulo: "Auditoria",
+        acoes: [{ acao: "visualizar", rotulo: "Visualizar" }],
+      },
     ],
   },
   {
     modulo: "relatorios",
     rotulo: "Relatorios",
+    // Um recurso por relatorio: sao leituras de dominios diferentes (trilha,
+    // avaliacoes, eventos) e cada incubadora escolhe quem enxerga o que — o
+    // desempenho por mentor, em especial, nem sempre e para todo mundo.
     recursos: [
-      { recurso: "logs", rotulo: "Logs", acoes: [{ acao: "visualizar", rotulo: "Visualizar" }] },
-      { recurso: "auditoria", rotulo: "Auditoria", acoes: [{ acao: "visualizar", rotulo: "Visualizar" }] },
+      {
+        recurso: "progresso",
+        rotulo: "Progresso das startups",
+        acoes: [
+          { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "exportar", rotulo: "Exportar" },
+        ],
+      },
+      {
+        recurso: "entregas",
+        rotulo: "Entregas e avaliacoes",
+        acoes: [
+          { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "exportar", rotulo: "Exportar" },
+        ],
+      },
+      {
+        recurso: "gargalos",
+        rotulo: "Gargalos do programa",
+        acoes: [
+          { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "exportar", rotulo: "Exportar" },
+        ],
+      },
+      {
+        recurso: "engajamento",
+        rotulo: "Engajamento e eventos",
+        acoes: [
+          { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "exportar", rotulo: "Exportar" },
+        ],
+      },
     ],
   },
 ]

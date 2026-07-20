@@ -64,11 +64,11 @@ export default function Login() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #eef2ff 0%, #f5f7fb 100%)",
+        bgcolor: "#f5f7fb",
         p: 2,
       }}
     >
-      <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 400, borderRadius: 3 }}>
+      <Paper elevation={0} sx={{ p: 4, width: "100%", maxWidth: 400, borderRadius: 0, border: "1px solid", borderColor: "divider" }}>
         {/* Cabecalho */}
         <Box sx={{ textAlign: "center", mb: 3 }}>
           <Box

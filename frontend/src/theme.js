@@ -58,6 +58,20 @@ export function construirTema(prefs = PREFERENCIAS_PADRAO) {
     components: {
       MuiButton: { defaultProps: { size: compacta ? "small" : "medium" } },
       MuiTextField: { defaultProps: { size: compacta ? "small" : "medium" } },
+      // Paineis de secao (elevation 1-4) ficam solidos: sem sombra, sem
+      // gradiente de overlay do modo escuro, com borda fina no lugar da
+      // sombra. Elevacoes altas (menu, popover, dialog) mantem a sombra —
+      // sao overlays temporarios de verdade, nao "cards" de pagina.
+      MuiPaper: {
+        styleOverrides: {
+          root: ({ theme, ownerState }) => ({
+            backgroundImage: "none",
+            ...(ownerState.elevation !== undefined && ownerState.elevation <= 4
+              ? { boxShadow: "none", border: `1px solid ${theme.palette.divider}` }
+              : {}),
+          }),
+        },
+      },
     },
   })
 }

@@ -12,6 +12,8 @@ import {
   endOfMonth,
   startOfWeek,
   endOfWeek,
+  startOfDay,
+  endOfDay,
   addMonths,
   subMonths,
   addWeeks,
@@ -26,14 +28,14 @@ import { LISTA_CATEGORIAS } from "../components/calendar/categorias"
 function calcularPeriodo(dataReferencia, visao) {
   switch (visao) {
     case "dia":
-      return { inicio: dataReferencia, fim: dataReferencia }
+      return { inicio: startOfDay(dataReferencia), fim: endOfDay(dataReferencia) }
     case "semana":
       return {
         inicio: startOfWeek(dataReferencia, { weekStartsOn: 0 }),
         fim: endOfWeek(dataReferencia, { weekStartsOn: 0 }),
       }
     case "agenda":
-      return { inicio: dataReferencia, fim: addMonths(dataReferencia, 3) }
+      return { inicio: startOfDay(dataReferencia), fim: endOfDay(addMonths(dataReferencia, 3)) }
     case "mes":
     default:
       return {

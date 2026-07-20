@@ -152,6 +152,31 @@ async function garantirPermissao(idTenant, usuario, chave) {
   }
 }
 
+/**
+ * Versao nao-lancante de garantirPermissao: responde true/false.
+ *
+ * Existe porque nem toda checagem e um portao de "pode ou nao entrar". Nas
+ * regras compostas — onde a permissao RBAC e uma das varias formas de obter o
+ * direito — quem decide o erro final e o service de dominio, que sabe dizer se
+ * o problema foi falta de permissao ou falta de vinculo com a startup.
+ * @param {number} idTenant
+ * @param {{id:number, root?:boolean}} usuario
+ * @param {string} chave
+ * @returns {Promise<boolean>}
+ */
+async function temPermissao(idTenant, usuario, chave) {
+  if (usuario?.root) return true
+  return rbacRepository.usuarioTemPermissao(idTenant, usuario?.id, chave)
+}
+
+// `podeMentorar` foi removida em 20/07/2026. Ela existia para o modelo antigo,
+// em que o papel autorizava e a permissao apenas estendia: respondia "e mentor
+// OU tem a chave?". Com o RBAC autoritativo a pergunta virou so a chave, e as
+// duas coisas que ela guardava passaram a ser checadas direto onde importam —
+// avaliacoes.entregas.visualizar e avaliacoes.avaliacoes.avaliar, cruzadas com
+// o vinculo `mentor_startup`, que continua sendo um eixo separado (o QUE x o
+// PARA QUEM).
+
 /** Lista as chaves de permissao que o usuario logado possui no tenant. */
 async function minhasPermissoes(idTenant, usuario) {
   if (!idTenant) throw erroNegocio(400, "Informe o id_tenant.")
@@ -185,6 +210,7 @@ module.exports = {
   vincularUsuario,
   desvincularUsuario,
   garantirPermissao,
+  temPermissao,
   minhasPermissoes,
   redefinirSenhaUsuario,
 }

@@ -9,7 +9,7 @@
  * So itens ATIVOS aparecem (o que estiver inativo fica oculto para a startup).
  * E puramente visual: o "concluir" apenas marca localmente para dar a sensacao.
  */
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Box,
   Typography,
@@ -19,6 +19,8 @@ import {
   Chip,
   Divider,
   Avatar,
+  Stack,
+  Link,
 } from "@mui/material"
 import {
   Close,
@@ -32,26 +34,29 @@ import {
   ExpandMore,
   ChevronRight,
   EmojiEvents,
+  OpenInNew,
 } from "@mui/icons-material"
 import { motion, AnimatePresence } from "framer-motion"
-import { TIPO_META } from "../../data/programaMock"
+import { TIPO_META } from "../../data/trilhaMeta"
+import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
+import api from "../../services/api"
 
 export default function PreviewIncubada({ programa, onFechar }) {
   // Apenas conteudo ativo — assim a incubadora ve exatamente o que a startup ve.
   const fasesAtivas = useMemo(
     () =>
-      programa.fases
+      (programa.filhos ?? [])
         .filter((f) => f.ativo)
         .map((f) => ({
           ...f,
-          modulos: f.modulos
+          modulos: (f.filhos ?? [])
             .filter((m) => m.ativo)
-            .map((m) => ({ ...m, tarefas: m.tarefas.filter((t) => t.ativo) })),
+            .map((m) => ({ ...m, tarefas: (m.filhos ?? []).filter((t) => t.ativo) })),
         })),
     [programa]
   )
 
-  // Lista linear de tarefas (para navegacao anterior/proximo e progresso).
+  // Lista linear de passos (para navegacao anterior/proximo e progresso).
   const tarefas = useMemo(() => {
     const arr = []
     fasesAtivas.forEach((f) =>
@@ -62,15 +67,40 @@ export default function PreviewIncubada({ programa, onFechar }) {
     return arr
   }, [fasesAtivas])
 
-  const [atualId, setAtualId] = useState(tarefas[0]?.id ?? null)
+  const [atualId, setAtualId] = useState(tarefas[0]?.id_no ?? null)
   const [concluidas, setConcluidas] = useState(() => new Set())
   const [modulosAbertos, setModulosAbertos] = useState(
-    () => new Set(fasesAtivas.flatMap((f) => f.modulos.map((m) => m.id)))
+    () => new Set(fasesAtivas.flatMap((f) => f.modulos.map((m) => m.id_no)))
   )
 
-  const atual = tarefas.find((t) => t.id === atualId) || null
-  const indiceAtual = tarefas.findIndex((t) => t.id === atualId)
+  const atual = tarefas.find((t) => t.id_no === atualId) || null
+  const indiceAtual = tarefas.findIndex((t) => t.id_no === atualId)
   const progresso = tarefas.length ? (concluidas.size / tarefas.length) * 100 : 0
+
+  // Conteudos da Biblioteca vinculados ao passo atual (o que a incubadora
+  // ensina). Vem do servidor, ja que o vinculo vive em trilha_conteudo.
+  const [conteudosAtual, setConteudosAtual] = useState([])
+
+  useEffect(() => {
+    if (!atual) {
+      setConteudosAtual([])
+      return
+    }
+
+    let cancelado = false
+    api
+      .get(`/trilha/${atual.id_no}/conteudos`)
+      .then(({ data }) => {
+        if (!cancelado) setConteudosAtual(data.conteudos)
+      })
+      .catch(() => {
+        if (!cancelado) setConteudosAtual([])
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [atual])
 
   const alternarModulo = (id) =>
     setModulosAbertos((s) => {
@@ -81,10 +111,10 @@ export default function PreviewIncubada({ programa, onFechar }) {
 
   const concluir = () => {
     if (!atual) return
-    setConcluidas((s) => new Set(s).add(atual.id))
+    setConcluidas((s) => new Set(s).add(atual.id_no))
     // Avança automaticamente para a proxima tarefa, como numa trilha real.
     const prox = tarefas[indiceAtual + 1]
-    if (prox) setAtualId(prox.id)
+    if (prox) setAtualId(prox.id_no)
   }
 
   return (
@@ -168,7 +198,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
           }}
         >
           {fasesAtivas.map((fase) => (
-            <Box key={fase.id} sx={{ mb: 1 }}>
+            <Box key={fase.id_no} sx={{ mb: 1 }}>
               <Typography
                 variant="overline"
                 sx={{ px: 2, color: "text.secondary", fontWeight: 700 }}
@@ -176,11 +206,11 @@ export default function PreviewIncubada({ programa, onFechar }) {
                 {fase.nome}
               </Typography>
               {fase.modulos.map((mod) => {
-                const aberto = modulosAbertos.has(mod.id)
+                const aberto = modulosAbertos.has(mod.id_no)
                 return (
-                  <Box key={mod.id}>
+                  <Box key={mod.id_no}>
                     <Box
-                      onClick={() => alternarModulo(mod.id)}
+                      onClick={() => alternarModulo(mod.id_no)}
                       sx={{
                         display: "flex",
                         alignItems: "center",
@@ -208,12 +238,12 @@ export default function PreviewIncubada({ programa, onFechar }) {
                           style={{ overflow: "hidden" }}
                         >
                           {mod.tarefas.map((t) => {
-                            const feito = concluidas.has(t.id)
-                            const ativo = t.id === atualId
+                            const feito = concluidas.has(t.id_no)
+                            const ativo = t.id_no === atualId
                             return (
                               <Box
-                                key={t.id}
-                                onClick={() => setAtualId(t.id)}
+                                key={t.id_no}
+                                onClick={() => setAtualId(t.id_no)}
                                 sx={{
                                   display: "flex",
                                   alignItems: "center",
@@ -280,7 +310,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
             </Box>
           ) : (
             <motion.div
-              key={atual.id}
+              key={atual.id_no}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
@@ -335,6 +365,75 @@ export default function PreviewIncubada({ programa, onFechar }) {
                   {atual.descricao || "Esta tarefa ainda nao possui descricao. Assim que a incubadora preencher os detalhes, eles aparecerao aqui para a startup."}
                 </Typography>
 
+                {conteudosAtual.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ fontWeight: 700, display: "block", mb: 1 }}
+                    >
+                      CONTEUDO DA INCUBADORA
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      {conteudosAtual.map((c) => {
+                        const cmeta = TIPO_CONTEUDO[c.tipo]
+                        const CIcone = cmeta.icon
+                        const card = (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.5,
+                              p: 1.75,
+                              borderRadius: "8px",
+                              border: "1px solid",
+                              borderColor: "divider",
+                              transition: "border-color .15s",
+                              "&:hover": { borderColor: `${cmeta.cor}66` },
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "grid",
+                                placeItems: "center",
+                                width: 38,
+                                height: 38,
+                                borderRadius: 1.5,
+                                bgcolor: `${cmeta.cor}1f`,
+                                color: cmeta.cor,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <CIcone sx={{ fontSize: 20 }} />
+                            </Box>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography sx={{ fontWeight: 700, fontSize: 14 }} noWrap>
+                                {c.titulo}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                noWrap
+                                sx={{ display: "block" }}
+                              >
+                                {cmeta.label} · {c.resumo}
+                              </Typography>
+                            </Box>
+                            <OpenInNew sx={{ fontSize: 16, color: "text.disabled" }} />
+                          </Box>
+                        )
+                        return c.url ? (
+                          <Link key={c.id_conteudo} href={c.url} target="_blank" rel="noopener" underline="none">
+                            {card}
+                          </Link>
+                        ) : (
+                          <Box key={c.id_conteudo}>{card}</Box>
+                        )
+                      })}
+                    </Stack>
+                  </Box>
+                )}
+
                 {atual.entregavel && (
                   <Box
                     sx={{
@@ -363,7 +462,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
                 <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: 4 }}>
                   <Button
                     disabled={indiceAtual <= 0}
-                    onClick={() => setAtualId(tarefas[indiceAtual - 1].id)}
+                    onClick={() => setAtualId(tarefas[indiceAtual - 1].id_no)}
                     sx={{ textTransform: "none" }}
                   >
                     Anterior
@@ -372,14 +471,14 @@ export default function PreviewIncubada({ programa, onFechar }) {
                     onClick={concluir}
                     variant="contained"
                     startIcon={<CheckCircle />}
-                    disabled={concluidas.has(atual.id)}
+                    disabled={concluidas.has(atual.id_no)}
                     sx={{ textTransform: "none", borderRadius: "6px" }}
                   >
-                    {concluidas.has(atual.id) ? "Concluida" : "Marcar como concluida"}
+                    {concluidas.has(atual.id_no) ? "Concluida" : "Marcar como concluida"}
                   </Button>
                   <Button
                     disabled={indiceAtual >= tarefas.length - 1}
-                    onClick={() => setAtualId(tarefas[indiceAtual + 1].id)}
+                    onClick={() => setAtualId(tarefas[indiceAtual + 1].id_no)}
                     sx={{ textTransform: "none" }}
                   >
                     Proximo

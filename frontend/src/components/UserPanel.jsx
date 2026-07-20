@@ -42,6 +42,7 @@ import {
 } from "@mui/icons-material"
 import { useAuthStore } from "../store/authStore"
 import { usePreferenciaStore } from "../store/preferenciaStore"
+import { useTour } from "../tour/TourProvider"
 
 const ROTULO_PAPEL = { admin: "Administrador", mentor: "Mentor", usuario: "Usuario" }
 
@@ -124,6 +125,7 @@ export default function UserPanel({
   const preferencias = usePreferenciaStore((s) => s.preferencias)
   const atualizarLocal = usePreferenciaStore((s) => s.atualizarLocal)
   const salvarPreferencias = usePreferenciaStore((s) => s.salvar)
+  const tour = useTour()
 
   const [anchorEl, setAnchorEl] = useState(null)
   const aberto = Boolean(anchorEl)
@@ -137,6 +139,19 @@ export default function UserPanel({
     fechar()
     await logout()
     navigate("/login")
+  }
+
+  // "Fazer Tour" e resolvido aqui: fecha o painel e inicia o tutorial da tela
+  // atual (os passos de cada tela ficam em tour/tours.js). Os demais itens de
+  // ajuda continuam delegados a quem usa o componente.
+  const clicarAjuda = (chave) => {
+    if (chave === "tour") {
+      fechar()
+      // Espera o Popover fechar para o overlay medir a tela ja sem ele.
+      setTimeout(tour.iniciar, 220)
+      return
+    }
+    onAjudaItem?.(chave)
   }
 
   const persistir = async (patch) => {
@@ -207,14 +222,13 @@ export default function UserPanel({
           },
         }}
       >
-        {/* Cabecalho com gradiente na cor primaria */}
+        {/* Cabecalho solido na cor primaria */}
         <Box
           sx={{
             px: 3,
             pt: 3,
             pb: 2.5,
-            background: (t) =>
-              `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
+            bgcolor: "primary.main",
             color: (t) => t.palette.primary.contrastText,
           }}
         >
@@ -395,7 +409,7 @@ export default function UserPanel({
           </Typography>
           <Stack sx={{ mt: 0.5 }}>
             {AJUDA_ITENS.map(({ chave, label, Icone }) => (
-              <LinhaAcao key={chave} icone={Icone} label={label} onClick={() => onAjudaItem?.(chave)} />
+              <LinhaAcao key={chave} icone={Icone} label={label} onClick={() => clicarAjuda(chave)} />
             ))}
           </Stack>
         </Box>

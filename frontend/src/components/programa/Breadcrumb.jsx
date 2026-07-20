@@ -4,10 +4,13 @@
  */
 import { Box, Typography, Chip } from "@mui/material"
 import { NavigateNext } from "@mui/icons-material"
-import { TIPO_META } from "../../data/programaMock"
+import { TIPO_META } from "../../data/trilhaMeta"
 
 export default function Breadcrumb({ programa, trilha, onSelecionar }) {
-  const segmentos = [{ id: programa.id, nome: programa.nome, tipo: "programa" }, ...trilha]
+  const segmentos = [
+    { id_no: programa.id_no, nome: programa.nome, tipo: "PROGRAMA" },
+    ...trilha,
+  ]
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.5 }}>
@@ -15,10 +18,10 @@ export default function Breadcrumb({ programa, trilha, onSelecionar }) {
         const meta = TIPO_META[seg.tipo]
         const ultimo = i === segmentos.length - 1
         return (
-          <Box key={seg.id} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Box key={seg.id_no} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Chip
               size="small"
-              onClick={() => onSelecionar(seg.tipo === "programa" ? seg.id : seg.id)}
+              onClick={() => onSelecionar(seg.id_no)}
               label={seg.nome}
               sx={{
                 height: 22,

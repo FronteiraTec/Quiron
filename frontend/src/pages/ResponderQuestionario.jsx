@@ -1,13 +1,13 @@
 /**
- * Tela de resposta a um questionario dentro de uma tarefa.
+ * Tela de resposta a um questionario dentro de um PASSO da trilha.
  *
- * Fluxo: a tarefa e do tipo QUESTIONARIO e aponta para um questionario. Esta
+ * Fluxo: o passo e do tipo QUESTIONARIO e aponta para um questionario. Esta
  * tela carrega o questionario, renderiza cada pergunta conforme seu tipo
  * (texto curto, paragrafo, escolha unica, caixas de selecao) e envia as
  * respostas como uma ENTREGA da startup.
  *
  * Endpoints:
- *   GET  /tarefas/:id             -> a tarefa (tem id_questionario)
+ *   GET  /trilha/:id              -> o passo (tem tipo_passo e id_questionario)
  *   GET  /questionarios/:id       -> questionario com perguntas/alternativas
  *   GET  /startups?id_tenant=     -> startups (seletor de autoria da entrega)
  *   POST /entregas/questionario   -> grava entrega + respostas
@@ -40,12 +40,12 @@ import { useAuthStore } from "../store/authStore"
 const TIPOS_TEXTO = ["TEXTO_CURTO", "PARAGRAFO"]
 
 export default function ResponderQuestionario() {
-  const { idTarefa } = useParams()
+  const { idNo } = useParams()
   const navigate = useNavigate()
   const usuario = useAuthStore((s) => s.usuario)
   const idTenant = usuario?.id_tenant ?? null
 
-  const [tarefa, setTarefa] = useState(null)
+  const [passo, setPasso] = useState(null)
   const [questionario, setQuestionario] = useState(null)
   const [startups, setStartups] = useState([])
   const [startupId, setStartupId] = useState("")
@@ -64,17 +64,17 @@ export default function ResponderQuestionario() {
       setCarregando(true)
       setAviso(null)
       try {
-        const { data: tData } = await api.get(`/tarefas/${idTarefa}`)
-        const t = tData.tarefa
-        setTarefa(t)
+        const { data: pData } = await api.get(`/trilha/${idNo}`)
+        const p = pData.no
+        setPasso(p)
 
-        if (t.tipo !== "QUESTIONARIO" || !t.id_questionario) {
-          setAviso({ tipo: "error", texto: "Esta tarefa nao possui questionario." })
+        if (p.tipo_passo !== "QUESTIONARIO" || !p.id_questionario) {
+          setAviso({ tipo: "error", texto: "Este passo nao possui questionario." })
           return
         }
 
         const [qResp, sResp] = await Promise.all([
-          api.get(`/questionarios/${t.id_questionario}`),
+          api.get(`/questionarios/${p.id_questionario}`),
           idTenant ? api.get("/startups", { params: { id_tenant: idTenant } }) : Promise.resolve({ data: { startups: [] } }),
         ])
         setQuestionario(qResp.data.questionario)
@@ -87,7 +87,7 @@ export default function ResponderQuestionario() {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idTarefa])
+  }, [idNo])
 
   const setTexto = (idPergunta, texto) =>
     setRespostas((r) => ({ ...r, [idPergunta]: { texto } }))
@@ -122,7 +122,7 @@ export default function ResponderQuestionario() {
     setEnviando(true)
     try {
       await api.post("/entregas/questionario", {
-        id_tarefa: Number(idTarefa),
+        id_no: Number(idNo),
         id_startup: startupId,
         respostas: payload,
       })
@@ -136,7 +136,7 @@ export default function ResponderQuestionario() {
 
   return (
     <AppLayout>
-      <Box sx={{ maxWidth: 760, mx: "auto" }}>
+      <Box>
         <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
           Voltar
         </Button>
@@ -152,7 +152,7 @@ export default function ResponderQuestionario() {
             <CircularProgress />
           </Box>
         ) : enviado ? (
-          <Paper sx={{ p: 4, borderRadius: 3, textAlign: "center" }}>
+          <Paper sx={{ p: 4, borderRadius: 0, textAlign: "center" }}>
             <Quiz sx={{ fontSize: 48, color: "success.main" }} />
             <Typography variant="h6" sx={{ mt: 1 }}>
               Respostas enviadas!
@@ -167,16 +167,16 @@ export default function ResponderQuestionario() {
         ) : questionario ? (
           <Box component="form" onSubmit={enviar}>
             {/* Cabecalho */}
-            <Paper sx={{ p: 3, borderRadius: 3, mb: 2, borderTop: 6, borderColor: "primary.main" }}>
+            <Paper sx={{ p: 3, borderRadius: 0, mb: 2, borderTop: 6, borderColor: "primary.main" }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Quiz sx={{ color: "primary.main" }} />
                 <Typography variant="h5" fontWeight={700}>
                   {questionario.titulo}
                 </Typography>
               </Box>
-              {tarefa?.titulo && (
+              {passo?.nome && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Tarefa: {tarefa.titulo}
+                  Passo: {passo.nome}
                 </Typography>
               )}
               {questionario.descricao && (
@@ -205,7 +205,7 @@ export default function ResponderQuestionario() {
             {/* Perguntas */}
             <Stack spacing={2}>
               {questionario.perguntas.map((p, i) => (
-                <Paper key={p.id_pergunta} sx={{ p: 3, borderRadius: 3 }}>
+                <Paper key={p.id_pergunta} sx={{ p: 3, borderRadius: 0 }}>
                   <FormControl component="fieldset" fullWidth required={p.obrigatoria}>
                     <FormLabel component="legend" sx={{ mb: 1, color: "text.primary" }}>
                       <Typography component="span" fontWeight={600}>

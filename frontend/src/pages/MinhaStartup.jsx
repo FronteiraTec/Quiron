@@ -43,7 +43,7 @@ export default function MinhaStartup() {
 
   return (
     <AppLayout>
-      <Box sx={{ maxWidth: 1100, mx: "auto" }}>
+      <Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
           <RocketLaunch sx={{ color: "primary.main" }} />
           <Typography variant="h4" fontWeight={700}>
@@ -64,7 +64,7 @@ export default function MinhaStartup() {
           </Alert>
         ) : (
           <>
-            <Paper sx={{ borderRadius: 3, p: 2, mb: 3, display: "flex", alignItems: "center", gap: 2 }}>
+            <Paper sx={{ borderRadius: 0, p: 2, mb: 3, display: "flex", alignItems: "center", gap: 2 }}>
               <Typography variant="h6" fontWeight={700} sx={{ flex: 1 }}>
                 {startup.nome}
               </Typography>
@@ -76,7 +76,7 @@ export default function MinhaStartup() {
               />
             </Paper>
 
-            <Paper sx={{ borderRadius: 3, overflow: "hidden" }}>
+            <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
               <Tabs
                 value={aba}
                 onChange={(_, v) => setAba(v)}

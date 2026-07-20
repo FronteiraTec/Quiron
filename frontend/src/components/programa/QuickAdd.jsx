@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Box, InputBase, Button } from "@mui/material"
 import { Add } from "@mui/icons-material"
-import { TIPO_META } from "../../data/programaMock"
+import { TIPO_META } from "../../data/trilhaMeta"
 
 export default function QuickAdd({ tipoFilho, cor, indent = 0, onAdd }) {
   const [aberto, setAberto] = useState(false)

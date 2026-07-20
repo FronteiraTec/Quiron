@@ -1,3 +1,7 @@
 - [nginx restart após rebuild](nginx-restart-apos-rebuild.md) — rebuild de backend/frontend exige `docker restart nginx_proxy` senão dá 502
 - [sempre rebuild e restart](sempre-rebuild-e-restart.md) — após cada alteração, rebuildar e reiniciar pra o usuário ver no ar
 - [autorização admin por tenant](autorizacao-admin-por-tenant.md) — JWT não carrega papel; guard de admin é no service via tenantRepository.buscarPapel
+- [telas do mentor: entregas e feedback](telas-do-mentor-entregas-e-feedback.md) — recorte do mentor vem de mentor_startup, não de startup_membros; e as 3 telas de avaliação que se confundem
+- [anexos não são enviados ao servidor](anexos-nao-sao-enviados-ao-servidor.md) — não há upload; banco guarda blob:/nome, então o mentor não abre o anexo
+- [RBAC: papel é baseline, permissão estende](rbac-papel-e-baseline-permissao-estende.md) — a maquinaria sempre existiu mas era quase sem uso; permissão só concede, não revoga
+- [presença vs confirmação em eventos](presenca-vs-confirmacao-em-eventos.md) — RSVP e check-in são tabelas diferentes; a regra do "público" é duplicada em dois SQLs que precisam concordar

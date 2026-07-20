@@ -203,7 +203,7 @@ function VisaoSemana({ dataReferencia, eventos, onSelecionarEvento }) {
 function VisaoDia({ dataReferencia, eventos, onSelecionarEvento }) {
   const ordenados = [...eventos].sort((a, b) => new Date(a.inicio_ts) - new Date(b.inicio_ts))
   return (
-    <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 3, maxWidth: 640, mx: "auto", width: "100%" }}>
+    <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 3, maxWidth: 900, mx: "auto", width: "100%" }}>
       <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, textTransform: "capitalize" }}>
         {format(dataReferencia, "EEEE, d 'de' MMMM", { locale: ptBR })}
       </Typography>

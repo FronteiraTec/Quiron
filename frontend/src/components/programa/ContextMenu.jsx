@@ -11,7 +11,7 @@ import {
   ContentCopy,
   DeleteOutline,
 } from "@mui/icons-material"
-import { TIPO_META } from "../../data/programaMock"
+import { TIPO_META } from "../../data/trilhaMeta"
 
 export default function ContextMenu({ ancora, no, onFechar, acoes }) {
   if (!no) return null
@@ -32,14 +32,14 @@ export default function ContextMenu({ ancora, no, onFechar, acoes }) {
       slotProps={{ paper: { sx: { minWidth: 210, borderRadius: "8px", mt: 0.5 } } }}
     >
       {meta.childTipo && (
-        <MenuItem onClick={fechar(() => acoes.adicionar(no.id, meta.childTipo))}>
+        <MenuItem onClick={fechar(() => acoes.adicionar(no.id_no, meta.childTipo))}>
           <ListItemIcon>
             <Add fontSize="small" />
           </ListItemIcon>
           <ListItemText>Adicionar {meta.childLabel}</ListItemText>
         </MenuItem>
       )}
-      <MenuItem onClick={fechar(() => acoes.alternarAtivo(no.id))}>
+      <MenuItem onClick={fechar(() => acoes.alternarAtivo(no.id_no))}>
         <ListItemIcon>
           {no.ativo ? <ToggleOff fontSize="small" /> : <ToggleOn fontSize="small" />}
         </ListItemIcon>

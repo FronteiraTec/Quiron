@@ -12,10 +12,10 @@ import TreeNode from "./TreeNode"
 import QuickAdd from "./QuickAdd"
 import SearchInput from "./SearchInput"
 import EmptyState from "./EmptyState"
-import { TIPO_META } from "../../data/programaMock"
+import { TIPO_META } from "../../data/trilhaMeta"
 
 export default function ProgramTree({ arvore, termo, ctx }) {
-  const fases = arvore.fases
+  const fases = arvore.filhos ?? []
   const buscando = Boolean(termo.trim())
 
   return (
@@ -30,8 +30,8 @@ export default function ProgramTree({ arvore, termo, ctx }) {
               width: 34,
               height: 34,
               borderRadius: "7px",
-              bgcolor: `${TIPO_META.programa.cor}1f`,
-              color: TIPO_META.programa.cor,
+              bgcolor: `${TIPO_META.PROGRAMA.cor}1f`,
+              color: TIPO_META.PROGRAMA.cor,
             }}
           >
             <AutoStories sx={{ fontSize: 20 }} />
@@ -40,7 +40,7 @@ export default function ProgramTree({ arvore, termo, ctx }) {
             <Typography
               noWrap
               sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.2, cursor: "pointer" }}
-              onClick={() => ctx.setSelecionadoId(arvore.id)}
+              onClick={() => ctx.setSelecionadoId(arvore.id_no)}
             >
               {arvore.nome}
             </Typography>
@@ -73,16 +73,16 @@ export default function ProgramTree({ arvore, termo, ctx }) {
         )}
 
         {fases.map((fase) => (
-          <TreeNode key={fase.id} no={fase} nivel={0} ctx={ctx} />
+          <TreeNode key={fase.id_no} no={fase} nivel={0} ctx={ctx} />
         ))}
 
         {!buscando && (
           <Box sx={{ mt: 0.5 }}>
             <QuickAdd
-              tipoFilho="fase"
-              cor={TIPO_META.fase.cor}
+              tipoFilho="FASE"
+              cor={TIPO_META.FASE.cor}
               indent={0}
-              onAdd={(nome) => ctx.adicionar(null, "fase", nome)}
+              onAdd={(nome) => ctx.adicionar(arvore.id_no, "FASE", nome)}
             />
           </Box>
         )}

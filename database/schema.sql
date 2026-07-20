@@ -1,6 +1,20 @@
 CREATE TYPE papelEnum AS ENUM ('admin', 'mentor', 'usuario');
 CREATE TYPE statusStartup AS ENUM ('ATIVA', 'PAUSADA', 'ENCERRADA');
+-- Tipo de um PASSO da trilha (trilha_no.tipo_passo). Mantem o nome historico
+-- porque descreve a natureza da atividade, nao a tabela.
 CREATE TYPE tarefaTipo AS ENUM('TEXTO', 'ANEXO', 'VIDEO', 'QUESTIONARIO');
+-- Niveis da arvore da trilha (trilha_no.tipo). PROGRAMA e a raiz; PASSO e a
+-- folha — o que a startup executa e entrega.
+CREATE TYPE trilhaNoTipo AS ENUM ('PROGRAMA', 'FASE', 'MODULO', 'PASSO');
+-- Tipos de conteudo da Biblioteca (conteudo.tipo).
+CREATE TYPE conteudoTipo AS ENUM ('AULA', 'VIDEO', 'ARQUIVO', 'TEMPLATE', 'LINK');
+-- Blocos de uma AULA (conteudo_bloco.tipo), editor estilo Notion.
+CREATE TYPE blocoTipo AS ENUM (
+    'h1', 'h2', 'paragrafo', 'lista', 'callout', 'video', 'arquivo', 'divisor'
+);
+-- Estagio de uma submissao (entrega.status). Os demais estados do passo
+-- (AGUARDANDO, AJUSTE, APROVADO) sao derivados da tabela avaliacao.
+CREATE TYPE entregaStatus AS ENUM ('RASCUNHO', 'ENVIADA');
 -- Tipos de pergunta (estilo Google Forms):
 --   TEXTO_CURTO    -> resposta curta de uma linha (sem alternativas)
 --   PARAGRAFO      -> resposta longa / descritiva (sem alternativas)
@@ -161,100 +175,273 @@ CREATE TABLE IF NOT EXISTS mentor_startup (
 );
 
 
-CREATE TABLE IF NOT EXISTS fase (
-    id_fase INTEGER GENERATED ALWAYS AS IDENTITY,
-    id_tenant INTEGER NOT NULL,
-    nome VARCHAR(120) NOT NULL,
-	descricao TEXT NOT NULL,
-    ordem INTEGER NOT NULL,
-    ativa BOOLEAN NOT NULL DEFAULT TRUE,
-    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+-- ---------------------------------------------------------------------------
+-- TRILHA — a estrutura do programa de incubacao.
+--
+-- Uma arvore auto-referenciada de 4 niveis, garantidos pelo trigger
+-- trg_trilha_no_hierarquia:
+--
+--   PROGRAMA (raiz, id_pai NULL)
+--     └── FASE
+--           └── MODULO
+--                 └── PASSO   (folha: o que a startup executa e entrega)
+--
+-- Substitui as antigas tabelas fase/modulo/tarefa (ver
+-- database/migrations/001_biblioteca_trilha.sql). Uma tabela so, porque os
+-- tres niveis compartilham os mesmos campos e as mesmas operacoes — criar,
+-- reordenar, ativar, mover. Os campos exclusivos de PASSO ficam anulaveis.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS trilha_no (
+    id_no      INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_tenant  INTEGER NOT NULL,
+    id_pai     INTEGER,          -- NULL apenas para PROGRAMA (raiz)
 
-    CONSTRAINT pk_fase PRIMARY KEY (id_fase),
+    tipo       trilhaNoTipo NOT NULL,
+    nome       VARCHAR(200) NOT NULL,
+    descricao  TEXT,
+    ordem      INTEGER NOT NULL DEFAULT 1,
+    ativo      BOOLEAN NOT NULL DEFAULT TRUE,
 
-    CONSTRAINT fk_fase_tenant
+    -- ---- Campos que so fazem sentido em PASSO (folha) --------------------
+    tipo_passo      tarefaTipo,   -- TEXTO | ANEXO | VIDEO | QUESTIONARIO
+    permite_entrega BOOLEAN NOT NULL DEFAULT FALSE,
+    obrigatoria     BOOLEAN NOT NULL DEFAULT TRUE,
+    id_questionario INTEGER,
+    anexo           TEXT,
+    prazo           DATE,
+    carga_horaria   VARCHAR(20),
+    entregavel      TEXT,
+
+    -- Moldura pedagogica: a Jornada nao mostra so "faca isto", mostra o
+    -- objetivo, o porque, o que treina e que AREA da empresa o passo constroi
+    -- (eixo do blueprint em "Minha Empresa").
+    objetivo        TEXT,
+    porque          TEXT,
+    competencias    TEXT[] NOT NULL DEFAULT '{}',
+    area            VARCHAR(40),
+
+    criado_ts     TIMESTAMP NOT NULL DEFAULT NOW(),
+    atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_trilha_no PRIMARY KEY (id_no),
+
+    CONSTRAINT fk_trilha_no_tenant
         FOREIGN KEY (id_tenant)
         REFERENCES tenant (id_tenant)
         ON DELETE CASCADE,
 
-    CONSTRAINT uk_fase_tenant_ordem
-        UNIQUE (id_tenant, ordem)
-);
-
-
-CREATE TABLE IF NOT EXISTS modulo (
-    id_modulo INTEGER GENERATED ALWAYS AS IDENTITY,
-    id_fase INTEGER NOT NULL,
-    nome VARCHAR(120) NOT NULL,
-	descricao TEXT NOT NULL,
-    ordem INTEGER NOT NULL,
-    ativo BOOLEAN NOT NULL DEFAULT TRUE,
-    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
-
-    CONSTRAINT pk_modulo PRIMARY KEY (id_modulo),
-
-    CONSTRAINT fk_modulo_fase
-        FOREIGN KEY (id_fase)
-        REFERENCES fase (id_fase)
+    -- Apagar um no leva a subarvore junto.
+    CONSTRAINT fk_trilha_no_pai
+        FOREIGN KEY (id_pai)
+        REFERENCES trilha_no (id_no)
         ON DELETE CASCADE,
 
-    CONSTRAINT uk_modulo_fase_ordem
-        UNIQUE (id_fase, ordem)
+    -- fk_trilha_no_questionario e adicionada via ALTER logo apos a criacao da
+    -- tabela questionarios, que vem mais abaixo neste arquivo.
+
+    -- So a raiz pode ser orfa.
+    CONSTRAINT ck_trilha_no_raiz CHECK (
+        (tipo = 'PROGRAMA' AND id_pai IS NULL)
+        OR (tipo <> 'PROGRAMA' AND id_pai IS NOT NULL)
+    ),
+
+    CONSTRAINT ck_trilha_no_questionario CHECK (
+        id_questionario IS NULL OR tipo_passo = 'QUESTIONARIO'
+    ),
+
+    -- Area so faz sentido num PASSO — e o que liga a trilha ao blueprint.
+    CONSTRAINT ck_trilha_no_area CHECK (
+        area IS NULL OR tipo = 'PASSO'
+    ),
+
+    -- DEFERRABLE: o Construtor reindexa ordem 1..n a cada drag-and-drop; sem
+    -- isso o UPDATE em lote colide consigo mesmo no meio do caminho.
+    CONSTRAINT uk_trilha_no_ordem
+        UNIQUE (id_pai, ordem)
+        DEFERRABLE INITIALLY DEFERRED
 );
 
-CREATE TABLE IF NOT EXISTS tarefa (
-    id_tarefa INTEGER GENERATED ALWAYS AS IDENTITY,
-    id_modulo INTEGER NOT NULL,
-	id_questionario INTEGER,
-    titulo VARCHAR(150) NOT NULL,
-    descricao TEXT,
-    tipo tarefaTipo NOT NULL,
-    permite_entrega BOOLEAN NOT NULL DEFAULT FALSE,
-    obrigatoria BOOLEAN NOT NULL DEFAULT TRUE,
-    ordem INTEGER NOT NULL,
-    ativo BOOLEAN NOT NULL DEFAULT TRUE,
-    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
-	anexo TEXT,
+CREATE INDEX IF NOT EXISTS ix_trilha_no_pai    ON trilha_no (id_pai, ordem);
+CREATE INDEX IF NOT EXISTS ix_trilha_no_tenant ON trilha_no (id_tenant, tipo);
 
-    CONSTRAINT pk_tarefa PRIMARY KEY (id_tarefa),
 
-    CONSTRAINT fk_tarefa_modulo
-        FOREIGN KEY (id_modulo)
-        REFERENCES modulo (id_modulo)
+-- Garante PROGRAMA > FASE > MODULO > PASSO. Um CHECK nao alcanca a linha do
+-- pai, entao a regra vive num trigger.
+CREATE OR REPLACE FUNCTION fn_trilha_no_hierarquia()
+RETURNS TRIGGER AS $$
+DECLARE
+    tipo_pai trilhaNoTipo;
+    esperado trilhaNoTipo;
+BEGIN
+    IF NEW.id_pai IS NULL THEN
+        RETURN NEW;  -- raiz: ck_trilha_no_raiz ja garante que e PROGRAMA
+    END IF;
+
+    SELECT tipo INTO tipo_pai FROM trilha_no WHERE id_no = NEW.id_pai;
+
+    esperado := CASE tipo_pai
+        WHEN 'PROGRAMA' THEN 'FASE'
+        WHEN 'FASE'     THEN 'MODULO'
+        WHEN 'MODULO'   THEN 'PASSO'
+        ELSE NULL
+    END;
+
+    IF esperado IS NULL THEN
+        RAISE EXCEPTION 'PASSO e folha: nao aceita filhos (no pai %)', NEW.id_pai;
+    END IF;
+
+    IF NEW.tipo <> esperado THEN
+        RAISE EXCEPTION 'Filho de % deve ser %, recebido %',
+            tipo_pai, esperado, NEW.tipo;
+    END IF;
+
+    IF NEW.id_tenant <> (SELECT id_tenant FROM trilha_no WHERE id_no = NEW.id_pai) THEN
+        RAISE EXCEPTION 'No e pai devem pertencer ao mesmo tenant';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_trilha_no_hierarquia ON trilha_no;
+CREATE TRIGGER trg_trilha_no_hierarquia
+    BEFORE INSERT OR UPDATE OF id_pai, tipo ON trilha_no
+    FOR EACH ROW EXECUTE FUNCTION fn_trilha_no_hierarquia();
+
+
+-- ---------------------------------------------------------------------------
+-- BIBLIOTECA — o acervo reutilizavel do que a incubadora ensina.
+--
+-- Separada da trilha de proposito: um conteudo nao tem posicao nem prazo, e
+-- pode ser referenciado por varios passos, de varios programas. Editar a aula
+-- nao mexe na trilha; reordenar a trilha nao mexe na aula.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS conteudo (
+    id_conteudo  INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_tenant    INTEGER NOT NULL,
+
+    tipo         conteudoTipo NOT NULL,
+    titulo       VARCHAR(200) NOT NULL,
+    resumo       TEXT,
+    tags         TEXT[] NOT NULL DEFAULT '{}',
+
+    -- Campos por tipo; ck_conteudo_corpo garante o minimo de cada um.
+    url          TEXT,           -- VIDEO, LINK, ARQUIVO, TEMPLATE
+    nome_arquivo VARCHAR(255),   -- ARQUIVO, TEMPLATE
+    duracao      VARCHAR(20),    -- AULA, VIDEO (texto livre: "8 min")
+
+    -- Marca do conteudo no acervo (data URL base64 ou link http). Opcional:
+    -- sem ela o card usa o icone do tipo. Ver migrations/003_conteudo_logo.sql.
+    logo_url     TEXT,
+
+    criado_por    INTEGER,
+    criado_ts     TIMESTAMP NOT NULL DEFAULT NOW(),
+    atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_conteudo PRIMARY KEY (id_conteudo),
+
+    CONSTRAINT fk_conteudo_tenant
+        FOREIGN KEY (id_tenant)
+        REFERENCES tenant (id_tenant)
         ON DELETE CASCADE,
 
-    CONSTRAINT uk_tarefa_modulo_ordem
-        UNIQUE (id_modulo, ordem)
+    CONSTRAINT fk_conteudo_criado_por
+        FOREIGN KEY (criado_por)
+        REFERENCES usuarios (id_usuario),
 
+    -- AULA guarda o corpo em conteudo_bloco, entao nao exige url.
+    CONSTRAINT ck_conteudo_corpo CHECK (
+        (tipo IN ('LINK', 'VIDEO') AND url IS NOT NULL AND url <> '')
+        OR tipo IN ('AULA', 'ARQUIVO', 'TEMPLATE')
+    )
 );
 
+CREATE INDEX IF NOT EXISTS ix_conteudo_tenant      ON conteudo (id_tenant);
+CREATE INDEX IF NOT EXISTS ix_conteudo_tenant_tipo ON conteudo (id_tenant, tipo);
+CREATE INDEX IF NOT EXISTS ix_conteudo_tags        ON conteudo USING GIN (tags);
 
-CREATE TABLE IF NOT EXISTS startup_fase (
-    id_startup_fase INTEGER GENERATED ALWAYS AS IDENTITY,
+
+-- Corpo da AULA: lista ordenada de blocos (editor estilo Notion).
+CREATE TABLE IF NOT EXISTS conteudo_bloco (
+    id_bloco    INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_conteudo INTEGER NOT NULL,
+
+    tipo        blocoTipo NOT NULL,
+    ordem       INTEGER NOT NULL,
+    texto       TEXT,
+    url         TEXT,           -- blocos video/arquivo
+    nome        VARCHAR(255),   -- rotulo do embed/anexo
+    variante    VARCHAR(20),    -- callout: dica | atencao | erro
+
+    CONSTRAINT pk_conteudo_bloco PRIMARY KEY (id_bloco),
+
+    CONSTRAINT fk_bloco_conteudo
+        FOREIGN KEY (id_conteudo)
+        REFERENCES conteudo (id_conteudo)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uk_bloco_ordem
+        UNIQUE (id_conteudo, ordem)
+        DEFERRABLE INITIALLY DEFERRED
+);
+
+CREATE INDEX IF NOT EXISTS ix_bloco_conteudo ON conteudo_bloco (id_conteudo, ordem);
+
+
+-- Juncao: quais conteudos da Biblioteca um PASSO ensina.
+-- E aqui que "reutilizar" acontece — o passo aponta, nao copia.
+CREATE TABLE IF NOT EXISTS trilha_conteudo (
+    id_no       INTEGER NOT NULL,
+    id_conteudo INTEGER NOT NULL,
+    ordem       INTEGER NOT NULL DEFAULT 1,
+
+    CONSTRAINT pk_trilha_conteudo PRIMARY KEY (id_no, id_conteudo),
+
+    CONSTRAINT fk_tc_no
+        FOREIGN KEY (id_no)
+        REFERENCES trilha_no (id_no)
+        ON DELETE CASCADE,
+
+    -- RESTRICT de proposito: excluir da Biblioteca um conteudo em uso deve
+    -- falhar e avisar, nao sumir silenciosamente da trilha.
+    CONSTRAINT fk_tc_conteudo
+        FOREIGN KEY (id_conteudo)
+        REFERENCES conteudo (id_conteudo)
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS ix_tc_conteudo ON trilha_conteudo (id_conteudo);
+
+
+-- Progresso de uma startup em um no da trilha. Antes so rastreava fases
+-- (startup_fase); agora aceita qualquer no, embora na pratica o uso continue
+-- sendo em FASE.
+CREATE TABLE IF NOT EXISTS startup_trilha (
+    id_startup_trilha INTEGER GENERATED ALWAYS AS IDENTITY,
     id_startup INTEGER NOT NULL,
-    id_fase INTEGER NOT NULL,
+    id_no INTEGER NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'EM_ANDAMENTO',
     inicio_ts TIMESTAMP NOT NULL DEFAULT NOW(),
     fim_ts TIMESTAMP,
     aprovado_por INTEGER,
 
-    CONSTRAINT pk_startup_fase PRIMARY KEY (id_startup_fase),
+    CONSTRAINT pk_startup_trilha PRIMARY KEY (id_startup_trilha),
 
-    CONSTRAINT fk_startup_fase_startup
+    CONSTRAINT fk_startup_trilha_startup
         FOREIGN KEY (id_startup)
         REFERENCES startup (id_startup)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_startup_fase_fase
-        FOREIGN KEY (id_fase)
-        REFERENCES fase (id_fase)
+    CONSTRAINT fk_startup_trilha_no
+        FOREIGN KEY (id_no)
+        REFERENCES trilha_no (id_no)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_startup_fase_aprovado_por
+    CONSTRAINT fk_startup_trilha_aprovado_por
         FOREIGN KEY (aprovado_por)
         REFERENCES usuarios (id_usuario),
 
-    CONSTRAINT ck_startup_fase_status
+    CONSTRAINT ck_startup_trilha_status
         CHECK (status IN (
             'EM_ANDAMENTO',
             'AGUARDANDO_APROVACAO',
@@ -262,6 +449,8 @@ CREATE TABLE IF NOT EXISTS startup_fase (
             'REPROVADA'
         ))
 );
+
+CREATE INDEX IF NOT EXISTS ix_startup_trilha_no ON startup_trilha (id_no);
 
 
 CREATE TABLE IF NOT EXISTS startup_canvas (
@@ -348,8 +537,15 @@ CREATE TABLE IF NOT EXISTS questionarios (
         FOREIGN KEY (id_tenant)
         REFERENCES tenant (id_tenant)
         ON DELETE CASCADE
-	
+
 );
+
+-- Fecha o ciclo trilha_no -> questionarios. Fica aqui, e nao no CREATE TABLE
+-- de trilha_no, porque aquela tabela e declarada antes desta.
+ALTER TABLE trilha_no DROP CONSTRAINT IF EXISTS fk_trilha_no_questionario;
+ALTER TABLE trilha_no ADD CONSTRAINT fk_trilha_no_questionario
+    FOREIGN KEY (id_questionario) REFERENCES questionarios (id_questionario);
+
 CREATE TABLE IF NOT EXISTS pergunta (
 	id_pergunta INTEGER GENERATED ALWAYS AS IDENTITY,
 	id_questionario INTEGER,
@@ -389,19 +585,27 @@ CREATE TABLE IF NOT EXISTS alternativa (
 CREATE TABLE IF NOT EXISTS entrega (
     id_entrega INTEGER GENERATED ALWAYS AS IDENTITY,
 
-    id_tarefa INTEGER NOT NULL,
+    -- O PASSO da trilha ao qual esta submissao responde.
+    id_no INTEGER NOT NULL,
     id_startup INTEGER NOT NULL,
     id_usuario INTEGER NOT NULL,
     texto_resposta TEXT,
     arquivo_url TEXT,
+    anexos TEXT[] NOT NULL DEFAULT '{}',
+
+    -- RASCUNHO: salvo pelo incubado, ainda nao foi ao mentor.
+    -- ENVIADA:  submetida, aguardando avaliacao.
+    -- Os demais estados do passo sao derivados da tabela avaliacao.
+    status entregaStatus NOT NULL DEFAULT 'ENVIADA',
 
     criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+    atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
 
     CONSTRAINT pk_entrega PRIMARY KEY (id_entrega),
 
-    CONSTRAINT fk_entrega_tarefa
-        FOREIGN KEY (id_tarefa)
-        REFERENCES tarefa (id_tarefa)
+    CONSTRAINT fk_entrega_no
+        FOREIGN KEY (id_no)
+        REFERENCES trilha_no (id_no)
         ON DELETE CASCADE,
 
     CONSTRAINT fk_entrega_startup
@@ -413,6 +617,14 @@ CREATE TABLE IF NOT EXISTS entrega (
         FOREIGN KEY (id_usuario)
         REFERENCES usuarios (id_usuario)
 );
+
+-- Uma startup tem UMA entrega por passo, reescrita a cada rascunho/reenvio.
+-- Sem isto, salvar o rascunho duas vezes criaria duas linhas e o estado do
+-- passo dependeria de qual delas a consulta pegasse primeiro.
+CREATE UNIQUE INDEX IF NOT EXISTS uk_entrega_passo_startup
+    ON entrega (id_no, id_startup);
+
+CREATE INDEX IF NOT EXISTS ix_entrega_startup ON entrega (id_startup);
 
 CREATE TABLE IF NOT EXISTS resposta (
     id_resposta INTEGER GENERATED ALWAYS AS IDENTITY,

@@ -48,9 +48,7 @@ import api from "../services/api"
 import AbaMembros from "../components/startup/AbaMembros"
 import AbaModelos from "../components/startup/AbaModelos"
 import AbaFasesConcluidas from "../components/startup/AbaFasesConcluidas"
-
-const STATUS_ROTULO = { ATIVA: "Ativa", PAUSADA: "Pausada", ENCERRADA: "Concluída" }
-const STATUS_COR = { ATIVA: "success", PAUSADA: "warning", ENCERRADA: "default" }
+import { STATUS_ROTULO, STATUS_COR } from "../data/startupMeta"
 
 export default function StartupDetail() {
   const { id } = useParams()
@@ -135,7 +133,7 @@ export default function StartupDetail() {
 
   return (
     <AppLayout>
-      <Box sx={{ maxWidth: 1100, mx: "auto" }}>
+      <Box>
         <Button startIcon={<ArrowBack />} onClick={() => navigate("/startups")} sx={{ mb: 2 }}>
           Voltar
         </Button>
@@ -146,7 +144,7 @@ export default function StartupDetail() {
           </Alert>
         )}
 
-        <Paper sx={{ borderRadius: 3, p: 3, mb: 3 }}>
+        <Paper sx={{ borderRadius: 0, p: 3, mb: 3 }}>
           <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <RocketLaunch sx={{ color: "primary.main", fontSize: 32 }} />
@@ -200,7 +198,7 @@ export default function StartupDetail() {
           </Box>
         </Paper>
 
-        <Paper sx={{ borderRadius: 3, overflow: "hidden" }}>
+        <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
           <Tabs
             value={aba}
             onChange={(_, v) => setAba(v)}

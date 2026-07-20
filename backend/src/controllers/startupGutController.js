@@ -5,7 +5,7 @@ const startupGutService = require("../services/startupGutService")
 
 async function listar(req, res, next) {
   try {
-    res.json({ itens: await startupGutService.listar(req.params.id) })
+    res.json({ itens: await startupGutService.listar(req.params.id, req.usuario) })
   } catch (err) {
     next(err)
   }
@@ -13,7 +13,7 @@ async function listar(req, res, next) {
 
 async function criar(req, res, next) {
   try {
-    const item = await startupGutService.criar(req.params.id, req.body)
+    const item = await startupGutService.criar(req.params.id, req.body, req.usuario)
     res.status(201).json({ item })
   } catch (err) {
     next(err)
@@ -22,7 +22,7 @@ async function criar(req, res, next) {
 
 async function remover(req, res, next) {
   try {
-    await startupGutService.remover(req.params.id, req.params.idGut)
+    await startupGutService.remover(req.params.id, req.params.idGut, req.usuario)
     res.status(204).end()
   } catch (err) {
     next(err)

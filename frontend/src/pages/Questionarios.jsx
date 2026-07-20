@@ -217,7 +217,7 @@ export default function Questionarios() {
 
   return (
     <AppLayout>
-      <Box sx={{ maxWidth: 1000, mx: "auto" }}>
+      <Box>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Quiz sx={{ color: "primary.main" }} />
@@ -251,7 +251,7 @@ export default function Questionarios() {
             <CircularProgress />
           </Box>
         ) : (
-          <Paper sx={{ borderRadius: 3, overflow: "hidden" }}>
+          <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
             {questionarios.length === 0 ? (
               <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
                 <Quiz sx={{ fontSize: 48, opacity: 0.4 }} />
@@ -356,7 +356,7 @@ export default function Questionarios() {
               </Divider>
 
               {form.perguntas.map((p, i) => (
-                <Paper key={i} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Paper key={i} variant="outlined" sx={{ p: 2, borderRadius: 0 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
                     <DragIndicator sx={{ color: "text.disabled" }} />
                     <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>

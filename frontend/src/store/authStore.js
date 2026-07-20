@@ -8,6 +8,7 @@
 import { create } from "zustand"
 import api, { TOKEN_KEY } from "../services/api"
 import { usePreferenciaStore } from "./preferenciaStore"
+import { usePermissaoStore } from "./permissaoStore"
 
 export const useAuthStore = create((set) => ({
   // Estado inicial: recupera o token salvo (se houver).
@@ -37,6 +38,9 @@ export const useAuthStore = create((set) => ({
     }
     localStorage.removeItem(TOKEN_KEY)
     set({ token: null, usuario: null })
+    // Sem isto o proximo usuario herdaria as chaves do anterior ate o
+    // AppLayout recarregar — e veria, por um instante, um menu que nao e dele.
+    usePermissaoStore.getState().limpar()
     // Volta as preferencias visuais ao padrao para o proximo usuario.
     usePreferenciaStore.getState().resetar()
   },

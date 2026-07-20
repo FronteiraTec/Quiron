@@ -11,6 +11,9 @@ router.use(autenticar)
 
 router.get("/", ctrl.listar) // ?id_tenant=
 router.get("/minha", ctrl.buscarMinha) // ?id_tenant= (startup do usuario logado)
+// Antes de "/:id", como o /minha acima: senao "membros" seria lido como o id
+// de uma startup.
+router.get("/membros", ctrl.listarMembrosDoTenant) // ?id_tenant= (todas as startups)
 router.get("/:id", ctrl.buscar)
 router.post("/", ctrl.criar)
 router.put("/:id", ctrl.atualizar)
@@ -18,6 +21,9 @@ router.patch("/:id/status", ctrl.atualizarStatus)
 router.get("/:id/membros", ctrl.listarMembros)
 router.post("/:id/membros", ctrl.adicionarMembro)
 router.delete("/:id/membros/:idUsuario", ctrl.removerMembro)
+// Quem acompanha esta startup. O vinculo e gerido em /mentores; aqui e so a
+// leitura pelo lado da startup, ao lado dos membros.
+router.get("/:id/mentores", require("../controllers/mentorController").listarPorStartup)
 router.get("/:id/fases-concluidas", ctrl.listarFasesConcluidas)
 
 const canvasCtrl = require("../controllers/startupCanvasController")

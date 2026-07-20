@@ -140,6 +140,140 @@ async function excluir(id) {
   return rows[0]
 }
 
+// ---------------------------------------------------------------------------
+// PRESENCA (check-in) — nao confundir com CONFIRMACAO (RSVP), abaixo.
+//
+// evento_confirmacao = "pretendo ir", escrito pelo proprio usuario.
+// evento_presenca    = "esteve la", escrito por um admin (marcado_por).
+//
+// As funcoes confirmarPresenca/listarParticipantes tem "presenca" no nome mas
+// tratam do RSVP — o nome e anterior a esta distincao.
+// ---------------------------------------------------------------------------
+
+/**
+ * Quem foi convidado para um evento.
+ *
+ * Um evento sem linhas em evento_startups e GERAL: vale para todas as startups
+ * incubadas. Com linhas, so para as listadas.
+ *
+ * ESTA REGRA PRECISA CONCORDAR com SQL_PUBLICO_EVENTOS em relatorioRepository,
+ * que calcula o mesmo publico em lote para o relatorio de engajamento. Se as
+ * duas divergirem, a tela de presenca marca gente que o relatorio nao conta (ou
+ * o contrario) e a taxa de presenca fica sem sentido. Sao dois SQLs porque as
+ * formas sao diferentes — aqui uma linha por PESSOA de UM evento, la uma linha
+ * por (evento, pessoa) de um periodo inteiro — mas o criterio e o mesmo:
+ * membros ativos de startups nao encerradas do tenant, respeitando o
+ * direcionamento.
+ *
+ * Uma pessoa aparece UMA vez mesmo pertencendo a varias startups: a presenca e
+ * por (evento, usuario), entao duas linhas seriam dois checkboxes editando o
+ * mesmo registro. As startups dela vem agregadas em `startups`.
+ */
+async function listarPublico(idEvento) {
+  const { rows } = await query(
+    `SELECT u.id_usuario, u.nome, u.email, u.foto_url,
+            json_agg(json_build_object('id_startup', s.id_startup, 'nome', s.nome)
+                     ORDER BY s.nome) AS startups,
+            c.status                        AS confirmacao,
+            p.presente,
+            p.checkin_ts,
+            mp.nome                         AS marcado_por_nome
+       FROM evento ev
+       JOIN startup s
+         ON s.id_tenant = ev.id_tenant AND s.status <> 'ENCERRADA'
+       JOIN startup_membros sm
+         ON sm.id_startup = s.id_startup AND sm.ativo = TRUE
+       JOIN usuarios u ON u.id_usuario = sm.id_usuario
+       LEFT JOIN evento_confirmacao c
+              ON c.id_evento = ev.id_evento AND c.id_usuario = u.id_usuario
+       LEFT JOIN evento_presenca p
+              ON p.id_evento = ev.id_evento AND p.id_usuario = u.id_usuario
+       LEFT JOIN usuarios mp ON mp.id_usuario = p.marcado_por
+      WHERE ev.id_evento = $1
+        AND ev.ativo = TRUE
+        AND (
+          NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = ev.id_evento)
+          OR EXISTS (
+            SELECT 1 FROM evento_startups es
+             WHERE es.id_evento = ev.id_evento AND es.id_startup = s.id_startup
+          )
+        )
+      GROUP BY u.id_usuario, u.nome, u.email, u.foto_url,
+               c.status, p.presente, p.checkin_ts, mp.nome
+      ORDER BY u.nome`,
+    [idEvento]
+  )
+  return rows
+}
+
+/**
+ * Eventos ja iniciados do tenant com o andamento da marcacao de presenca.
+ *
+ * `marcados` conta quem ja tem linha em evento_presenca (presente OU ausente):
+ * e o que diz se o admin ja passou por este evento. Sem essa distincao, um
+ * evento onde todos faltaram pareceria "nao marcado".
+ */
+async function listarResumoPresenca(idTenant, dias) {
+  const { rows } = await query(
+    `SELECT ev.id_evento, ev.titulo, ev.categoria, ev.inicio_ts, ev.local,
+            ev.obrigatorio,
+            -- ::int porque COUNT devolve bigint, que o pg entrega como STRING:
+            -- sem o cast a tela compara e soma texto ("10" < "9").
+            COUNT(DISTINCT u.id_usuario)::int                             AS publico,
+            COUNT(DISTINCT u.id_usuario) FILTER (WHERE p.id_usuario IS NOT NULL)::int AS marcados,
+            COUNT(DISTINCT u.id_usuario) FILTER (WHERE p.presente)::int   AS presentes
+       FROM evento ev
+       JOIN startup s
+         ON s.id_tenant = ev.id_tenant AND s.status <> 'ENCERRADA'
+       JOIN startup_membros sm
+         ON sm.id_startup = s.id_startup AND sm.ativo = TRUE
+       JOIN usuarios u ON u.id_usuario = sm.id_usuario
+       LEFT JOIN evento_presenca p
+              ON p.id_evento = ev.id_evento AND p.id_usuario = u.id_usuario
+      WHERE ev.id_tenant = $1
+        AND ev.ativo = TRUE
+        AND ev.inicio_ts <= NOW()
+        AND ev.inicio_ts >= NOW() - make_interval(days => $2)
+        AND (
+          NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = ev.id_evento)
+          OR EXISTS (
+            SELECT 1 FROM evento_startups es
+             WHERE es.id_evento = ev.id_evento AND es.id_startup = s.id_startup
+          )
+        )
+      GROUP BY ev.id_evento, ev.titulo, ev.categoria, ev.inicio_ts, ev.local,
+               ev.obrigatorio
+      ORDER BY ev.inicio_ts DESC`,
+    [idTenant, dias]
+  )
+  return rows
+}
+
+/**
+ * Marca presenca/ausencia de varias pessoas de uma vez.
+ *
+ * Serve tanto para uma pessoa (lista de um) quanto para o lote da tela. O
+ * checkin_ts e refeito a cada marcacao: o que interessa e quando a presenca foi
+ * registrada da ultima vez, nao a primeira tentativa.
+ *
+ * @param {number[]} idsUsuarios
+ * @param {boolean} presente
+ * @param {number} marcadoPor - admin que esta marcando (evento_presenca.marcado_por).
+ */
+async function marcarPresenca(idEvento, idsUsuarios, presente, marcadoPor) {
+  const { rows } = await query(
+    `INSERT INTO evento_presenca (id_evento, id_usuario, presente, marcado_por)
+     SELECT $1, id_usuario, $3, $4 FROM unnest($2::int[]) AS id_usuario
+     ON CONFLICT (id_evento, id_usuario) DO UPDATE
+        SET presente = EXCLUDED.presente,
+            checkin_ts = NOW(),
+            marcado_por = EXCLUDED.marcado_por
+     RETURNING id_usuario, presente`,
+    [idEvento, idsUsuarios, presente, marcadoPor]
+  )
+  return rows
+}
+
 /** Registra a confirmacao de presenca de um usuario (CONFIRMADO/RECUSADO/TALVEZ). */
 async function confirmarPresenca(idEvento, idUsuario, status) {
   const { rows } = await query(
@@ -171,6 +305,9 @@ module.exports = {
   criar,
   atualizar,
   excluir,
+  listarPublico,
+  listarResumoPresenca,
+  marcarPresenca,
   confirmarPresenca,
   listarParticipantes,
 }

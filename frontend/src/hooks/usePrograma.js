@@ -1,118 +1,95 @@
 /**
  * Estado e operacoes do Construtor de Programa.
  *
- * Mantem a arvore (Programa -> Fases -> Modulos -> Tarefas) em memoria e expoe
- * acoes imutaveis para criar, editar, mover, reordenar e excluir nos, alem de
- * selecao, undo de exclusao e expandir/recolher. Sem backend: tudo local.
+ * Le e grava na API (/trilha). Antes a arvore vivia so em memoria: dava F5 e
+ * tudo voltava ao mock.
  *
- * A arvore e aninhada (filhos dentro do pai); os helpers abaixo localizam e
- * transformam nos por id, sempre retornando novas referencias para o React
- * reagir e o framer-motion animar.
+ * Como a arvore e um recurso do servidor, as mutacoes seguem o padrao
+ * "manda e recarrega": cada acao chama a API e refaz o fetch da arvore. E mais
+ * simples e mais correto que remendar a arvore local — o servidor calcula
+ * ordem, valida hierarquia e pode recusar a operacao, e qualquer tentativa de
+ * prever isso no cliente acabaria divergindo.
+ *
+ * A excecao e `atualizar` (edicao de campos no inspector), que aplica a
+ * resposta no no correspondente sem refetch: e a acao mais frequente e nao
+ * mexe na estrutura.
  */
-import { useCallback, useMemo, useState } from "react"
-import { PROGRAMA_INICIAL, TIPO_META, criarNo, novoId } from "../data/programaMock"
-
-// Clona um no (e toda a subarvore) atribuindo novos ids a cada nivel.
-function clonarComNovosIds(no) {
-  const meta = TIPO_META[no.tipo]
-  const copia = { ...no, id: novoId(no.tipo) }
-  if (meta.childKey) copia[meta.childKey] = no[meta.childKey].map(clonarComNovosIds)
-  return copia
-}
-
-// Reindexa o campo `ordem` (1..n) apos qualquer insercao/remocao/reordenacao.
-const reindexar = (lista) => lista.map((no, i) => ({ ...no, ordem: i + 1 }))
-
-/**
- * Percorre a arvore procurando um no por id, devolvendo o contexto necessario
- * para editar (lista de irmaos, indice e cadeia de ancestrais ate o programa).
- * @returns {{ no, siblings, index, ancestrais }| null}
- */
-function localizar(programa, id) {
-  const visitar = (no, ancestrais, siblings, index) => {
-    if (no.id === id) return { no, siblings, index, ancestrais }
-    const meta = TIPO_META[no.tipo]
-    const filhos = meta.childKey ? no[meta.childKey] : null
-    if (!filhos) return null
-    for (let i = 0; i < filhos.length; i++) {
-      const achou = visitar(filhos[i], [...ancestrais, no], filhos, i)
-      if (achou) return achou
-    }
-    return null
-  }
-  const filhos = programa.fases
-  for (let i = 0; i < filhos.length; i++) {
-    const achou = visitar(filhos[i], [programa], filhos, i)
-    if (achou) return achou
-  }
-  return null
-}
-
-/**
- * Retorna uma copia da arvore com `transform` aplicado a lista de filhos do
- * pai indicado (ou a lista de fases quando parentId e null/raiz).
- */
-function transformarFilhos(programa, parentId, transform) {
-  if (parentId == null || parentId === programa.id) {
-    return { ...programa, fases: transform(programa.fases) }
-  }
-  const recurse = (no) => {
-    const meta = TIPO_META[no.tipo]
-    if (!meta.childKey) return no
-    const filhos = no[meta.childKey]
-    if (no.id === parentId) {
-      return { ...no, [meta.childKey]: transform(filhos) }
-    }
-    return { ...no, [meta.childKey]: filhos.map(recurse) }
-  }
-  return { ...programa, fases: programa.fases.map(recurse) }
-}
-
-// Aplica um patch (merge raso) ao no de id informado, em qualquer nivel.
-function patchNo(programa, id, patch) {
-  const recurse = (no) => {
-    if (no.id === id) return { ...no, ...patch }
-    const meta = TIPO_META[no.tipo]
-    if (!meta.childKey) return no
-    return { ...no, [meta.childKey]: no[meta.childKey].map(recurse) }
-  }
-  if (programa.id === id) return { ...programa, ...patch }
-  return { ...programa, fases: programa.fases.map(recurse) }
-}
+import { useCallback, useEffect, useMemo, useState } from "react"
+import api from "../services/api"
+import { useAuthStore } from "../store/authStore"
+import { acharNo, caminhoAte, percorrer } from "../data/trilhaMeta"
 
 export function usePrograma() {
-  const [programa, setPrograma] = useState(PROGRAMA_INICIAL)
+  const idTenant = useAuthStore((s) => s.usuario?.id_tenant ?? null)
+
+  const [programa, setPrograma] = useState(null) // no raiz (PROGRAMA)
+  const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState(null)
+
   const [selecionadoId, setSelecionadoId] = useState(null)
-  const [expandidos, setExpandidos] = useState(() => ({ "fase-1": true, "modulo-1": true }))
+  const [expandidos, setExpandidos] = useState({})
+
+  // ---------------------------------------------------------------- carregar
+  const carregar = useCallback(async () => {
+    if (!idTenant) {
+      setCarregando(false)
+      return null
+    }
+
+    try {
+      const { data } = await api.get("/trilha", { params: { id_tenant: idTenant } })
+      const raiz = data.trilha[0] ?? null
+      setPrograma(raiz)
+      setErro(null)
+      return raiz
+    } catch (err) {
+      setErro(err.response?.data?.erro || "Erro ao carregar a trilha.")
+      return null
+    } finally {
+      setCarregando(false)
+    }
+  }, [idTenant])
+
+  useEffect(() => {
+    carregar()
+  }, [carregar])
+
+  /**
+   * Cria o programa raiz quando o tenant ainda nao tem trilha nenhuma.
+   * A arvore precisa de uma raiz antes de aceitar fases.
+   */
+  const criarPrograma = useCallback(
+    async (nome = "Trilha de Incubacao") => {
+      const { data } = await api.post("/trilha", { id_tenant: idTenant, nome })
+      await carregar()
+      return data.no
+    },
+    [idTenant, carregar]
+  )
 
   // ------------------------------------------------------------------ selecao
   const selecionado = useMemo(() => {
-    if (!selecionadoId || selecionadoId === programa.id) return null
-    return localizar(programa, selecionadoId)?.no ?? null
+    if (!programa || !selecionadoId || selecionadoId === programa.id_no) return null
+    return acharNo([programa], selecionadoId)
   }, [programa, selecionadoId])
 
-  // Cadeia de ancestrais do no selecionado (para o breadcrumb).
+  // Cadeia de ancestrais do no selecionado (para o breadcrumb), sem a raiz.
   const trilha = useMemo(() => {
-    if (!selecionadoId) return []
-    const ctx = localizar(programa, selecionadoId)
-    if (!ctx) return []
-    return [...ctx.ancestrais.slice(1), ctx.no] // remove o "programa" raiz
+    if (!programa || !selecionadoId) return []
+    return (caminhoAte([programa], selecionadoId) ?? []).slice(1)
   }, [programa, selecionadoId])
 
-  // ------------------------------------------------------------- expandir/recolher
+  // ------------------------------------------------------- expandir/recolher
   const alternarExpandido = useCallback((id) => {
     setExpandidos((e) => ({ ...e, [id]: !e[id] }))
   }, [])
 
   const expandirTodos = useCallback(() => {
+    if (!programa) return
     const ids = {}
-    const visitar = (no) => {
-      const meta = TIPO_META[no.tipo]
-      if (!meta.childKey) return
-      ids[no.id] = true
-      no[meta.childKey].forEach(visitar)
-    }
-    programa.fases.forEach(visitar)
+    percorrer([programa], (no) => {
+      if (no.filhos?.length) ids[no.id_no] = true
+    })
     setExpandidos(ids)
   }, [programa])
 
@@ -120,154 +97,183 @@ export function usePrograma() {
 
   // ------------------------------------------------------------------- criar
   /**
-   * Cria um filho no pai informado. Para uma fase nova, parentId = null.
-   * Seleciona automaticamente o no criado e expande o pai.
-   * @returns o id do no criado.
+   * Cria um filho no pai informado. O tipo do no e deduzido pelo servidor a
+   * partir do pai, entao o cliente nao precisa (nem pode) escolher o nivel.
+   * @returns o id do no criado, ou null se falhou.
    */
   const adicionar = useCallback(
-    (parentId, tipoFilho, nome = "") => {
-      let novoIdCriado = null
-      setPrograma((prog) =>
-        transformarFilhos(prog, parentId, (lista) => {
-          const no = criarNo(tipoFilho, lista.length + 1, nome)
-          novoIdCriado = no.id
-          return reindexar([...lista, no])
+    async (parentId, _tipoFilho, nome = "") => {
+      try {
+        const { data } = await api.post("/trilha", {
+          id_tenant: idTenant,
+          id_pai: parentId ?? programa?.id_no ?? null,
+          nome: nome || "Sem titulo",
         })
-      )
-      if (parentId) setExpandidos((e) => ({ ...e, [parentId]: true }))
-      setSelecionadoId(novoIdCriado)
-      return novoIdCriado
+        await carregar()
+        if (parentId) setExpandidos((e) => ({ ...e, [parentId]: true }))
+        setSelecionadoId(data.no.id_no)
+        return data.no.id_no
+      } catch (err) {
+        setErro(err.response?.data?.erro || "Erro ao criar o item.")
+        return null
+      }
     },
-    []
+    [idTenant, programa, carregar]
   )
 
   // ------------------------------------------------------------------ editar
-  const atualizar = useCallback((id, patch) => {
-    setPrograma((prog) => patchNo(prog, id, patch))
+  /**
+   * Aplica um patch a um no. Atualiza so o no afetado, sem refetch — e a acao
+   * mais frequente do inspector e nao altera a estrutura da arvore.
+   */
+  const atualizar = useCallback(async (id, patch) => {
+    const { data } = await api.patch(`/trilha/${id}`, patch)
+
+    setPrograma((raiz) => {
+      if (!raiz) return raiz
+      const aplicar = (no) =>
+        no.id_no === id
+          ? { ...no, ...data.no, filhos: no.filhos }
+          : { ...no, filhos: (no.filhos ?? []).map(aplicar) }
+      return aplicar(raiz)
+    })
+
+    return data.no
   }, [])
 
   const alternarAtivo = useCallback(
-    (id) => {
-      const ctx = localizar(programa, id)
-      if (ctx) atualizar(id, { ativo: !ctx.no.ativo })
+    async (id) => {
+      const no = programa ? acharNo([programa], id) : null
+      if (no) await atualizar(id, { ativo: !no.ativo })
     },
     [programa, atualizar]
   )
 
   // ---------------------------------------------------------------- excluir
   /**
-   * Remove o no e devolve um snapshot { no, parentId, index } para permitir o
-   * "Desfazer". Nao usa o estado antigo: recalcula o pai na hora.
+   * Remove o no (e sua subarvore, por cascata no banco).
+   * Nao ha "Desfazer": recriar a subarvore geraria ids novos e as entregas
+   * das startups apontariam para nos que nao existem mais.
    */
   const excluir = useCallback(
-    (id) => {
-      const ctx = localizar(programa, id)
-      if (!ctx) return null
-      const parentId = ctx.ancestrais[ctx.ancestrais.length - 1].id
-      const snapshot = { no: ctx.no, parentId, index: ctx.index }
-      setPrograma((prog) =>
-        transformarFilhos(prog, parentId, (lista) =>
-          reindexar(lista.filter((n) => n.id !== id))
-        )
-      )
-      if (selecionadoId === id) setSelecionadoId(null)
-      return snapshot
+    async (id) => {
+      try {
+        await api.delete(`/trilha/${id}`)
+        if (selecionadoId === id) setSelecionadoId(null)
+        await carregar()
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, erro: err.response?.data?.erro || "Erro ao excluir." }
+      }
     },
-    [programa, selecionadoId]
-  )
-
-  // Reinsere um no removido na posicao original (usado pelo Desfazer).
-  const restaurar = useCallback((snapshot) => {
-    if (!snapshot) return
-    const { no, parentId, index } = snapshot
-    setPrograma((prog) =>
-      transformarFilhos(prog, parentId, (lista) => {
-        const nova = [...lista]
-        nova.splice(Math.min(index, nova.length), 0, no)
-        return reindexar(nova)
-      })
-    )
-    setSelecionadoId(no.id)
-  }, [])
-
-  // ---------------------------------------------------------------- duplicar
-  // Duplica o no logo abaixo do original, com "(copia)" no nome.
-  const duplicar = useCallback(
-    (id) => {
-      const ctx = localizar(programa, id)
-      if (!ctx) return
-      const parentId = ctx.ancestrais[ctx.ancestrais.length - 1].id
-      const copia = clonarComNovosIds({ ...ctx.no, nome: `${ctx.no.nome} (copia)` })
-      setPrograma((prog) =>
-        transformarFilhos(prog, parentId, (lista) => {
-          const nova = [...lista]
-          nova.splice(ctx.index + 1, 0, copia)
-          return reindexar(nova)
-        })
-      )
-      setSelecionadoId(copia.id)
-    },
-    [programa]
+    [selecionadoId, carregar]
   )
 
   // -------------------------------------------------------------- reordenar
   /**
    * Reordena por drag and drop: move `dragId` para a posicao de `dropId`.
-   * So reordena entre irmaos (mesmo pai); ignora tipos diferentes.
+   * So reordena entre irmaos; o servidor exige a lista completa de filhos.
    */
   const reordenar = useCallback(
-    (dragId, dropId) => {
-      if (dragId === dropId) return
-      const ctxDrag = localizar(programa, dragId)
-      const ctxDrop = localizar(programa, dropId)
-      if (!ctxDrag || !ctxDrop) return
-      if (ctxDrag.no.tipo !== ctxDrop.no.tipo) return
-      if (ctxDrag.siblings !== ctxDrop.siblings) return // pais diferentes
-      const parentId = ctxDrag.ancestrais[ctxDrag.ancestrais.length - 1].id
-      setPrograma((prog) =>
-        transformarFilhos(prog, parentId, (lista) => {
-          const nova = [...lista]
-          const [movido] = nova.splice(ctxDrag.index, 1)
-          const alvo = nova.findIndex((n) => n.id === dropId)
-          nova.splice(alvo, 0, movido)
-          return reindexar(nova)
-        })
-      )
+    async (dragId, dropId) => {
+      if (!programa || dragId === dropId) return
+
+      const caminhoDrag = caminhoAte([programa], dragId)
+      const caminhoDrop = caminhoAte([programa], dropId)
+      if (!caminhoDrag || !caminhoDrop) return
+
+      const paiDrag = caminhoDrag[caminhoDrag.length - 2]
+      const paiDrop = caminhoDrop[caminhoDrop.length - 2]
+      if (!paiDrag || !paiDrop || paiDrag.id_no !== paiDrop.id_no) return // pais diferentes
+
+      const ids = paiDrag.filhos.map((f) => f.id_no)
+      const de = ids.indexOf(dragId)
+      const para = ids.indexOf(dropId)
+      ids.splice(para, 0, ...ids.splice(de, 1))
+
+      try {
+        await api.patch(`/trilha/${paiDrag.id_no}/filhos/ordem`, { ids })
+        await carregar()
+      } catch (err) {
+        setErro(err.response?.data?.erro || "Erro ao reordenar.")
+      }
     },
-    [programa]
+    [programa, carregar]
+  )
+
+  // ---------------------------------------------------------------- duplicar
+  /**
+   * Duplica um no copiando seus campos. A copia entra no fim da lista de
+   * irmaos; a subarvore NAO e copiada (o servidor nao tem essa operacao, e
+   * duplicar recursivamente do cliente geraria uma cascata de chamadas).
+   */
+  const duplicar = useCallback(
+    async (id) => {
+      if (!programa) return
+      const no = acharNo([programa], id)
+      const caminho = caminhoAte([programa], id)
+      if (!no || !caminho) return
+
+      const pai = caminho[caminho.length - 2]
+      if (!pai) return
+
+      try {
+        const { data } = await api.post("/trilha", {
+          id_tenant: idTenant,
+          id_pai: pai.id_no,
+          nome: `${no.nome} (copia)`,
+          descricao: no.descricao,
+          ...(no.tipo === "PASSO" && {
+            tipo_passo: no.tipo_passo,
+            permite_entrega: no.permite_entrega,
+            obrigatoria: no.obrigatoria,
+            prazo: no.prazo,
+            carga_horaria: no.carga_horaria,
+            entregavel: no.entregavel,
+          }),
+        })
+        await carregar()
+        setSelecionadoId(data.no.id_no)
+      } catch (err) {
+        setErro(err.response?.data?.erro || "Erro ao duplicar.")
+      }
+    },
+    [programa, idTenant, carregar]
   )
 
   // ------------------------------------------------------------------ busca
-  // Filtra a arvore por termo (nos que casam ou que possuem descendente que
-  // casa). Retorna { fases, matchIds } — matchIds sao os nos que casam direto.
+  /**
+   * Filtra a arvore por termo (nos que casam ou que possuem descendente que
+   * casa). Feito no cliente: a arvore inteira ja esta carregada, e ir ao
+   * servidor a cada tecla seria pior.
+   * @returns { programa, matchIds } — matchIds sao os nos que casam direto.
+   */
   const filtrar = useCallback(
     (termo) => {
       const t = termo.trim().toLowerCase()
-      if (!t) return { programa, matchIds: null }
+      if (!t || !programa) return { programa, matchIds: null }
+
       const matchIds = new Set()
+
       const filtrarNo = (no) => {
-        const meta = TIPO_META[no.tipo]
         const casa = no.nome.toLowerCase().includes(t)
-        const filhos = meta.childKey ? no[meta.childKey] : null
-        const filhosFiltrados = filhos
-          ? filhos.map(filtrarNo).filter(Boolean)
-          : null
-        if (casa) matchIds.add(no.id)
-        if (casa || (filhosFiltrados && filhosFiltrados.length)) {
-          return meta.childKey
-            ? { ...no, [meta.childKey]: filhosFiltrados }
-            : no
-        }
+        const filhos = (no.filhos ?? []).map(filtrarNo).filter(Boolean)
+        if (casa) matchIds.add(no.id_no)
+        if (casa || filhos.length) return { ...no, filhos }
         return null
       }
-      const fases = programa.fases.map(filtrarNo).filter(Boolean)
-      return { programa: { ...programa, fases }, matchIds }
+
+      const filhos = (programa.filhos ?? []).map(filtrarNo).filter(Boolean)
+      return { programa: { ...programa, filhos }, matchIds }
     },
     [programa]
   )
 
   return {
     programa,
+    carregando,
+    erro,
+    setErro,
     selecionadoId,
     selecionado,
     trilha,
@@ -276,13 +282,14 @@ export function usePrograma() {
     alternarExpandido,
     expandirTodos,
     recolherTodos,
+    criarPrograma,
     adicionar,
     atualizar,
     alternarAtivo,
     excluir,
-    restaurar,
     duplicar,
     reordenar,
     filtrar,
+    recarregar: carregar,
   }
 }

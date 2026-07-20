@@ -19,7 +19,7 @@ import {
   DragIndicator,
 } from "@mui/icons-material"
 import { motion, AnimatePresence } from "framer-motion"
-import { TIPO_META } from "../../data/programaMock"
+import { TIPO_META } from "../../data/trilhaMeta"
 import QuickAdd from "./QuickAdd"
 
 // Realca o trecho que casa com a busca dentro do nome do no.
@@ -45,17 +45,18 @@ export default function TreeNode({
 }) {
   const meta = TIPO_META[no.tipo]
   const Icone = meta.icon
-  const filhos = meta.childKey ? no[meta.childKey] : null
-  const temFilhos = Array.isArray(filhos)
-  const aberto = ctx.expandidos[no.id]
-  const selecionado = ctx.selecionadoId === no.id
+  // Todo no traz os filhos em `filhos`; so a folha (PASSO) nao aceita nenhum.
+  const filhos = no.filhos ?? []
+  const temFilhos = Boolean(meta.childTipo)
+  const aberto = ctx.expandidos[no.id_no]
+  const selecionado = ctx.selecionadoId === no.id_no
 
   const [hover, setHover] = useState(false)
   const [dragOver, setDragOver] = useState(false)
 
   const onDragStart = (e) => {
     e.stopPropagation()
-    e.dataTransfer.setData("text/plain", no.id)
+    e.dataTransfer.setData("text/plain", String(no.id_no))
     e.dataTransfer.effectAllowed = "move"
   }
   const onDragOver = (e) => {
@@ -68,7 +69,7 @@ export default function TreeNode({
     e.stopPropagation()
     setDragOver(false)
     const dragId = e.dataTransfer.getData("text/plain")
-    if (dragId) ctx.reordenar(dragId, no.id)
+    if (dragId) ctx.reordenar(Number(dragId), no.id_no)
   }
 
   return (
@@ -82,7 +83,7 @@ export default function TreeNode({
           onDrop={onDrop}
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
-          onClick={() => ctx.setSelecionadoId(no.id)}
+          onClick={() => ctx.setSelecionadoId(no.id_no)}
           sx={{
             position: "relative",
             display: "flex",
@@ -121,7 +122,7 @@ export default function TreeNode({
               size="small"
               onClick={(e) => {
                 e.stopPropagation()
-                ctx.alternarExpandido(no.id)
+                ctx.alternarExpandido(no.id_no)
               }}
               sx={{ p: 0.25 }}
             >
@@ -157,7 +158,7 @@ export default function TreeNode({
             sx={{
               flex: 1,
               fontSize: 13.5,
-              fontWeight: no.tipo === "fase" ? 600 : 500,
+              fontWeight: no.tipo === "FASE" ? 600 : 500,
               color: "text.primary",
             }}
           >
@@ -194,7 +195,7 @@ export default function TreeNode({
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation()
-                      ctx.adicionar(no.id, meta.childTipo)
+                      ctx.adicionar(no.id_no, meta.childTipo)
                     }}
                     sx={{ p: 0.4 }}
                   >
@@ -230,14 +231,14 @@ export default function TreeNode({
             style={{ overflow: "hidden" }}
           >
             {filhos.map((filho) => (
-              <TreeNode key={filho.id} no={filho} nivel={nivel + 1} ctx={ctx} />
+              <TreeNode key={filho.id_no} no={filho} nivel={nivel + 1} ctx={ctx} />
             ))}
             {/* Entrada rapida para o proximo filho */}
             <QuickAdd
               tipoFilho={meta.childTipo}
               cor={TIPO_META[meta.childTipo].cor}
               indent={nivel + 1}
-              onAdd={(nome) => ctx.adicionar(no.id, meta.childTipo, nome)}
+              onAdd={(nome) => ctx.adicionar(no.id_no, meta.childTipo, nome)}
             />
           </motion.div>
         )}

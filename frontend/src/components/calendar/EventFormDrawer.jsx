@@ -131,7 +131,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
             </Alert>
           )}
           <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid item xs={12} data-tour="form-evento-titulo">
               <TextField
                 label="Titulo"
                 fullWidth
@@ -141,7 +141,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
                 onChange={(e) => alterar("titulo", e.target.value)}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} data-tour="form-evento-categoria">
               <TextField
                 select
                 label="Categoria"
@@ -157,7 +157,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
                 ))}
               </TextField>
             </Grid>
-            <Grid item xs={7}>
+            <Grid item xs={7} data-tour="form-evento-quando">
               <TextField
                 label="Data"
                 type="date"
@@ -168,7 +168,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
                 onChange={(e) => alterar("data", e.target.value)}
               />
             </Grid>
-            <Grid item xs={5}>
+            <Grid item xs={5} data-tour="form-evento-quando">
               <TextField
                 label="Inicio"
                 type="time"
@@ -197,7 +197,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
                 onChange={(e) => alterar("horaFim", e.target.value)}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} data-tour="form-evento-startups">
               <TextField
                 select
                 label="Startups"
@@ -288,7 +288,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
           <Button fullWidth onClick={onClose}>
             Cancelar
           </Button>
-          <Button fullWidth type="submit" variant="contained" disabled={salvando}>
+          <Button data-tour="form-evento-salvar" fullWidth type="submit" variant="contained" disabled={salvando}>
             {salvando ? <CircularProgress size={22} color="inherit" /> : "Salvar"}
           </Button>
         </Box>

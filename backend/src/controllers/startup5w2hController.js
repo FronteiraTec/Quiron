@@ -5,7 +5,7 @@ const startup5w2hService = require("../services/startup5w2hService")
 
 async function listar(req, res, next) {
   try {
-    res.json({ itens: await startup5w2hService.listar(req.params.id) })
+    res.json({ itens: await startup5w2hService.listar(req.params.id, req.usuario) })
   } catch (err) {
     next(err)
   }
@@ -13,7 +13,7 @@ async function listar(req, res, next) {
 
 async function criar(req, res, next) {
   try {
-    const item = await startup5w2hService.criar(req.params.id, req.body)
+    const item = await startup5w2hService.criar(req.params.id, req.body, req.usuario)
     res.status(201).json({ item })
   } catch (err) {
     next(err)
@@ -22,7 +22,7 @@ async function criar(req, res, next) {
 
 async function remover(req, res, next) {
   try {
-    await startup5w2hService.remover(req.params.id, req.params.id5w2h)
+    await startup5w2hService.remover(req.params.id, req.params.id5w2h, req.usuario)
     res.status(204).end()
   } catch (err) {
     next(err)

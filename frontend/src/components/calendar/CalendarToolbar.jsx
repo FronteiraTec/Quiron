@@ -74,7 +74,7 @@ export default function CalendarToolbar({
       </Box>
 
       {/* Centro: navegacao */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+      <Box data-tour="calendario-navegacao" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
         <IconButton size="small" onClick={onAnterior} sx={{ border: "1px solid", borderColor: "divider", p: 0.5 }}>
           <ChevronLeft fontSize="small" />
         </IconButton>
@@ -91,7 +91,7 @@ export default function CalendarToolbar({
 
       {/* Direita: visao + nova atividade */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-        <ButtonGroup size="small" sx={{ borderRadius: "10px", overflow: "hidden" }}>
+        <ButtonGroup data-tour="calendario-visoes" size="small" sx={{ borderRadius: "10px", overflow: "hidden" }}>
           {VISOES.map((v) => (
             <Button
               key={v.chave}
@@ -104,7 +104,13 @@ export default function CalendarToolbar({
           ))}
         </ButtonGroup>
         {onNovaAtividade && (
-          <Button variant="contained" startIcon={<Add />} onClick={onNovaAtividade} sx={{ borderRadius: "10px" }}>
+          <Button
+            data-tour="calendario-nova-atividade"
+            variant="contained"
+            startIcon={<Add />}
+            onClick={onNovaAtividade}
+            sx={{ borderRadius: "10px" }}
+          >
             Nova Atividade
           </Button>
         )}

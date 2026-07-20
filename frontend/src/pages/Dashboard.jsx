@@ -15,6 +15,7 @@ import {
 } from "@mui/material"
 import { People, Business, Assignment } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
+import AgendaSemana from "../components/dashboard/AgendaSemana"
 import { useAuthStore } from "../store/authStore"
 
 // Cards de resumo exibidos na tela inicial. Adicione/edite itens aqui.
@@ -34,9 +35,9 @@ export default function Dashboard() {
           <CircularProgress />
         </Box>
       ) : (
-        <Box sx={{ maxWidth: 1100, mx: "auto" }}>
+        <Box>
           {/* Saudacao */}
-          <Paper sx={{ p: 4, borderRadius: 3, mb: 3 }}>
+          <Paper sx={{ p: 4, borderRadius: 0, mb: 3 }}>
             <Typography variant="h4" fontWeight={700} gutterBottom>
               Bem-vindo{usuario?.nome ? `, ${usuario.nome}` : ""}!
             </Typography>
@@ -46,11 +47,16 @@ export default function Dashboard() {
             </Typography>
           </Paper>
 
+          {/* Agenda: eventos de hoje ate o fim da semana (visibilidade por papel) */}
+          <Box sx={{ mb: 3 }}>
+            <AgendaSemana idTenant={usuario?.id_tenant} />
+          </Box>
+
           {/* Cards de resumo */}
           <Grid container spacing={3}>
             {RESUMO.map((item) => (
               <Grid item xs={12} sm={6} md={4} key={item.rotulo}>
-                <Card sx={{ borderRadius: 3 }}>
+                <Card sx={{ borderRadius: 0 }}>
                   <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <Box
                       sx={{

@@ -1,6 +1,6 @@
 /**
  * Repositorio de Startups (camada de acesso a dados).
- * Tabelas relacionadas: startup, startup_membros, mentor_startup, startup_fase.
+ * Tabelas relacionadas: startup, startup_membros, mentor_startup, startup_trilha.
  */
 const { query } = require("../config/db")
 
@@ -9,27 +9,31 @@ const { query } = require("../config/db")
  * contagem de fases totais/aprovadas a uma consulta na tabela startup.
  * Usado por listarPorTenant e buscarPorId para calcular o progresso na
  * trilha de incubacao sem precisar de uma coluna dedicada.
+ *
+ * As fases agora sao nos da arvore (trilha_no com tipo = 'FASE'), e o
+ * progresso vive em startup_trilha.
  */
 const JOIN_PROGRESSO = `
   LEFT JOIN (
     SELECT id_tenant, COUNT(*) AS total_fases
-      FROM fase
-     WHERE ativa = TRUE
+      FROM trilha_no
+     WHERE tipo = 'FASE' AND ativo = TRUE
      GROUP BY id_tenant
   ) tf ON tf.id_tenant = s.id_tenant
   LEFT JOIN (
-    SELECT id_startup, COUNT(*) AS fases_aprovadas
-      FROM startup_fase
-     WHERE status = 'APROVADA'
-     GROUP BY id_startup
+    SELECT st.id_startup, COUNT(*) AS fases_aprovadas
+      FROM startup_trilha st
+      JOIN trilha_no n ON n.id_no = st.id_no AND n.tipo = 'FASE'
+     WHERE st.status = 'APROVADA'
+     GROUP BY st.id_startup
   ) sfok ON sfok.id_startup = s.id_startup
   LEFT JOIN LATERAL (
     SELECT f.nome
-      FROM fase f
-     WHERE f.id_tenant = s.id_tenant AND f.ativa = TRUE
+      FROM trilha_no f
+     WHERE f.id_tenant = s.id_tenant AND f.tipo = 'FASE' AND f.ativo = TRUE
        AND NOT EXISTS (
-         SELECT 1 FROM startup_fase x
-          WHERE x.id_startup = s.id_startup AND x.id_fase = f.id_fase AND x.status = 'APROVADA'
+         SELECT 1 FROM startup_trilha x
+          WHERE x.id_startup = s.id_startup AND x.id_no = f.id_no AND x.status = 'APROVADA'
        )
      ORDER BY f.ordem
      LIMIT 1
@@ -49,8 +53,23 @@ function comProgresso(row) {
   }
 }
 
-/** Lista as startups de um tenant, com fase atual e progresso na trilha. */
-async function listarPorTenant(idTenant) {
+/**
+ * Lista as startups de um tenant, com fase atual e progresso na trilha.
+ *
+ * @param {number} idTenant
+ * @param {number[]|null} [idsPermitidos] - Quando informado, restringe a lista
+ *   a essas startups (mentor/usuario veem apenas as que acompanham).
+ *   `null` = sem restricao (admin/root veem todas).
+ */
+async function listarPorTenant(idTenant, idsPermitidos = null) {
+  const condicoes = ["s.id_tenant = $1"]
+  const params = [idTenant]
+
+  if (idsPermitidos) {
+    params.push(idsPermitidos)
+    condicoes.push(`s.id_startup = ANY($${params.length}::int[])`)
+  }
+
   const { rows } = await query(
     `SELECT s.id_startup, s.nome, s.cnpj, s.status, s.criado_ts,
             COALESCE(tf.total_fases, 0) AS total_fases,
@@ -58,9 +77,9 @@ async function listarPorTenant(idTenant) {
             prox.nome AS fase_atual_nome
        FROM startup s
        ${JOIN_PROGRESSO}
-      WHERE s.id_tenant = $1
+      WHERE ${condicoes.join(" AND ")}
       ORDER BY s.nome`,
-    [idTenant]
+    params
   )
   return rows.map(comProgresso)
 }
@@ -134,6 +153,56 @@ async function listarMembros(idStartup) {
 }
 
 /**
+ * Todos os membros ativos das startups do tenant, um por VINCULO.
+ *
+ * Uma pessoa em duas startups aparece duas vezes, de proposito: aqui a unidade
+ * e o vinculo (quem e lider de que, desde quando), nao a pessoa. E a visao que
+ * a aba de membros de UMA startup nao da.
+ */
+async function listarMembrosPorTenant(idTenant) {
+  const { rows } = await query(
+    `SELECT u.id_usuario, u.nome, u.email, u.foto_url,
+            s.id_startup, s.nome AS startup, s.status AS startup_status,
+            sm.lider, sm.entrada_dt
+       FROM startup s
+       JOIN startup_membros sm ON sm.id_startup = s.id_startup AND sm.ativo = TRUE
+       JOIN usuarios u ON u.id_usuario = sm.id_usuario
+      WHERE s.id_tenant = $1
+      ORDER BY s.nome, sm.lider DESC, u.nome`,
+    [idTenant]
+  )
+  return rows
+}
+
+/**
+ * Incubados do tenant que nao estao em NENHUMA startup.
+ *
+ * Este e o estado que a tela existe para achar: sem vinculo, a pessoa entra no
+ * sistema e nao tem jornada, nao tem entrega, nao tem nada — e nada na
+ * interface dela explica por que. So o papel 'usuario' conta; admin e mentor
+ * nao pertencem a startup nenhuma por definicao.
+ */
+async function listarSemStartup(idTenant) {
+  const { rows } = await query(
+    `SELECT u.id_usuario, u.nome, u.email, u.foto_url, tu.criado_ts AS desde
+       FROM tenant_usuarios tu
+       JOIN usuarios u ON u.id_usuario = tu.id_usuario
+      WHERE tu.id_tenant = $1 AND tu.papel = 'usuario' AND tu.ativo = TRUE
+        AND NOT EXISTS (
+          SELECT 1
+            FROM startup_membros sm
+            JOIN startup s ON s.id_startup = sm.id_startup
+           WHERE sm.id_usuario = u.id_usuario
+             AND sm.ativo = TRUE
+             AND s.id_tenant = tu.id_tenant
+        )
+      ORDER BY u.nome`,
+    [idTenant]
+  )
+  return rows
+}
+
+/**
  * Lista os ids das startups (dentro de um tenant) as quais o usuario esta
  * ligado, seja como membro (startup_membros) ou como mentor (mentor_startup).
  * Usado para restringir a visibilidade de eventos direcionados.
@@ -152,6 +221,39 @@ async function listarIdsPorUsuario(idTenant, idUsuario) {
     [idTenant, idUsuario]
   )
   return rows.map((r) => r.id_startup)
+}
+
+/**
+ * Lista os ids das startups que o usuario acompanha COMO MENTOR.
+ *
+ * Diferente de listarIdsPorUsuario, que soma membro + mentor para decidir o
+ * que a pessoa enxerga. Aqui o vinculo de membro nao serve: quem avalia a
+ * fila de entregas precisa ser mentor da startup, e nao alguem do time dela.
+ *
+ * @param {number} idTenant
+ * @param {number} idUsuario
+ * @returns {Promise<number[]>}
+ */
+async function listarIdsPorMentor(idTenant, idUsuario) {
+  const { rows } = await query(
+    `SELECT ms.id_startup
+       FROM mentor_startup ms
+       JOIN startup s ON s.id_startup = ms.id_startup
+      WHERE s.id_tenant = $1 AND ms.id_usuario_mentor = $2`,
+    [idTenant, idUsuario]
+  )
+  return rows.map((r) => r.id_startup)
+}
+
+/** O usuario e mentor desta startup? Guarda da avaliacao de entregas. */
+async function ehMentorDe(idStartup, idUsuario) {
+  const { rows } = await query(
+    `SELECT 1
+       FROM mentor_startup
+      WHERE id_startup = $1 AND id_usuario_mentor = $2`,
+    [idStartup, idUsuario]
+  )
+  return rows.length > 0
 }
 
 /**
@@ -185,11 +287,12 @@ async function removerMembro(idStartup, idUsuario) {
 /** Lista as fases ja concluidas (aprovadas) de uma startup, em ordem da trilha. */
 async function listarFasesConcluidas(idStartup) {
   const { rows } = await query(
-    `SELECT sf.id_startup_fase, f.nome, f.descricao, f.ordem, sf.fim_ts, u.nome AS aprovado_por_nome
-       FROM startup_fase sf
-       JOIN fase f ON f.id_fase = sf.id_fase
-       LEFT JOIN usuarios u ON u.id_usuario = sf.aprovado_por
-      WHERE sf.id_startup = $1 AND sf.status = 'APROVADA'
+    `SELECT st.id_startup_trilha, f.nome, f.descricao, f.ordem, st.fim_ts,
+            u.nome AS aprovado_por_nome
+       FROM startup_trilha st
+       JOIN trilha_no f ON f.id_no = st.id_no AND f.tipo = 'FASE'
+       LEFT JOIN usuarios u ON u.id_usuario = st.aprovado_por
+      WHERE st.id_startup = $1 AND st.status = 'APROVADA'
       ORDER BY f.ordem`,
     [idStartup]
   )
@@ -204,7 +307,11 @@ module.exports = {
   atualizarStatus,
   adicionarMembro,
   listarMembros,
+  listarMembrosPorTenant,
+  listarSemStartup,
   listarIdsPorUsuario,
+  listarIdsPorMentor,
+  ehMentorDe,
   buscarStartupDoUsuario,
   removerMembro,
   listarFasesConcluidas,
