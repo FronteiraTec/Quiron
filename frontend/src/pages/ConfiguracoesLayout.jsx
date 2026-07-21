@@ -4,8 +4,9 @@
  *
  * Reune o seletor de incubadora (somente root) e a barra de abas que troca
  * entre as subpaginas (rotas filhas renderizadas via Outlet): Dados
- * cadastrais, Configuracao de e-mail e Auditoria. Permissoes, Usuarios e
- * Grupos ficam na tela "Usuarios" (menu "Incubadora > Usuarios").
+ * cadastrais, Configuracao de e-mail, Categorias e locais da agenda, e
+ * Auditoria. Permissoes, Usuarios e Grupos ficam na tela "Usuarios" (menu
+ * "Incubadora > Usuarios").
  *
  * O admin gerencia sempre a sua propria incubadora (usuario.id_tenant). O
  * root, por nao pertencer a nenhuma incubadora, escolhe qual incubadora
@@ -22,6 +23,7 @@ import { useAuthStore } from "../store/authStore"
 const ABAS = [
   { valor: "", rotulo: "Dados cadastrais" },
   { valor: "email", rotulo: "Configuracao de e-mail" },
+  { valor: "agenda", rotulo: "Categorias e locais" },
   { valor: "auditoria", rotulo: "Auditoria" },
 ]
 
@@ -55,7 +57,7 @@ export default function ConfiguracoesLayout() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Dados cadastrais, configuracao de e-mail e auditoria da incubadora.
+          Dados cadastrais, e-mail, categorias e locais da agenda, e auditoria da incubadora.
         </Typography>
 
         {ehRoot && (

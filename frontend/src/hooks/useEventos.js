@@ -6,7 +6,7 @@
  * confirmar presenca) contra /eventos. A pagina e os componentes de
  * apresentacao (CalendarGrid, CalendarSidebar, etc.) ficam livres de logica.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   startOfMonth,
   endOfMonth,
@@ -22,7 +22,7 @@ import {
   subDays,
 } from "date-fns"
 import api from "../services/api"
-import { LISTA_CATEGORIAS } from "../components/calendar/categorias"
+import { useCategorias } from "../components/calendar/categorias"
 
 /** Calcula o intervalo [inicio, fim] a buscar na API, de acordo com a visao. */
 function calcularPeriodo(dataReferencia, visao) {
@@ -54,9 +54,23 @@ export function useEventos({ idTenant, usuarioId }) {
   const [aviso, setAviso] = useState(null) // { tipo, texto }
 
   // --- Filtros ---
-  const [categoriasAtivas, setCategoriasAtivas] = useState(() => new Set(LISTA_CATEGORIAS))
+  // As categorias sao configuracao da incubadora e chegam por requisicao, entao
+  // o filtro nasce VAZIO e e semeado quando a lista chega. Inicializa-lo com a
+  // lista (como era, quando ela vinha de uma constante) daria um Set vazio no
+  // primeiro render e nenhum evento passaria pelo filtro.
+  const { listaCategorias, carregada: categoriasCarregadas } = useCategorias()
+  const [categoriasAtivas, setCategoriasAtivas] = useState(() => new Set())
+  const filtroSemeado = useRef(false)
   const [somenteMeus, setSomenteMeus] = useState(false)
   const [busca, setBusca] = useState("")
+
+  // Semeia UMA vez: depois disso o conjunto e do usuario, e re-semear a cada
+  // atualizacao do store desfaria o filtro que ele acabou de aplicar.
+  useEffect(() => {
+    if (!categoriasCarregadas || filtroSemeado.current) return
+    filtroSemeado.current = true
+    setCategoriasAtivas(new Set(listaCategorias))
+  }, [categoriasCarregadas, listaCategorias])
 
   const periodo = useMemo(() => calcularPeriodo(dataReferencia, visao), [dataReferencia, visao])
 
@@ -114,23 +128,29 @@ export function useEventos({ idTenant, usuarioId }) {
     })
   }, [])
 
-  const mostrarSomenteCategoria = useCallback((categoria) => {
-    setCategoriasAtivas(categoria ? new Set([categoria]) : new Set(LISTA_CATEGORIAS))
-  }, [])
+  const mostrarSomenteCategoria = useCallback(
+    (categoria) => {
+      setCategoriasAtivas(categoria ? new Set([categoria]) : new Set(listaCategorias))
+    },
+    [listaCategorias]
+  )
 
   const alternarSomenteMeus = useCallback(() => setSomenteMeus((v) => !v), [])
 
   const eventosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
     return eventos.filter((ev) => {
-      if (!categoriasAtivas.has(ev.categoria)) return false
+      // Enquanto as categorias nao chegaram, nao filtra por categoria: o
+      // conjunto ainda esta vazio, e aplica-lo esconderia TODOS os eventos ate
+      // a resposta chegar. "Nao filtrado" e o padrao correto aqui.
+      if (categoriasCarregadas && !categoriasAtivas.has(ev.categoria)) return false
       if (somenteMeus && ev.criado_por !== usuarioId) return false
       if (termo && !ev.titulo.toLowerCase().includes(termo) && !ev.descricao?.toLowerCase().includes(termo)) {
         return false
       }
       return true
     })
-  }, [eventos, categoriasAtivas, somenteMeus, usuarioId, busca])
+  }, [eventos, categoriasAtivas, categoriasCarregadas, somenteMeus, usuarioId, busca])
 
   // ------------------------------------------------------------------ CRUD
   const criarEvento = useCallback(

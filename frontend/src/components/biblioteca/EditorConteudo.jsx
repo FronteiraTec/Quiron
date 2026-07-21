@@ -38,6 +38,7 @@ import {
 import BlockEditor from "./BlockEditor"
 import { SeletorLogo } from "./LogoConteudo"
 import { TIPO_CONTEUDO, TAGS } from "../../data/bibliotecaMeta"
+import { useAuthStore } from "../../store/authStore"
 
 export default function EditorConteudo({ conteudo, onSalvar, onFechar }) {
   const aberto = Boolean(conteudo)
@@ -76,6 +77,9 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar }) {
 
   const [form, setForm] = useState(() => normalizar(conteudo))
   useEffect(() => setForm(normalizar(conteudo)), [conteudo])
+
+  // Dono do arquivo de logo enviado (o upload exige o tenant).
+  const idTenant = useAuthStore((s) => s.usuario?.id_tenant)
 
   // Erro ao escolher a imagem do logo (tipo/tamanho invalido).
   const [erroLogo, setErroLogo] = useState(null)
@@ -117,7 +121,13 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar }) {
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Cabecalho */}
       <Box sx={{ px: 3, pt: 2.5, pb: 2, display: "flex", alignItems: "center", gap: 2 }}>
-        <SeletorLogo conteudo={form} onChange={trocarLogo} onErro={setErroLogo} tamanho={44} />
+        <SeletorLogo
+          conteudo={form}
+          idTenant={idTenant}
+          onChange={trocarLogo}
+          onErro={setErroLogo}
+          tamanho={44}
+        />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="caption" sx={{ fontWeight: 700, color: meta.cor }}>
             {meta.label.toUpperCase()}

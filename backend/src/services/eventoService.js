@@ -14,19 +14,19 @@
  * startups a que estao ligados.
  */
 const eventoRepository = require("../repositories/eventoRepository")
+const agendaConfigRepository = require("../repositories/agendaConfigRepository")
 const tenantRepository = require("../repositories/tenantRepository")
 const startupRepository = require("../repositories/startupRepository")
 const rbacService = require("./rbacService")
 const auditLogService = require("./auditLogService")
+const notificacaoService = require("./notificacaoService")
+const { CATEGORIA_FALLBACK } = require("../eventos/categoriasPadrao")
 const { erroNegocio } = require("../utils/erros")
 
 const STATUS_CONFIRMACAO = ["CONFIRMADO", "RECUSADO", "TALVEZ"]
 // Janela padrao da tela de presenca: eventos dos ultimos 3 meses. Presenca se
 // marca logo depois do evento; o que passou muito disso ja virou relatorio.
 const DIAS_PRESENCA_PADRAO = 90
-const CATEGORIAS = [
-  "MENTORIA", "WORKSHOP", "ENTREGA", "REUNIAO", "EVENTO", "PITCH", "PRAZO", "VISITA",
-]
 
 /**
  * Lista os eventos de um tenant, opcionalmente filtrando por periodo e
@@ -62,13 +62,49 @@ async function buscar(id, usuario) {
   return evento
 }
 
-/** Valida os campos comuns a criacao/edicao de um evento. */
-function validarDados({ titulo, categoria, inicioTs }) {
+/**
+ * Valida os campos comuns a criacao/edicao de um evento.
+ *
+ * A categoria era conferida contra uma lista fixa aqui no codigo, espelho do
+ * enum `eventoCategoria`. Desde a migracao 008 ela e configuracao de cada
+ * incubadora (tabela evento_categoria), entao a checagem passou a ser contra o
+ * BANCO — e contra o banco DAQUELE tenant: sem isso, uma incubadora poderia
+ * usar a categoria que outra criou.
+ *
+ * A FK composta (id_tenant, categoria) ja barraria o valor invalido no INSERT.
+ * Validar antes existe para a resposta ser um 400 explicando o problema, e nao
+ * um 500 de violacao de constraint.
+ *
+ * @param {number} idTenant - tenant DONO do evento (nao o da requisicao).
+ */
+async function validarDados(idTenant, { titulo, categoria, inicioTs, idLocal }) {
   if (!titulo || !inicioTs) {
     throw erroNegocio(400, "Informe titulo e inicio_ts.")
   }
-  if (categoria && !CATEGORIAS.includes(categoria)) {
-    throw erroNegocio(400, `Categoria invalida. Use: ${CATEGORIAS.join(", ")}.`)
+
+  if (categoria) {
+    const encontrada = await agendaConfigRepository.buscarCategoria(idTenant, categoria)
+    if (!encontrada) {
+      throw erroNegocio(400, "Categoria invalida para esta incubadora.")
+    }
+    // Desativada continua valendo para os eventos que ja a usam (a FK exige),
+    // mas nao para um evento novo — seria recriar pela porta dos fundos o que
+    // a incubadora tirou do seletor.
+    if (!encontrada.ativo) {
+      throw erroNegocio(400, `A categoria "${encontrada.rotulo}" esta desativada.`)
+    }
+  }
+
+  if (idLocal) {
+    const local = await agendaConfigRepository.buscarLocal(idLocal)
+    // A conferencia de tenant e o que impede marcar um evento numa sala de
+    // outra incubadora — a FK sozinha nao olha o tenant.
+    if (!local || local.id_tenant !== Number(idTenant)) {
+      throw erroNegocio(400, "Local invalido para esta incubadora.")
+    }
+    if (!local.ativo) {
+      throw erroNegocio(400, `O local "${local.nome}" esta desativado.`)
+    }
   }
 }
 
@@ -84,8 +120,11 @@ async function criar(dados, usuarioAutenticado) {
     throw erroNegocio(400, "Informe id_tenant.")
   }
   await rbacService.garantirPermissao(idTenant, usuarioAutenticado, "eventos.agenda.criar")
-  validarDados(dados)
-  const evento = await eventoRepository.criar({ ...dados, categoria: dados.categoria || "EVENTO" })
+  await validarDados(idTenant, dados)
+  const evento = await eventoRepository.criar({
+    ...dados,
+    categoria: dados.categoria || CATEGORIA_FALLBACK,
+  })
 
   await auditLogService.registrar({
     idTenant,
@@ -97,6 +136,10 @@ async function criar(dados, usuarioAutenticado) {
     dadosDepois: evento,
   })
 
+  // Convite para o publico do evento — geral ou so as startups direcionadas,
+  // conforme o que ficou gravado em evento_startups.
+  notificacaoService.eventoCriado(evento)
+
   return evento
 }
 
@@ -107,12 +150,20 @@ async function criar(dados, usuarioAutenticado) {
  * @param {{id:number}} usuarioAutenticado
  */
 async function atualizar(id, dados, usuarioAutenticado) {
-  validarDados(dados)
   const antes = await eventoRepository.buscarPorId(id)
   if (!antes) throw erroNegocio(404, "Evento nao encontrado.")
   await rbacService.garantirPermissao(antes.id_tenant, usuarioAutenticado, "eventos.agenda.editar")
 
-  const evento = await eventoRepository.atualizar(id, { ...dados, categoria: dados.categoria || "EVENTO" })
+  // A validacao passou a rodar DEPOIS de carregar o evento porque agora precisa
+  // do tenant, e o tenant tem de vir do EVENTO, nunca do corpo da requisicao —
+  // senao daria para validar a categoria contra uma incubadora e gravar o
+  // evento de outra.
+  await validarDados(antes.id_tenant, dados)
+
+  const evento = await eventoRepository.atualizar(id, {
+    ...dados,
+    categoria: dados.categoria || CATEGORIA_FALLBACK,
+  })
   if (!evento) throw erroNegocio(404, "Evento nao encontrado.")
 
   await auditLogService.registrar({

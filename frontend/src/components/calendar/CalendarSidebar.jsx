@@ -10,7 +10,7 @@ import { PersonOutline, ExpandMore } from "@mui/icons-material"
 import CalendarSearch from "./CalendarSearch"
 import MiniCalendar from "./MiniCalendar"
 import DayEvents from "./DayEvents"
-import { CATEGORIAS, LISTA_CATEGORIAS } from "./categorias"
+import { useCategorias } from "./categorias"
 import { format } from "date-fns"
 
 const bordaSutil = (t) => (t.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.06)")
@@ -32,7 +32,8 @@ export default function CalendarSidebar({
   // quando o usuario restringe as categorias.
   const diasComEvento = new Set(todosEventos.map((ev) => format(new Date(ev.inicio_ts), "yyyy-MM-dd")))
 
-  const filtrando = somenteMeus || categoriasAtivas.size < LISTA_CATEGORIAS.length
+  const { categorias } = useCategorias()
+  const filtrando = somenteMeus || categoriasAtivas.size < categorias.length
 
   return (
     <Box
@@ -90,7 +91,7 @@ export default function CalendarSidebar({
                   fontWeight: 700,
                 }}
               >
-                {categoriasAtivas.size}/{LISTA_CATEGORIAS.length}
+                {categoriasAtivas.size}/{categorias.length}
               </Typography>
             )}
           </AccordionSummary>
@@ -120,8 +121,7 @@ export default function CalendarSidebar({
               </Typography>
             </Box>
 
-            {LISTA_CATEGORIAS.map((chave) => {
-              const { label, cor } = CATEGORIAS[chave]
+            {categorias.map(({ chave, rotulo: label, cor }) => {
               const ativo = categoriasAtivas.has(chave)
               return (
                 <Box

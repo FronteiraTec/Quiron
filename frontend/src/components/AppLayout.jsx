@@ -17,6 +17,7 @@ import { useSidebar } from "../hooks/useSidebar"
 import { useAuthStore } from "../store/authStore"
 import { usePreferenciaStore } from "../store/preferenciaStore"
 import { usePermissaoStore } from "../store/permissaoStore"
+import { useAgendaConfigStore } from "../store/agendaConfigStore"
 
 /**
  * @param {boolean} [fullBleed] Remove o padding do main e faz o conteudo ocupar
@@ -28,6 +29,7 @@ export default function AppLayout({ children, fullBleed = false }) {
   const carregarUsuario = useAuthStore((s) => s.carregarUsuario)
   const carregarPreferencias = usePreferenciaStore((s) => s.carregar)
   const carregarPermissoes = usePermissaoStore((s) => s.carregar)
+  const carregarAgendaConfig = useAgendaConfigStore((s) => s.carregar)
 
   const theme = useTheme()
   const smUp = useMediaQuery(theme.breakpoints.up("sm"))
@@ -64,6 +66,14 @@ export default function AppLayout({ children, fullBleed = false }) {
   useEffect(() => {
     if (usuario?.id_tenant) carregarPermissoes(usuario.id_tenant)
   }, [usuario?.id_tenant, carregarPermissoes])
+
+  // Categorias e locais da agenda, pelo mesmo motivo das permissoes: sao lidos
+  // por telas espalhadas (calendario, dashboard, presenca, notificacoes) e
+  // carregar em cada uma renderia a mesma requisicao varias vezes por
+  // navegacao. O store ignora a chamada repetida para o tenant ja carregado.
+  useEffect(() => {
+    if (usuario?.id_tenant) carregarAgendaConfig(usuario.id_tenant)
+  }, [usuario?.id_tenant, carregarAgendaConfig])
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>

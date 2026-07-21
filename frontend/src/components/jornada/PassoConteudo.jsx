@@ -17,6 +17,7 @@ import {
   Link,
   IconButton,
   Tooltip,
+  CircularProgress,
 } from "@mui/material"
 import {
   Flag,
@@ -36,17 +37,17 @@ import { motion } from "framer-motion"
 import StatusPasso from "./StatusPasso"
 import BlocoView from "./BlocoView"
 import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
+import {
+  enviarArquivo,
+  abrirArquivo,
+  anexoAcessivel,
+  parseAnexo,
+  formatarTamanho,
+} from "../../services/arquivos"
+import { useAuthStore } from "../../store/authStore"
 
 // Estados em que o incubado ainda pode editar a entrega.
 const EDITAVEL = ["NAO_INICIADA", "RASCUNHO", "AJUSTE"]
-
-// Formata bytes em B/KB/MB para exibir o tamanho do anexo.
-function formatarTamanho(bytes) {
-  if (bytes == null) return ""
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 export default function PassoConteudo({
   passo,
@@ -60,13 +61,18 @@ export default function PassoConteudo({
   temProximo,
 }) {
   const [resposta, setResposta] = useState(passo.entrega.resposta || "")
-  const [anexos, setAnexos] = useState(passo.entrega.anexos || [])
+  // `entrega.anexos` e TEXT[]: cada item pode chegar como objeto, como JSON em
+  // string ou como nome solto. Normaliza na entrada para o resto da tela (e o
+  // que volta ao servidor no save) lidar sempre com {nome, url, tamanho}.
+  const [anexos, setAnexos] = useState(() => (passo.entrega.anexos || []).map(parseAnexo))
   const [erroAnexo, setErroAnexo] = useState("")
+  const [enviandoAnexo, setEnviandoAnexo] = useState(false)
   const fileRef = useRef(null)
+  const idTenant = useAuthStore((s) => s.usuario?.id_tenant)
 
   useEffect(() => {
     setResposta(passo.entrega.resposta || "")
-    setAnexos(passo.entrega.anexos || [])
+    setAnexos((passo.entrega.anexos || []).map(parseAnexo))
     setErroAnexo("")
   }, [passo.id]) // eslint-disable-line
 
@@ -78,31 +84,62 @@ export default function PassoConteudo({
     [editavel, anexos, resposta]
   )
 
-  // Aceita apenas PDFs. Guarda { nome, tamanho, url } (url = blob local, para
-  // visualizar na sessao; a persistencia real fica para quando houver backend).
-  const adicionarArquivos = (lista) => {
+  /**
+   * Sobe os PDFs para o servidor e guarda a referencia devolvida.
+   *
+   * Ate 20/07/2026 isto gravava `URL.createObjectURL(f)` — um endereco que so
+   * valia na aba de quem enviou, e que deixava o MENTOR sem conseguir abrir o
+   * anexo que precisava avaliar. Agora o arquivo sobe de fato e o que fica na
+   * entrega e o `id_arquivo` + a url servida pela API.
+   */
+  const adicionarArquivos = async (lista) => {
     const arquivos = Array.from(lista || [])
     if (!arquivos.length) return
+
     const pdfs = arquivos.filter(
       (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
     )
     setErroAnexo(pdfs.length < arquivos.length ? "Apenas arquivos PDF sao aceitos." : "")
-    if (pdfs.length) {
-      setAnexos((a) => [
-        ...a,
-        ...pdfs.map((f) => ({ nome: f.name, tamanho: f.size, url: URL.createObjectURL(f) })),
-      ])
+    if (!pdfs.length) return
+
+    setEnviandoAnexo(true)
+    try {
+      for (const file of pdfs) {
+        const arquivo = await enviarArquivo(file, { idTenant, visibilidade: "PRIVADO" })
+        setAnexos((a) => [
+          ...a,
+          {
+            id_arquivo: arquivo.id_arquivo,
+            nome: arquivo.nome_original,
+            tamanho: arquivo.tamanho,
+            url: arquivo.url,
+          },
+        ])
+      }
+    } catch (err) {
+      setErroAnexo(
+        err.response?.data?.erro || "Nao foi possivel enviar o arquivo. Tente novamente."
+      )
+    } finally {
+      setEnviandoAnexo(false)
     }
   }
 
-  const removerAnexo = (i) =>
-    setAnexos((a) => {
-      const alvo = a[i]
-      if (alvo?.url?.startsWith("blob:")) URL.revokeObjectURL(alvo.url)
-      return a.filter((_, idx) => idx !== i)
-    })
+  // Remove so da entrega. O arquivo fica no servidor de proposito: a entrega
+  // ainda pode ser um rascunho que o incubado desfaz e refaz, e apagar o byte
+  // a cada clique perderia o anexo de quem so queria reordenar a lista.
+  const removerAnexo = (i) => setAnexos((a) => a.filter((_, idx) => idx !== i))
 
-  const abrirSeletor = () => editavel && fileRef.current?.click()
+  const abrirAnexo = async (anexo) => {
+    setErroAnexo("")
+    try {
+      await abrirArquivo(anexo.url, anexo.nome)
+    } catch (err) {
+      setErroAnexo(err.message)
+    }
+  }
+
+  const abrirSeletor = () => editavel && !enviandoAnexo && fileRef.current?.click()
 
   return (
     <Box
@@ -168,8 +205,15 @@ export default function PassoConteudo({
 
       <Divider sx={{ my: 3 }} />
 
-      {/* Feedback do mentor (quando ha ajuste) */}
-      {passo.entrega.feedback && <FeedbackMentor feedback={passo.entrega.feedback} />}
+      {/* Devolutiva do mentor (quando ja houve avaliacao) */}
+      {passo.entrega.feedback && (
+        <FeedbackMentor
+          texto={passo.entrega.feedback}
+          autor={passo.entrega.avaliador}
+          data={passo.entrega.historico?.[0]?.data}
+          ajuste={status === "AJUSTE"}
+        />
+      )}
 
       {/* Entrega */}
       <SecaoBloco icone={<Send />} titulo="Sua entrega">
@@ -190,7 +234,7 @@ export default function PassoConteudo({
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault()
-              if (editavel) adicionarArquivos(e.dataTransfer.files)
+              if (editavel && !enviandoAnexo) adicionarArquivos(e.dataTransfer.files)
             }}
             sx={{
               border: "2px dashed",
@@ -206,11 +250,21 @@ export default function PassoConteudo({
               "&:hover": editavel ? { borderColor: "primary.main" } : {},
             }}
           >
-            <UploadFile sx={{ fontSize: 32, opacity: 0.5 }} />
-            <Typography sx={{ mt: 1, fontWeight: 600 }}>
-              Arraste o PDF ou clique para enviar
-            </Typography>
-            <Typography variant="caption">Somente arquivos PDF</Typography>
+            {enviandoAnexo ? (
+              <>
+                <CircularProgress size={28} />
+                <Typography sx={{ mt: 1, fontWeight: 600 }}>Enviando…</Typography>
+                <Typography variant="caption">Nao feche esta aba</Typography>
+              </>
+            ) : (
+              <>
+                <UploadFile sx={{ fontSize: 32, opacity: 0.5 }} />
+                <Typography sx={{ mt: 1, fontWeight: 600 }}>
+                  Arraste o PDF ou clique para enviar
+                </Typography>
+                <Typography variant="caption">Somente arquivos PDF (ate 15MB)</Typography>
+              </>
+            )}
           </Box>
         ) : (
           <TextField
@@ -241,11 +295,12 @@ export default function PassoConteudo({
         {editavel && !ehAnexo && (
           <Button
             variant="outlined"
-            startIcon={<PictureAsPdf />}
+            startIcon={enviandoAnexo ? <CircularProgress size={16} /> : <PictureAsPdf />}
             onClick={abrirSeletor}
+            disabled={enviandoAnexo}
             sx={{ mt: 1.5, textTransform: "none" }}
           >
-            Anexar PDF
+            {enviandoAnexo ? "Enviando…" : "Anexar PDF"}
           </Button>
         )}
 
@@ -258,46 +313,57 @@ export default function PassoConteudo({
         {/* Lista de PDFs anexados */}
         {anexos.length > 0 && (
           <Stack spacing={1} sx={{ mt: 1.5 }}>
-            {anexos.map((a, i) => (
-              <Box
-                key={i}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.5,
-                  p: 1,
-                  borderRadius: 1.5,
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
-                <PictureAsPdf sx={{ color: "#ef4444" }} />
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14 }} noWrap>
-                    {a.nome}
-                  </Typography>
-                  {a.tamanho != null && (
-                    <Typography variant="caption" color="text.secondary">
-                      {formatarTamanho(a.tamanho)}
+            {anexos.map((a, i) => {
+              const acessivel = anexoAcessivel(a)
+              return (
+                <Box
+                  key={i}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    p: 1,
+                    borderRadius: 1.5,
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  <PictureAsPdf sx={{ color: acessivel ? "#ef4444" : "text.disabled" }} />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: 14 }} noWrap>
+                      {a.nome || `Anexo ${i + 1}`}
+                    </Typography>
+                    {a.tamanho != null && (
+                      <Typography variant="caption" color="text.secondary">
+                        {formatarTamanho(a.tamanho)}
+                      </Typography>
+                    )}
+                  </Box>
+                  {/* Nao e <a href>: anexo e privado e exige token, que a tag nao
+                      envia. `abrirArquivo` busca com o cabecalho e abre o blob.
+                      Anexos antigos, que guardaram so o nome, nunca subiram ao
+                      servidor — nao ha o que abrir. */}
+                  {acessivel ? (
+                    <Tooltip title="Visualizar" arrow>
+                      <IconButton size="small" onClick={() => abrirAnexo(a)}>
+                        <OpenInNew sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <Typography variant="caption" color="text.disabled">
+                      indisponivel
                     </Typography>
                   )}
+                  {editavel && (
+                    <Tooltip title="Remover" arrow>
+                      <IconButton size="small" onClick={() => removerAnexo(i)}>
+                        <Close sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </Box>
-                {a.url && (
-                  <Tooltip title="Visualizar" arrow>
-                    <IconButton size="small" component="a" href={a.url} target="_blank" rel="noopener">
-                      <OpenInNew sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                {editavel && (
-                  <Tooltip title="Remover" arrow>
-                    <IconButton size="small" onClick={() => removerAnexo(i)}>
-                      <Close sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </Box>
-            ))}
+              )
+            })}
           </Stack>
         )}
 
@@ -460,8 +526,25 @@ function ConteudoEnsinado({ conteudo }) {
   )
 }
 
-// Feedback do mentor, com tom humano.
-function FeedbackMentor({ feedback }) {
+/**
+ * Devolutiva do mentor, com tom humano.
+ *
+ * A API manda a devolutiva em campos SEPARADOS e planos: `entrega.feedback` e o
+ * comentario (texto puro), `entrega.avaliador` e o nome e a data esta no
+ * historico. Este componente ja recebeu um objeto {autor, data, texto} — forma
+ * que so existia no mock — e lia `feedback.autor.charAt(0)`; com a string real
+ * da API isso era TypeError no render, e a Jornada inteira ficava em branco ao
+ * abrir qualquer atividade ja avaliada.
+ */
+function FeedbackMentor({ texto, autor, data, ajuste }) {
+  const cor = ajuste ? "#f97316" : "#22c55e"
+  const nome = autor || "Mentoria"
+  // A data vem como "AAAA-MM-DD"; sem hora, entao formata sem passar por Date
+  // (que interpretaria a string como UTC e poderia recuar um dia).
+  const dataBr = /^\d{4}-\d{2}-\d{2}$/.test(data || "")
+    ? data.split("-").reverse().join("/")
+    : data
+
   return (
     <Box
       sx={{
@@ -469,24 +552,28 @@ function FeedbackMentor({ feedback }) {
         p: 2.25,
         borderRadius: 2,
         border: "1px solid",
-        borderColor: "#f9731655",
-        bgcolor: "#f9731610",
+        borderColor: `${cor}55`,
+        bgcolor: `${cor}10`,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
         <Avatar sx={{ width: 36, height: 36, bgcolor: "secondary.main" }}>
-          {feedback.autor.charAt(0)}
+          {nome.charAt(0)}
         </Avatar>
-        <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{feedback.autor}</Typography>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{nome}</Typography>
           <Typography variant="caption" color="text.secondary">
-            Mentora · {feedback.data}
+            Devolutiva do mentor{dataBr ? ` · ${dataBr}` : ""}
           </Typography>
         </Box>
-        <Chip label="Precisa de ajuste" size="small" sx={{ bgcolor: "#f973161f", color: "#f97316", fontWeight: 700 }} />
+        <Chip
+          label={ajuste ? "Precisa de ajuste" : "Avaliado"}
+          size="small"
+          sx={{ bgcolor: `${cor}1f`, color: cor, fontWeight: 700 }}
+        />
       </Box>
       <Typography sx={{ fontSize: 15, lineHeight: 1.6, fontStyle: "italic" }}>
-        “{feedback.texto}”
+        “{texto}”
       </Typography>
     </Box>
   )

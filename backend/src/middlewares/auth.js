@@ -40,6 +40,31 @@ function autenticar(req, res, next) {
 }
 
 /**
+ * Autentica SE houver token, e segue adiante se nao houver.
+ *
+ * Serve a rota que atende os dois casos. O unico uso hoje e o download de
+ * arquivo: um anexo PRIVADO exige token, mas uma imagem PUBLICA precisa sair
+ * para uma tag <img>, que nao envia cabecalho Authorization. Quem decide se o
+ * token era necessario e a regra de negocio, olhando a visibilidade do
+ * arquivo — nao o middleware.
+ *
+ * Token invalido ou expirado aqui NAO derruba a requisicao: segue como
+ * anonimo, e o service responde 401 se o recurso exigir identificacao.
+ */
+function autenticarOpcional(req, res, next) {
+  const [tipo, token] = (req.headers.authorization || "").split(" ")
+  if (tipo === "Bearer" && token) {
+    try {
+      req.usuario = verificarToken(token)
+      req.token = token
+    } catch {
+      // Segue anonimo de proposito (ver docstring).
+    }
+  }
+  return next()
+}
+
+/**
  * Restringe a rota ao usuario ROOT (super-admin da plataforma).
  *
  * Deve ser usado SEMPRE apos "autenticar", pois depende de req.usuario (o
@@ -55,4 +80,4 @@ function somenteRoot(req, res, next) {
   return next()
 }
 
-module.exports = { autenticar, somenteRoot }
+module.exports = { autenticar, autenticarOpcional, somenteRoot }

@@ -30,7 +30,7 @@ import {
   Divider,
 } from "@mui/material"
 import { Search, HowToReg, EventAvailable } from "@mui/icons-material"
-import { categoriaInfo } from "../calendar/categorias"
+import { useCategorias } from "../calendar/categorias"
 
 // Como cada resposta ao convite (RSVP) aparece na chamada. `null` = nao
 // respondeu, que e o caso mais comum e por isso nao vira chip nenhum.
@@ -145,6 +145,7 @@ export default function ChamadaPainel({ chamada, carregando, salvandoIds, onMarc
   const [busca, setBusca] = useState("")
   const [filtroStartup, setFiltroStartup] = useState("todas")
   const [erro, setErro] = useState(null)
+  const { categoriaInfo } = useCategorias()
 
   const evento = chamada?.evento
   const publico = useMemo(() => chamada?.publico || [], [chamada])

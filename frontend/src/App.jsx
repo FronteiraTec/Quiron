@@ -28,6 +28,7 @@ import ResponderQuestionario from "./pages/ResponderQuestionario"
 import ConfiguracoesLayout from "./pages/ConfiguracoesLayout"
 import DadosCadastrais from "./pages/DadosCadastrais"
 import ConfiguracaoEmail from "./pages/ConfiguracaoEmail"
+import ConfiguracaoAgenda from "./pages/ConfiguracaoAgenda"
 import Auditoria from "./pages/Auditoria"
 import RelatorioProgresso from "./pages/RelatorioProgresso"
 import RelatorioEntregas from "./pages/RelatorioEntregas"
@@ -35,7 +36,6 @@ import RelatorioGargalos from "./pages/RelatorioGargalos"
 import RelatorioEngajamento from "./pages/RelatorioEngajamento"
 import Usuarios from "./pages/Usuarios"
 import Jornada from "./pages/Jornada"
-import MinhaEmpresa from "./pages/MinhaEmpresa"
 import MinhaStartup from "./pages/MinhaStartup"
 import Startups from "./pages/Startups"
 import StartupDetail from "./pages/StartupDetail"
@@ -178,17 +178,6 @@ export default function App() {
               }
             />
 
-            {/* Minha Empresa: Home do incubado — o Blueprint da startup ganhando
-                forma, radar de maturidade e linha do tempo. */}
-            <Route
-              path="/minha-empresa"
-              element={
-                <ProtectedRoute>
-                  <MinhaEmpresa />
-                </ProtectedRoute>
-              }
-            />
-
             {/* Jornada do incubado: ambiente de estudo/execucao (3 colunas) com
                 a trilha da startup, o conteudo de cada passo e a entrega. */}
             <Route
@@ -200,8 +189,8 @@ export default function App() {
               }
             />
 
-            {/* Minha Startup: membros, modelos de gestao e fases concluidas
-                da startup do usuario logado. */}
+            {/* Minha Startup: membros, modelos de gestao, fases concluidas e a
+                evolucao (Blueprint + maturidade) da startup do usuario logado. */}
             <Route
               path="/minha-startup"
               element={
@@ -348,6 +337,7 @@ export default function App() {
             >
               <Route index element={<DadosCadastrais />} />
               <Route path="email" element={<ConfiguracaoEmail />} />
+              <Route path="agenda" element={<ConfiguracaoAgenda />} />
               <Route path="auditoria" element={<Auditoria />} />
             </Route>
 

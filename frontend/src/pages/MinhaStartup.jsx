@@ -1,23 +1,27 @@
 /**
  * Tela "Minha Startup" - visao do membro de uma startup incubada.
  *
- * Reune tres blocos:
+ * Reune quatro blocos:
  *   - Membros: lista/adiciona/remove membros da startup do usuario logado.
  *   - Modelos: modelos graficos de gestao (Business Model Canvas, Matriz GUT, 5W2H).
  *   - Fases concluidas: fases da trilha ja aprovadas para esta startup.
+ *   - Evolucao: o Blueprint das fases, o radar de maturidade e a linha do tempo
+ *     (era a tela "Minha Empresa", que virou aba para nao ter duas telas
+ *     concorrentes falando da mesma startup).
  *
  * A startup do usuario logado e resolvida via GET /startups/minha (nao ha
  * id_startup no token/authStore ainda).
  */
 import { useEffect, useState } from "react"
 import { Box, Paper, Typography, Tabs, Tab, Chip, Alert, CircularProgress } from "@mui/material"
-import { RocketLaunch, Groups, ViewModule, CheckCircle } from "@mui/icons-material"
+import { RocketLaunch, Groups, ViewModule, CheckCircle, AutoAwesome } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
 import AbaMembros from "../components/startup/AbaMembros"
 import AbaModelos from "../components/startup/AbaModelos"
 import AbaFasesConcluidas from "../components/startup/AbaFasesConcluidas"
+import AbaEvolucao from "../components/startup/AbaEvolucao"
 
 export default function MinhaStartup() {
   const usuario = useAuthStore((s) => s.usuario)
@@ -85,11 +89,13 @@ export default function MinhaStartup() {
                 <Tab value="membros" label="Membros" icon={<Groups />} iconPosition="start" />
                 <Tab value="modelos" label="Modelos" icon={<ViewModule />} iconPosition="start" />
                 <Tab value="fases" label="Fases concluidas" icon={<CheckCircle />} iconPosition="start" />
+                <Tab value="evolucao" label="Evolucao" icon={<AutoAwesome />} iconPosition="start" />
               </Tabs>
               <Box sx={{ p: 3 }}>
                 {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={idTenant} />}
                 {aba === "modelos" && <AbaModelos idStartup={startup.id_startup} />}
                 {aba === "fases" && <AbaFasesConcluidas idStartup={startup.id_startup} />}
+                {aba === "evolucao" && <AbaEvolucao />}
               </Box>
             </Paper>
           </>

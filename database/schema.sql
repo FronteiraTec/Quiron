@@ -21,10 +21,10 @@ CREATE TYPE entregaStatus AS ENUM ('RASCUNHO', 'ENVIADA');
 --   ESCOLHA_UNICA  -> multipla escolha com UMA resposta (radio, tem alternativas)
 --   CAIXAS_SELECAO -> assinalar VARIAS respostas (checkbox, tem alternativas)
 CREATE TYPE perguntaTipo AS ENUM('TEXTO_CURTO', 'PARAGRAFO', 'ESCOLHA_UNICA', 'CAIXAS_SELECAO');
--- Categoria de um evento do calendario da incubacao (evento.categoria).
-CREATE TYPE eventoCategoria AS ENUM (
-    'MENTORIA', 'WORKSHOP', 'ENTREGA', 'REUNIAO', 'EVENTO', 'PITCH', 'PRAZO', 'VISITA'
-);
+-- NOTA: a categoria de evento ERA o enum `eventoCategoria`, com oito valores
+-- fixos. Virou dado por incubadora na tabela `evento_categoria` (migracao 008),
+-- porque enum e tipo de coluna: acrescentar uma categoria para UMA incubadora
+-- exigia um ALTER TYPE que valia para todas.
 
 
 CREATE TABLE IF NOT EXISTS tenant (
@@ -690,15 +690,80 @@ CREATE TABLE IF NOT EXISTS avaliacao (
         CHECK (status IN ('APROVADO', 'REPROVADO', 'AJUSTE'))
 );
 
+-- ---------------------------------------------------------------------------
+-- Vocabulario da agenda de CADA incubadora: as categorias que aparecem no
+-- seletor do calendario, com cor e icone. Substitui o antigo enum
+-- eventoCategoria (ver migracao 008).
+--
+-- A `chave` e o que fica gravado em evento.categoria e nao muda depois de
+-- criada; o `rotulo` e editavel, e renomea-lo reetiqueta todo o historico sem
+-- tocar em evento nenhum. Excluir e `ativo = FALSE`: apagar de verdade ou seria
+-- barrado pela FK ou deixaria o relatorio de engajamento sem rotulo.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS evento_categoria (
+    id_tenant INTEGER      NOT NULL,
+    chave     VARCHAR(40)  NOT NULL,
+    rotulo    VARCHAR(60)  NOT NULL,
+    -- Hex de 6 digitos: o front usa direto em CSS.
+    cor       CHAR(7)      NOT NULL DEFAULT '#8b5cf6',
+    -- Nome do icone MUI, de uma lista fechada resolvida no front (ICONES em
+    -- categorias.js). Valor desconhecido cai no fallback, nao quebra a tela.
+    icone     VARCHAR(40)  NOT NULL DEFAULT 'Event',
+    ordem     SMALLINT     NOT NULL DEFAULT 0,
+    ativo     BOOLEAN      NOT NULL DEFAULT TRUE,
+    criado_ts TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_evento_categoria PRIMARY KEY (id_tenant, chave),
+
+    CONSTRAINT fk_evento_categoria_tenant
+        FOREIGN KEY (id_tenant) REFERENCES tenant (id_tenant) ON DELETE CASCADE,
+
+    CONSTRAINT ck_evento_categoria_cor CHECK (cor ~ '^#[0-9a-fA-F]{6}$')
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_evento_categoria_rotulo
+    ON evento_categoria (id_tenant, lower(rotulo));
+
+-- ---------------------------------------------------------------------------
+-- Salas/espacos cadastrados pela incubadora. Nao substitui `evento.local`
+-- (texto livre): o formulario aceita os dois, cadastro para a sala recorrente
+-- e texto avulso para o "auditorio emprestado uma vez".
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS evento_local (
+    id_local   INTEGER      GENERATED ALWAYS AS IDENTITY,
+    id_tenant  INTEGER      NOT NULL,
+    nome       VARCHAR(120) NOT NULL,
+    endereco   VARCHAR(200),
+    capacidade INTEGER,
+    ativo      BOOLEAN      NOT NULL DEFAULT TRUE,
+    criado_ts  TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_evento_local PRIMARY KEY (id_local),
+
+    CONSTRAINT fk_evento_local_tenant
+        FOREIGN KEY (id_tenant) REFERENCES tenant (id_tenant) ON DELETE CASCADE,
+
+    CONSTRAINT ck_evento_local_capacidade CHECK (capacidade IS NULL OR capacidade > 0)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_evento_local_nome
+    ON evento_local (id_tenant, lower(nome));
+
 CREATE TABLE IF NOT EXISTS evento (
     id_evento INTEGER GENERATED ALWAYS AS IDENTITY,
     id_tenant INTEGER NOT NULL,
 
     titulo VARCHAR(150) NOT NULL,
     descricao TEXT,
-    -- Categoria exibida no calendario (cor/icone); ver enum eventoCategoria.
-    categoria eventoCategoria NOT NULL DEFAULT 'EVENTO',
+    -- Chave em evento_categoria (cor/icone/rotulo vem de la). A FK e COMPOSTA
+    -- com id_tenant: sem isso um evento poderia apontar para a categoria de
+    -- outra incubadora.
+    categoria VARCHAR(40) NOT NULL DEFAULT 'EVENTO',
 
+    -- Local em duas formas, e as duas valem: `id_local` quando escolhido do
+    -- cadastro, `local` (texto) quando digitado avulso. A exibicao prefere o
+    -- cadastro e cai no texto — que tambem guarda o legado anterior a 008.
+    id_local INTEGER,
     local VARCHAR(150),
     inicio_ts TIMESTAMP NOT NULL,
     fim_ts TIMESTAMP,
@@ -716,7 +781,17 @@ CREATE TABLE IF NOT EXISTS evento (
     criado_ts TIMESTAMP DEFAULT NOW(),
     atualizado_ts TIMESTAMP DEFAULT NOW(),
 
-    CONSTRAINT pk_evento PRIMARY KEY (id_evento)
+    CONSTRAINT pk_evento PRIMARY KEY (id_evento),
+
+    CONSTRAINT fk_evento_categoria
+        FOREIGN KEY (id_tenant, categoria)
+        REFERENCES evento_categoria (id_tenant, chave),
+
+    -- Sem ON DELETE CASCADE: apagar uma sala nao pode apagar o evento que
+    -- aconteceu nela.
+    CONSTRAINT fk_evento_local
+        FOREIGN KEY (id_local)
+        REFERENCES evento_local (id_local)
 );
 
 -- ---------------------------------------------------------------------------

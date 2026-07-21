@@ -5,6 +5,7 @@
 const tenantRepository = require("../repositories/tenantRepository")
 const usuarioRepository = require("../repositories/usuarioRepository")
 const rbacRepository = require("../repositories/rbacRepository")
+const agendaConfigRepository = require("../repositories/agendaConfigRepository")
 const { gerarHash } = require("../utils/senha")
 const { withTransaction } = require("../config/db")
 const { erroNegocio } = require("../utils/erros")
@@ -52,6 +53,10 @@ async function criar(dados) {
   const tenant = await tenantRepository.criar(dados)
   // Roles padrao (sistema) para a incubadora recem-criada.
   await rbacRepository.criarRolesPadrao(tenant.id_tenant)
+  // Categorias padrao da agenda. Nao e cosmetico: a FK (id_tenant, categoria)
+  // exige que exista ao menos uma categoria antes do primeiro evento, entao uma
+  // incubadora sem esta linha nasceria com o calendario travado.
+  await agendaConfigRepository.semearCategoriasPadrao(tenant.id_tenant)
   return tenant
 }
 

@@ -7,9 +7,10 @@ import { Box, Typography } from "@mui/material"
 import { EventBusy } from "@mui/icons-material"
 import { format, isSameDay, isToday } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { categoriaInfo } from "./categorias"
+import { useCategorias } from "./categorias"
 
 export default function DayEvents({ dia, eventos = [], onSelecionar }) {
+  const { categoriaInfo } = useCategorias()
   const doDia = eventos
     .filter((ev) => isSameDay(new Date(ev.inicio_ts), dia))
     .sort((a, b) => new Date(a.inicio_ts) - new Date(b.inicio_ts))

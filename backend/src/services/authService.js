@@ -213,11 +213,12 @@ async function solicitarResetSenha(email) {
   // So gera/envia se o usuario existir; o controller responde generico.
   if (usuario) {
     const { token, tokenHash } = gerarTokenReset()
-    const expira = new Date(Date.now() + RESET_EXPIRA_MIN * 60 * 1000)
 
-    // Invalida pedidos anteriores e cria o novo.
+    // Invalida pedidos anteriores e cria o novo. O prazo vai em MINUTOS: quem
+    // calcula a data de expiracao e o banco, no mesmo relogio que depois a
+    // compara (ver senhaResetRepository.criar).
     await senhaResetRepository.invalidarAnteriores(usuario.id_usuario)
-    await senhaResetRepository.criar(usuario.id_usuario, tokenHash, expira)
+    await senhaResetRepository.criar(usuario.id_usuario, tokenHash, RESET_EXPIRA_MIN)
 
     // Link que o usuario vai abrir no frontend.
     const link = `${FRONTEND_URL}/reset-password?token=${token}`

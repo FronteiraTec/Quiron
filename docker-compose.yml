@@ -35,14 +35,25 @@ services:
       DB_PORT: 5432
       JWT_SECRET: troque-este-segredo-em-producao
       JWT_EXPIRES: 8h
-      # URL do frontend usada no link de redefinicao de senha.
-      FRONTEND_URL: http://localhost
-      # SMTP real (opcional). Sem isso, usa conta de teste Ethereal em dev.
-      # SMTP_HOST: smtp.seuprovedor.com
-      # SMTP_PORT: 587
-      # SMTP_USER: usuario
-      # SMTP_PASS: senha
-      # EMAIL_FROM: "Quiron <no-reply@seudominio.com>"
+      # Base dos links dentro dos emails (reset de senha, "ver na jornada").
+      # Precisa ser um endereco que o DESTINATARIO consiga abrir: com emails
+      # reais, "localhost" aponta para a maquina de quem recebe.
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      # SMTP. Os valores vem do arquivo .env (fora do git) — ver .env.example.
+      # Com SMTP_HOST vazio, cai na conta de teste Ethereal e nada e enviado
+      # de verdade: e o modo de desenvolvimento.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      # Onde os arquivos enviados ficam DENTRO do container (volume `uploads`).
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      # Volume nomeado, nao bind mount: os arquivos precisam sobreviver ao
+      # `--force-recreate` do container, que e rotina aqui a cada rebuild.
+      - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,3 +94,4 @@ networks:
 
 volumes:
   pgdata:
+  uploads:

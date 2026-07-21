@@ -7,9 +7,10 @@
 import { Box, Typography, alpha } from "@mui/material"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { categoriaInfo } from "./categorias"
+import { useCategorias } from "./categorias"
 
 export default function CalendarEvent({ evento, variante = "pilula", onClick }) {
+  const { categoriaInfo } = useCategorias()
   const { label, cor, Icone } = categoriaInfo(evento.categoria)
   const hora = format(new Date(evento.inicio_ts), "HH:mm")
 

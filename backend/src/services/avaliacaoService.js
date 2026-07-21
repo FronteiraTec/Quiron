@@ -6,6 +6,7 @@ const entregaRepository = require("../repositories/entregaRepository")
 const startupRepository = require("../repositories/startupRepository")
 const tenantRepository = require("../repositories/tenantRepository")
 const rbacService = require("./rbacService")
+const notificacaoService = require("./notificacaoService")
 const { erroNegocio } = require("../utils/erros")
 
 const STATUS_VALIDOS = ["APROVADO", "REPROVADO", "AJUSTE"]
@@ -114,13 +115,23 @@ async function criar(dados, usuario) {
     throw erroNegocio(400, "Explique no comentario o que precisa ser ajustado.")
   }
 
-  return avaliacaoRepository.criar({
+  const avaliacao = await avaliacaoRepository.criar({
     idEntrega,
     idAvaliador: usuario.id,
     status,
     nota,
     comentario,
   })
+
+  // Avisa a startup da devolutiva. `entrega` ja foi carregada acima para as
+  // validacoes, entao o aviso nao custa nenhuma consulta extra aqui.
+  notificacaoService.entregaAvaliada({
+    entrega,
+    avaliacao: { status, nota, comentario },
+    idAvaliador: usuario.id,
+  })
+
+  return avaliacao
 }
 
 module.exports = { listar, listarMinhas, listarDoTenant, criar }

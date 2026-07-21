@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
-import { STATUS_CONCLUIDO, STATUS_INICIADO, AREAS_EMPRESA } from "../data/jornadaMeta"
+import { STATUS_CONCLUIDO, STATUS_INICIADO } from "../data/jornadaMeta"
 
 // Lista achatada de passos (com o estagio pai), na ordem da trilha.
 function achatarPassos(estagios) {
@@ -210,29 +210,37 @@ export function useJornada() {
   }, [passosFlat])
 
   // -------------------------------------------------- Blueprint da empresa
-  // Para cada area, agrega os passos que apontam para ela (trilha_no.area). A
-  // empresa "ganha forma" conforme esses passos sao aprovados.
-  const areasEmpresa = useMemo(() => {
-    return AREAS_EMPRESA.map((area) => {
-      const passos = passosFlat.filter((p) => p.area === area.nome)
-      const total = passos.length
-      const feitos = passos.filter((p) => STATUS_CONCLUIDO.includes(p.entrega.status)).length
-      const emObra = passos.some((p) => STATUS_INICIADO.includes(p.entrega.status))
+  // Um cartao por FASE da trilha: a empresa "ganha forma" conforme os passos de
+  // cada fase vao sendo aprovados.
+  //
+  // Antes isto era agregado por `trilha_no.area` — uma lista fixa de 8 areas
+  // que o admin etiquetava a mao em cada passo. Nao acompanhava as fases que a
+  // incubadora realmente monta no Construtor: areas sem nenhum passo viravam
+  // cartoes fantasma e os nomes colidiam com os das fases/modulos. Derivar dos
+  // estagios faz o Blueprint valer para qualquer trilha, sem etiquetar nada.
+  const blueprintFases = useMemo(() => {
+    return jornada.estagios.map((est, i) => {
+      const total = est.passos.length
+      const feitos = est.passos.filter((p) => STATUS_CONCLUIDO.includes(p.entrega.status)).length
+      const emObra = est.passos.some((p) => STATUS_INICIADO.includes(p.entrega.status))
       let status = "VAZIA"
-      if (total > 0 && feitos === total) status = "CONSTRUIDA"
+      if (est.status === "BLOQUEADO") status = "BLOQUEADA"
+      else if (total > 0 && feitos === total) status = "CONSTRUIDA"
       else if (feitos > 0 || emObra) status = "EM_OBRA"
       const pct = total ? Math.round((feitos / total) * 100) : 0
-      return { ...area, total, feitos, status, pct }
+      return { id: est.id, nome: est.nome, ordem: i + 1, total, feitos, status, pct }
     })
-  }, [passosFlat])
+  }, [jornada.estagios])
 
-  const maturidade = useMemo(() => {
-    const comPassos = areasEmpresa.filter((a) => a.total > 0)
-    const media = comPassos.length
-      ? Math.round(comPassos.reduce((s, a) => s + a.pct, 0) / comPassos.length)
-      : 0
-    return { pct: media, radar: areasEmpresa.map((a) => ({ area: a.nome, valor: a.pct })) }
-  }, [areasEmpresa])
+  // Radar: um eixo por fase que tem passos. Fase vazia nao vira eixo — desenhava
+  // um poligono murcho que contradizia o proprio percentual ao lado.
+  const radarFases = useMemo(
+    () =>
+      blueprintFases
+        .filter((f) => f.total > 0)
+        .map((f) => ({ area: f.nome, valor: f.pct })),
+    [blueprintFases]
+  )
 
   // Linha do tempo: marcos de aprovacao, mais recentes primeiro.
   const linhaTempo = useMemo(() => {
@@ -323,8 +331,8 @@ export function useJornada() {
     progressoEstagio,
     progressoModulo,
     progressoGeral,
-    areasEmpresa,
-    maturidade,
+    blueprintFases,
+    radarFases,
     linhaTempo,
     passoAnterior,
     passoProximo,

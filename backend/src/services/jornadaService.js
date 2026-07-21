@@ -13,6 +13,7 @@
 const jornadaRepository = require("../repositories/jornadaRepository")
 const startupRepository = require("../repositories/startupRepository")
 const trilhaRepository = require("../repositories/trilhaRepository")
+const notificacaoService = require("./notificacaoService")
 const { erroNegocio } = require("../utils/erros")
 
 /**
@@ -234,7 +235,17 @@ async function enviar(dados) {
     throw erroNegocio(400, "Escreva uma resposta ou anexe um arquivo antes de enviar.")
   }
 
-  return jornadaRepository.salvarEntrega({ ...dados, status: "ENVIADA" })
+  const entrega = await jornadaRepository.salvarEntrega({ ...dados, status: "ENVIADA" })
+
+  // Aviso aos mentores. Fica aqui, e nao no salvarRascunho, porque so o envio
+  // coloca a entrega na fila de alguem — o rascunho ainda e da startup.
+  notificacaoService.entregaEnviada({
+    idStartup: dados.idStartup,
+    idNo: dados.idNo,
+    idUsuario: dados.idUsuario,
+  })
+
+  return entrega
 }
 
 /** Reenvia apos ajuste: limpa as avaliacoes e volta para AGUARDANDO. */
@@ -242,6 +253,14 @@ async function reenviar(dados) {
   await validarEntrega(dados)
   const entrega = await jornadaRepository.reenviar(dados)
   if (!entrega) throw erroNegocio(404, "Nao ha entrega para reenviar neste passo.")
+
+  notificacaoService.entregaEnviada({
+    idStartup: dados.idStartup,
+    idNo: dados.idNo,
+    idUsuario: dados.idUsuario,
+    reenvio: true,
+  })
+
   return entrega
 }
 

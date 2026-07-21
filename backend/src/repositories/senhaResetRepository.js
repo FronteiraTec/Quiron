@@ -14,13 +14,21 @@ async function invalidarAnteriores(idUsuario) {
   )
 }
 
-/** Cria um novo token de reset. */
-async function criar(idUsuario, tokenHash, expiraTs) {
+/**
+ * Cria um novo token de reset com validade de `expiraMin` minutos.
+ *
+ * O prazo e calculado pelo BANCO, nao pelo Node. expira_ts e um `timestamp
+ * without time zone` e buscarValidoPorHash compara com NOW(): um Date vindo do
+ * Node era gravado com a hora LOCAL do servidor (UTC-3) e comparado com a hora
+ * do banco (UTC), entao o token ja nascia vencido e todo link de redefinicao
+ * chegava invalido. Com NOW() dos dois lados, o relogio e o mesmo.
+ */
+async function criar(idUsuario, tokenHash, expiraMin) {
   const { rows } = await query(
     `INSERT INTO senha_reset (id_usuario, token_hash, expira_ts)
-     VALUES ($1, $2, $3)
+     VALUES ($1, $2, NOW() + make_interval(mins => $3))
      RETURNING id_reset`,
-    [idUsuario, tokenHash, expiraTs]
+    [idUsuario, tokenHash, expiraMin]
   )
   return rows[0]
 }

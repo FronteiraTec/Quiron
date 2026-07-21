@@ -6,14 +6,18 @@ const eventoService = require("../services/eventoService")
 // Le os campos de evento do corpo da requisicao (usado em criar/atualizar).
 function lerCampos(body) {
   const {
-    titulo, descricao, categoria, local, inicio_ts, fim_ts,
+    titulo, descricao, categoria, local, id_local, inicio_ts, fim_ts,
     id_startups, mentor_nome, anexos, vagas, obrigatorio,
   } = body
   return {
     titulo,
     descricao,
     categoria,
+    // Local em duas formas: `id_local` quando escolhido do cadastro da
+    // incubadora, `local` (texto) quando digitado avulso. O formulario manda um
+    // ou outro; "" vira null para nao gravar string vazia como id.
     local,
+    idLocal: id_local || null,
     inicioTs: inicio_ts,
     fimTs: fim_ts,
     idsStartups: Array.isArray(id_startups) ? id_startups : [],

@@ -14,6 +14,10 @@ router.use("/auth", require("./authRoutes"))
 // Preferencias visuais do usuario logado (protegido).
 router.use("/preferencias", require("./preferenciaRoutes"))
 
+// Arquivos: upload e download. Cada rota declara sua propria autenticacao — o
+// download atende tambem o anonimo, para imagem publica em <img>.
+router.use("/arquivos", require("./arquivoRoutes"))
+
 // Modulos de dominio (todos protegidos por Bearer Token).
 router.use("/tenants", require("./tenantRoutes"))
 router.use("/startups", require("./startupRoutes"))
@@ -33,6 +37,9 @@ router.use("/questionarios", require("./questionarioRoutes"))
 router.use("/entregas", require("./entregaRoutes"))
 router.use("/avaliacoes", require("./avaliacaoRoutes"))
 router.use("/eventos", require("./eventoRoutes"))
+// Vocabulario configuravel da agenda (categorias e locais de cada incubadora).
+// Fora de /eventos porque /eventos/:id capturaria "categorias" como id.
+router.use("/agenda-config", require("./agendaConfigRoutes"))
 router.use("/auditlogs", require("./auditLogRoutes"))
 
 // Relatorios: leituras agregadas do que os outros modulos ja registram

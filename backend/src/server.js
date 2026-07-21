@@ -13,6 +13,7 @@ const routes = require("./routes")
 const { autenticar } = require("./middlewares/auth")
 const { errorHandler } = require("./middlewares/errorHandler")
 const { sincronizarCatalogo } = require("./rbac/sincronizarCatalogo")
+const arquivoService = require("./services/arquivoService")
 
 const app = express()
 
@@ -49,4 +50,13 @@ app.listen(PORT, () => {
   sincronizarCatalogo().catch((err) => {
     console.error("Falha ao sincronizar catalogo de permissoes:", err)
   })
+
+  // Garante o diretorio de uploads. Feito na subida e nao no primeiro envio:
+  // se o volume nao estiver montado, o erro aparece agora, no log do boot, e
+  // nao para o usuario no meio de uma entrega.
+  try {
+    console.log(`Diretorio de uploads: ${arquivoService.prepararDiretorio()}`)
+  } catch (err) {
+    console.error("Falha ao preparar o diretorio de uploads:", err)
+  }
 })

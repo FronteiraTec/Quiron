@@ -19,17 +19,21 @@ import {
   Alert,
   CircularProgress,
   FormHelperText,
+  Autocomplete,
 } from "@mui/material"
 import { Close, Add, DeleteOutline } from "@mui/icons-material"
 import { format } from "date-fns"
-import { CATEGORIAS, LISTA_CATEGORIAS } from "./categorias"
+import { useCategorias, useLocais } from "./categorias"
 
 const FORM_VAZIO = {
   titulo: "",
-  categoria: "EVENTO",
+  categoria: "",
   descricao: "",
   idsStartups: [],
   mentor_nome: "",
+  // Local em duas formas, so uma preenchida por vez: `idLocal` quando escolhido
+  // do cadastro da incubadora, `local` quando digitado avulso. Ver migracao 008.
+  idLocal: null,
   local: "",
   data: format(new Date(), "yyyy-MM-dd"),
   horaInicio: "09:00",
@@ -48,6 +52,7 @@ function eventoParaForm(evento) {
     descricao: evento.descricao || "",
     idsStartups: (evento.startups || []).map((s) => s.id_startup),
     mentor_nome: evento.mentor_nome || "",
+    idLocal: evento.id_local || null,
     local: evento.local || "",
     data: format(inicio, "yyyy-MM-dd"),
     horaInicio: format(inicio, "HH:mm"),
@@ -58,6 +63,8 @@ function eventoParaForm(evento) {
 }
 
 export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = [], eventoEditar, dataInicial }) {
+  const { categorias } = useCategorias()
+  const { locais } = useLocais()
   const [form, setForm] = useState(FORM_VAZIO)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState(null)
@@ -67,10 +74,16 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
     if (eventoEditar) {
       setForm(eventoParaForm(eventoEditar))
     } else {
-      setForm({ ...FORM_VAZIO, data: format(dataInicial || new Date(), "yyyy-MM-dd") })
+      // A categoria inicial e a PRIMEIRA da incubadora, nao "EVENTO" fixo: essa
+      // chave pode ter sido renomeada ou desativada, e o seletor abriria vazio.
+      setForm({
+        ...FORM_VAZIO,
+        categoria: categorias[0]?.chave || "",
+        data: format(dataInicial || new Date(), "yyyy-MM-dd"),
+      })
     }
     setErro(null)
-  }, [aberto, eventoEditar, dataInicial])
+  }, [aberto, eventoEditar, dataInicial, categorias])
 
   const alterar = (campo, valor) => setForm((f) => ({ ...f, [campo]: valor }))
 
@@ -91,7 +104,12 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
         titulo: form.titulo,
         categoria: form.categoria,
         descricao: form.descricao || null,
-        local: form.local || null,
+        // Um ou outro, nunca os dois: escolheu do cadastro manda id_local e
+        // limpa o texto; digitou avulso manda o texto e id_local nulo. Gravar
+        // os dois faria a exibicao (COALESCE no repositorio) ignorar o texto
+        // sem que ninguem entendesse por que.
+        local: form.idLocal ? null : form.local || null,
+        id_local: form.idLocal || null,
         id_startups: form.idsStartups,
         mentor_nome: form.mentor_nome || null,
         anexos: form.anexos.filter((a) => a.nome || a.url),
@@ -150,9 +168,20 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
                 value={form.categoria}
                 onChange={(e) => alterar("categoria", e.target.value)}
               >
-                {LISTA_CATEGORIAS.map((chave) => (
+                {categorias.map(({ chave, rotulo, cor }) => (
                   <MenuItem key={chave} value={chave}>
-                    {CATEGORIAS[chave].label}
+                    <Box
+                      component="span"
+                      sx={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        bgcolor: cor,
+                        mr: 1,
+                        flexShrink: 0,
+                      }}
+                    />
+                    {rotulo}
                   </MenuItem>
                 ))}
               </TextField>
@@ -180,11 +209,42 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
               />
             </Grid>
             <Grid item xs={7}>
-              <TextField
-                label="Local"
-                fullWidth
-                value={form.local}
-                onChange={(e) => alterar("local", e.target.value)}
+              {/*
+                freeSolo: a incubadora cadastra as salas que usa sempre, mas o
+                "auditorio emprestado uma vez" continua podendo ser digitado —
+                obrigar cadastro para ele encheria a lista permanente de evento
+                pontual. `value` e o objeto do cadastro OU a string digitada, e
+                e isso que decide qual dos dois campos vai para a API.
+              */}
+              <Autocomplete
+                freeSolo
+                options={locais}
+                value={
+                  form.idLocal
+                    ? locais.find((l) => l.id_local === form.idLocal) || null
+                    : form.local
+                }
+                getOptionLabel={(opcao) => (typeof opcao === "string" ? opcao : opcao.nome)}
+                isOptionEqualToValue={(opcao, valor) => opcao.id_local === valor?.id_local}
+                onChange={(_, valor) => {
+                  if (valor && typeof valor === "object") {
+                    setForm((f) => ({ ...f, idLocal: valor.id_local, local: "" }))
+                  } else {
+                    setForm((f) => ({ ...f, idLocal: null, local: valor || "" }))
+                  }
+                }}
+                // Digitar depois de ter escolhido do cadastro descarta a
+                // escolha: o que vale passa a ser o texto.
+                onInputChange={(_, texto, motivo) => {
+                  if (motivo === "input") setForm((f) => ({ ...f, idLocal: null, local: texto }))
+                }}
+                renderOption={(props, opcao) => (
+                  <li {...props} key={opcao.id_local}>
+                    {opcao.nome}
+                    {opcao.capacidade ? ` (${opcao.capacidade} lugares)` : ""}
+                  </li>
+                )}
+                renderInput={(params) => <TextField {...params} label="Local" fullWidth />}
               />
             </Grid>
             <Grid item xs={5}>

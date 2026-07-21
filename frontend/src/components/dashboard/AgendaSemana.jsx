@@ -12,7 +12,7 @@ import { alpha } from "@mui/material/styles"
 import { CalendarMonth, EventBusy, ChevronRight, Place } from "@mui/icons-material"
 import { format, isToday, isTomorrow, isSameDay } from "date-fns"
 import { useNavigate } from "react-router-dom"
-import { categoriaInfo } from "../calendar/categorias"
+import { useCategorias } from "../calendar/categorias"
 import { useAgendaSemana } from "../../hooks/useAgendaSemana"
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"]
@@ -49,6 +49,7 @@ function subtitulo(ev) {
 }
 
 function EventoItem({ evento, onClick }) {
+  const { categoriaInfo } = useCategorias()
   const { cor, label } = categoriaInfo(evento.categoria)
   const inicio = new Date(evento.inicio_ts)
   return (

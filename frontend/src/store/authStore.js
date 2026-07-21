@@ -9,6 +9,7 @@ import { create } from "zustand"
 import api, { TOKEN_KEY } from "../services/api"
 import { usePreferenciaStore } from "./preferenciaStore"
 import { usePermissaoStore } from "./permissaoStore"
+import { useAgendaConfigStore } from "./agendaConfigStore"
 
 export const useAuthStore = create((set) => ({
   // Estado inicial: recupera o token salvo (se houver).
@@ -41,6 +42,9 @@ export const useAuthStore = create((set) => ({
     // Sem isto o proximo usuario herdaria as chaves do anterior ate o
     // AppLayout recarregar — e veria, por um instante, um menu que nao e dele.
     usePermissaoStore.getState().limpar()
+    // Idem para as categorias/locais: sao de uma incubadora especifica, e o
+    // proximo login pode ser em outra.
+    useAgendaConfigStore.getState().limpar()
     // Volta as preferencias visuais ao padrao para o proximo usuario.
     usePreferenciaStore.getState().resetar()
   },

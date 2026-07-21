@@ -245,6 +245,31 @@ async function listarIdsPorMentor(idTenant, idUsuario) {
   return rows.map((r) => r.id_startup)
 }
 
+/**
+ * Mentores que acompanham a startup, com email — os destinatarios do aviso de
+ * entrega enviada.
+ *
+ * So mentores com vinculo ATIVO no tenant: quem foi desligado da incubadora
+ * continua em mentor_startup (o vinculo nao e apagado) e voltaria a receber
+ * email de startup que nao acompanha mais.
+ */
+async function listarMentores(idStartup) {
+  const { rows } = await query(
+    `SELECT u.id_usuario, u.nome, u.email
+       FROM mentor_startup ms
+       JOIN startup s  ON s.id_startup = ms.id_startup
+       JOIN usuarios u ON u.id_usuario = ms.id_usuario_mentor
+       JOIN tenant_usuarios tu
+         ON tu.id_usuario = u.id_usuario
+        AND tu.id_tenant = s.id_tenant
+        AND tu.ativo = TRUE
+      WHERE ms.id_startup = $1
+      ORDER BY u.nome`,
+    [idStartup]
+  )
+  return rows
+}
+
 /** O usuario e mentor desta startup? Guarda da avaliacao de entregas. */
 async function ehMentorDe(idStartup, idUsuario) {
   const { rows } = await query(
@@ -287,7 +312,7 @@ async function removerMembro(idStartup, idUsuario) {
 /** Lista as fases ja concluidas (aprovadas) de uma startup, em ordem da trilha. */
 async function listarFasesConcluidas(idStartup) {
   const { rows } = await query(
-    `SELECT st.id_startup_trilha, f.nome, f.descricao, f.ordem, st.fim_ts,
+    `SELECT st.id_startup_fase, f.nome, f.descricao, f.ordem, st.fim_ts,
             u.nome AS aprovado_por_nome
        FROM startup_trilha st
        JOIN trilha_no f ON f.id_no = st.id_no AND f.tipo = 'FASE'
@@ -311,6 +336,7 @@ module.exports = {
   listarSemStartup,
   listarIdsPorUsuario,
   listarIdsPorMentor,
+  listarMentores,
   ehMentorDe,
   buscarStartupDoUsuario,
   removerMembro,

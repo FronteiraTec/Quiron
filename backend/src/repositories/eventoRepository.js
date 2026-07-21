@@ -11,8 +11,18 @@ const { query } = require("../config/db")
 // Evento + nome de quem criou + startups direcionadas (agregadas em JSON).
 const SELECT_EVENTO = `
   SELECT e.id_evento, e.id_tenant, e.titulo, e.descricao, e.categoria, e.local,
-         e.inicio_ts, e.fim_ts, e.mentor_nome, e.anexos, e.vagas, e.obrigatorio,
+         e.id_local, e.inicio_ts, e.fim_ts, e.mentor_nome, e.anexos, e.vagas,
+         e.obrigatorio,
          e.ativo, e.criado_por, u.nome AS criado_por_nome, e.criado_ts, e.atualizado_ts,
+         -- Rotulo/cor/icone vem da configuracao da incubadora, nao do evento:
+         -- renomear a categoria reetiqueta o historico inteiro de graca.
+         cat.rotulo AS categoria_rotulo,
+         cat.cor    AS categoria_cor,
+         cat.icone  AS categoria_icone,
+         -- O nome do local sai do cadastro quando ha id_local, e do texto livre
+         -- quando nao ha. Resolver aqui evita que cada tela do front repita o
+         -- COALESCE — sao sete lugares que exibem local.
+         COALESCE(loc.nome, e.local) AS local_nome,
          COALESCE(
            (SELECT json_agg(json_build_object('id_startup', st.id_startup, 'nome', st.nome) ORDER BY st.nome)
               FROM evento_startups es
@@ -22,6 +32,9 @@ const SELECT_EVENTO = `
          ) AS startups
     FROM evento e
     LEFT JOIN usuarios u ON u.id_usuario = e.criado_por
+    LEFT JOIN evento_categoria cat
+           ON cat.id_tenant = e.id_tenant AND cat.chave = e.categoria
+    LEFT JOIN evento_local loc ON loc.id_local = e.id_local
 `
 
 /**
@@ -87,17 +100,18 @@ async function definirStartups(idEvento, idsStartups, client) {
 /** Cria um novo evento. */
 async function criar(dados) {
   const {
-    idTenant, titulo, descricao, categoria, local, inicioTs, fimTs,
+    idTenant, titulo, descricao, categoria, local, idLocal, inicioTs, fimTs,
     idsStartups, mentorNome, anexos, vagas, obrigatorio, criadoPor,
   } = dados
   const { rows } = await query(
     `INSERT INTO evento
-       (id_tenant, titulo, descricao, categoria, local, inicio_ts, fim_ts,
+       (id_tenant, titulo, descricao, categoria, local, id_local, inicio_ts, fim_ts,
         mentor_nome, anexos, vagas, obrigatorio, criado_por)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      RETURNING id_evento`,
     [
-      idTenant, titulo, descricao ?? null, categoria, local ?? null, inicioTs, fimTs ?? null,
+      idTenant, titulo, descricao ?? null, categoria, local ?? null, idLocal ?? null,
+      inicioTs, fimTs ?? null,
       mentorNome ?? null, JSON.stringify(anexos ?? []), vagas ?? null, obrigatorio ?? false, criadoPor,
     ]
   )
@@ -109,18 +123,19 @@ async function criar(dados) {
 /** Atualiza um evento existente. */
 async function atualizar(id, dados) {
   const {
-    titulo, descricao, categoria, local, inicioTs, fimTs,
+    titulo, descricao, categoria, local, idLocal, inicioTs, fimTs,
     idsStartups, mentorNome, anexos, vagas, obrigatorio,
   } = dados
   const { rows } = await query(
     `UPDATE evento
-        SET titulo = $1, descricao = $2, categoria = $3, local = $4,
-            inicio_ts = $5, fim_ts = $6, mentor_nome = $7,
-            anexos = $8, vagas = $9, obrigatorio = $10, atualizado_ts = NOW()
-      WHERE id_evento = $11 AND ativo = TRUE
+        SET titulo = $1, descricao = $2, categoria = $3, local = $4, id_local = $5,
+            inicio_ts = $6, fim_ts = $7, mentor_nome = $8,
+            anexos = $9, vagas = $10, obrigatorio = $11, atualizado_ts = NOW()
+      WHERE id_evento = $12 AND ativo = TRUE
       RETURNING id_evento`,
     [
-      titulo, descricao ?? null, categoria, local ?? null, inicioTs, fimTs ?? null,
+      titulo, descricao ?? null, categoria, local ?? null, idLocal ?? null,
+      inicioTs, fimTs ?? null,
       mentorNome ?? null, JSON.stringify(anexos ?? []), vagas ?? null, obrigatorio ?? false, id,
     ]
   )

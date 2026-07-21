@@ -4,9 +4,10 @@
  * A jornada em si vem da API (/jornada) — este arquivo guarda apenas o que e
  * de apresentacao e nao pertence ao banco:
  *
- *   STATUS_PASSO / STATUS_ESTAGIO / STATUS_AREA -> como cada estado aparece
- *   AREAS_EMPRESA                               -> as areas do blueprint
- *   STATUS_CONCLUIDO / STATUS_INICIADO          -> quais estados contam
+ *   STATUS_PASSO / STATUS_ESTAGIO      -> como cada estado aparece
+ *   STATUS_BLUEPRINT                   -> estado de uma fase no Blueprint
+ *   AREAS_EMPRESA                      -> rotulo da celebracao GanhaForma
+ *   STATUS_CONCLUIDO / STATUS_INICIADO -> quais estados contam
  *
  * Os estados do PASSO sao derivados no servidor a partir de entrega +
  * avaliacao (ver backend/src/services/jornadaService.js), e os nomes abaixo
@@ -59,9 +60,12 @@ export const STATUS_CONCLUIDO = ["APROVADO"]
 export const STATUS_INICIADO = ["RASCUNHO", "AGUARDANDO", "AJUSTE", "APROVADO"]
 
 // ---------------------------------------------------------------------------
-// Areas do "Blueprint" da empresa. E o eixo da SUBSTANCIA: a empresa vai
-// ganhando forma conforme os passos (que apontam para uma area) sao aprovados.
-// Cada passo tem um campo `area` que casa com um destes nomes.
+// Areas da empresa (campo `area` do passo, opcional).
+//
+// NAO alimentam mais o Blueprint: ele passou a derivar das FASES da trilha, que
+// e a estrutura que a incubadora realmente monta no Construtor. Isto sobrou
+// como rotulo/icone da microcelebracao GanhaForma ("Mercado esta tomando
+// forma") quando o passo tem area preenchida.
 // ---------------------------------------------------------------------------
 export const AREAS_EMPRESA = [
   { nome: "Problema", icon: ReportProblemOutlined },
@@ -74,9 +78,10 @@ export const AREAS_EMPRESA = [
   { nome: "Financas", icon: PaymentsOutlined },
 ]
 
-// Estado visual de uma area do Blueprint.
-export const STATUS_AREA = {
-  VAZIA: { label: "A construir", cor: "#94a3b8" }, // nenhum passo aprovado
+// Estado visual de uma FASE no Blueprint da empresa.
+export const STATUS_BLUEPRINT = {
+  BLOQUEADA: { label: "Ainda nao liberada", cor: "#94a3b8" }, // fase anterior em aberto
+  VAZIA: { label: "A construir", cor: "#94a3b8" }, // liberada, nada feito
   EM_OBRA: { label: "Em obra", cor: "#6366f1" }, // parte aprovada
   CONSTRUIDA: { label: "Construida", cor: "#22c55e" }, // tudo aprovado
 }

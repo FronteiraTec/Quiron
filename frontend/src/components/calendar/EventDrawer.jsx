@@ -32,7 +32,7 @@ import {
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import api from "../../services/api"
-import { categoriaInfo } from "./categorias"
+import { useCategorias } from "./categorias"
 
 function Campo({ icone, rotulo, children }) {
   if (!children) return null
@@ -54,6 +54,9 @@ function Campo({ icone, rotulo, children }) {
 export default function EventDrawer({ evento, aberto, onClose, onEditar, onExcluir, usuarioId }) {
   const [participantes, setParticipantes] = useState([])
   const [confirmando, setConfirmando] = useState(false)
+  // Antes do `if (!evento) return null` abaixo: hook nao pode ficar depois de
+  // um return condicional.
+  const { categoriaInfo } = useCategorias()
 
   useEffect(() => {
     if (!aberto || !evento) return

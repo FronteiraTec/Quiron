@@ -35,6 +35,7 @@ import {
 
 import SituacaoChip from "./SituacaoChip"
 import { SITUACAO, DECISOES } from "../../data/avaliacaoMeta"
+import { abrirArquivo, anexoAcessivel, parseAnexo } from "../../services/arquivos"
 
 const FORM_VAZIO = { status: "", nota: "", comentario: "" }
 
@@ -92,6 +93,22 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
   const [form, setForm] = useState(FORM_VAZIO)
   const [salvando, setSalvando] = useState(false)
   const [aviso, setAviso] = useState(null)
+
+  /**
+   * Abre um anexo da entrega.
+   *
+   * Nao pode ser <a href>: o anexo e PRIVADO e a API exige token, que a tag nao
+   * envia. `abrirArquivo` busca com o cabecalho e abre o blob resultante — e
+   * este e o caminho que o mentor usa para finalmente LER o que vai avaliar.
+   */
+  const abrirAnexo = async (anexo) => {
+    setAviso(null)
+    try {
+      await abrirArquivo(anexo.url, anexo.nome)
+    } catch (err) {
+      setAviso({ tipo: "error", texto: err.message })
+    }
+  }
 
   // Trocar de entrega limpa o formulario: a decisao e sempre sobre a que esta
   // aberta, e um comentario digitado para outra startup nao pode vazar aqui.
@@ -237,13 +254,7 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
                   </Typography>
                   {acessivel ? (
                     <Tooltip title="Abrir" arrow>
-                      <IconButton
-                        size="small"
-                        component="a"
-                        href={anexo.url}
-                        target="_blank"
-                        rel="noopener"
-                      >
+                      <IconButton size="small" onClick={() => abrirAnexo(anexo)}>
                         <OpenInNew sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Tooltip>
@@ -392,35 +403,4 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
       </Box>
     </Box>
   )
-}
-
-/**
- * anexos e TEXT[] e o conteudo variou ao longo do tempo: ha JSON
- * ({nome, tamanho, url}, gravado pela Jornada), ha url pura e ha linhas que
- * guardam so o nome do arquivo. Normaliza os tres para {nome, url}.
- */
-function parseAnexo(valor) {
-  try {
-    const obj = JSON.parse(valor)
-    if (obj && typeof obj === "object") return obj
-  } catch {
-    // Nao era JSON: cai no tratamento de texto simples abaixo.
-  }
-  return { url: valor, nome: valor.split("/").pop() }
-}
-
-/**
- * Da para abrir este anexo?
- *
- * Duas armadilhas, as duas presentes nos dados de hoje. `blob:` vem de
- * URL.createObjectURL no envio: so existe na aba de quem enviou, e para o
- * mentor esta morto. E ha anexos gravados apenas com o NOME do arquivo, que
- * viraria um link relativo para lugar nenhum. Nos dois casos vale mais mostrar
- * o nome e dizer que o arquivo nao esta disponivel do que oferecer um botao
- * que nao abre nada.
- */
-function anexoAcessivel(anexo) {
-  const url = anexo?.url
-  if (!url || url.startsWith("blob:")) return false
-  return /^https?:\/\//i.test(url) || url.startsWith("/")
 }

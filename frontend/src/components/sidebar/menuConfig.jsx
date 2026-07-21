@@ -19,9 +19,12 @@
  *
  * SOBRE `permissao`: e so para nao OFERECER o que responderia 403 — quem
  * autoriza e o backend, em `garantirPermissao`. Itens de dado proprio (Minha
- * Startup, Minha Jornada, Perfil) nao levam chave: sao do usuario e nao passam
- * por RBAC. Configuracoes tambem nao, porque a gestao de permissoes precisa
+ * Startup, Minha Jornada) nao levam chave: sao do usuario e nao passam por
+ * RBAC. Configuracoes tambem nao, porque a gestao de permissoes precisa
  * continuar alcancavel mesmo se o admin errar a mao nas roles.
+ *
+ * Perfil/Preferencias nao ficam no menu: sao alcancados pelo rodape da sidebar
+ * (SidebarFooter) e pelo UserPanel, que ja e o lugar da conta.
  */
 import {
   Dashboard,
@@ -34,7 +37,6 @@ import {
   SupervisorAccount,
   MenuBook,
   LocalLibrary,
-  AutoAwesome,
   AccountTree,
   Timeline,
   Quiz,
@@ -47,8 +49,6 @@ import {
   Feedback,
   Assessment,
   TrendingUp,
-  Person,
-  Tune,
 } from "@mui/icons-material"
 
 // Larguras do menu (compartilhadas com a Navbar e o conteudo).
@@ -122,12 +122,6 @@ const MENU_ADMIN = [
       { id: "rel-engajamento", texto: "Engajamento e eventos", icone: <Groups />, rota: "/relatorios/engajamento", permissao: "relatorios.engajamento.visualizar" },
     ],
   },
-  {
-    id: "perfil",
-    texto: "Perfil",
-    icone: <Person />,
-    filhos: [{ id: "preferencias", texto: "Preferencias", icone: <Tune />, rota: "/perfil" }],
-  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -162,7 +156,6 @@ const MENU_MENTOR = [
     ],
   },
   { id: "eventos", texto: "Eventos", icone: <Event />, rota: "/eventos", badgeKey: "eventos" },
-  { id: "perfil", texto: "Perfil", icone: <Person />, rota: "/perfil" },
 ]
 
 // ---------------------------------------------------------------------------
@@ -170,14 +163,14 @@ const MENU_MENTOR = [
 // ---------------------------------------------------------------------------
 const MENU_USUARIO = [
   { id: "dashboard", texto: "Dashboard", icone: <Dashboard />, rota: "/" },
-  { id: "minha-empresa", texto: "Minha Empresa", icone: <AutoAwesome />, rota: "/minha-empresa", novo: true },
   { id: "jornada", texto: "Minha Jornada", icone: <Timeline />, rota: "/jornada", novo: true },
+  // O Blueprint/maturidade que era a tela "Minha Empresa" virou a aba
+  // "Evolucao" aqui dentro — eram duas telas concorrentes sobre a startup.
   { id: "minha-startup", texto: "Minha Startup", icone: <RocketLaunch />, rota: "/minha-startup" },
   // A trilha, para o incubado, e a Jornada — as telas de Fases/Modulos/Tarefas
   // eram a visao administrativa dela e saíram.
   { id: "questionarios", texto: "Questionarios", icone: <Quiz />, rota: "/questionarios" },
   { id: "eventos", texto: "Eventos", icone: <Event />, rota: "/eventos", badgeKey: "eventos" },
-  { id: "perfil", texto: "Perfil", icone: <Person />, rota: "/perfil" },
 ]
 
 // ---------------------------------------------------------------------------
@@ -194,15 +187,9 @@ const MENU_ROOT = [
       { id: "config", texto: "Configuracoes", icone: <Settings />, rota: "/configuracoes" },
     ],
   },
-  {
-    id: "perfil",
-    texto: "Perfil",
-    icone: <Person />,
-    filhos: [{ id: "preferencias", texto: "Preferencias", icone: <Tune />, rota: "/perfil" }],
-  },
 ]
 
-const MENUS = { root: MENU_ROOT, admin: MENU_ADMIN, mentor: MENU_MENTOR, usuario: MENU_USUARIO }
+const MENUS ={ root: MENU_ROOT, admin: MENU_ADMIN, mentor: MENU_MENTOR, usuario: MENU_USUARIO }
 
 /**
  * Resolve o papel do usuario para escolher o menu.

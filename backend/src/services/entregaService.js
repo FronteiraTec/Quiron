@@ -11,6 +11,7 @@ const questionarioRepository = require("../repositories/questionarioRepository")
 const startupRepository = require("../repositories/startupRepository")
 const tenantRepository = require("../repositories/tenantRepository")
 const rbacService = require("./rbacService")
+const notificacaoService = require("./notificacaoService")
 const { erroNegocio } = require("../utils/erros")
 
 const TIPOS_TEXTO = ["TEXTO_CURTO", "PARAGRAFO"]
@@ -116,7 +117,13 @@ async function criar(dados) {
     throw erroNegocio(400, `O passo "${passo.nome}" nao aceita entregas.`)
   }
 
-  return entregaRepository.criar(dados)
+  const entrega = await entregaRepository.criar(dados)
+
+  // Nasce ENVIADA (default da coluna status), ou seja: ja esta na fila do
+  // mentor. Por isso avisa aqui tambem, e nao so no fluxo da jornada.
+  notificacaoService.entregaEnviada({ idStartup, idNo, idUsuario })
+
+  return entrega
 }
 
 /**
@@ -205,12 +212,16 @@ async function responderQuestionario({ idNo, idStartup, idUsuario, respostas }) 
     throw erroNegocio(400, "Nenhuma resposta informada.")
   }
 
-  return entregaRepository.criarComRespostas({
+  const entrega = await entregaRepository.criarComRespostas({
     idNo,
     idStartup,
     idUsuario,
     respostas: linhas,
   })
+
+  notificacaoService.entregaEnviada({ idStartup, idNo, idUsuario })
+
+  return entrega
 }
 
 module.exports = { listar, listarFila, buscar, buscarDetalhe, criar, responderQuestionario }

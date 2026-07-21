@@ -5,7 +5,7 @@
 import { Box, Typography } from "@mui/material"
 import { format, isToday, isTomorrow } from "date-fns"
 import { EventBusy } from "@mui/icons-material"
-import { categoriaInfo } from "./categorias"
+import { useCategorias } from "./categorias"
 
 function rotuloDia(data) {
   if (isToday(data)) return "Hoje"
@@ -14,6 +14,7 @@ function rotuloDia(data) {
 }
 
 export default function UpcomingEvents({ eventos = [], onSelecionar, limite = 6 }) {
+  const { categoriaInfo } = useCategorias()
   const agora = new Date()
   const proximos = eventos
     .filter((ev) => new Date(ev.inicio_ts) >= new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()))

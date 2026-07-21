@@ -44,6 +44,27 @@ SELECT 'Incubadora Demo', '11999999999', 'contato@incubadorademo.com',
      SELECT 1 FROM tenant WHERE email = 'contato@incubadorademo.com'
  );
 
+-- Categorias padrao da agenda. Uma incubadora criada pela API recebe estas
+-- mesmas categorias por backend/src/eventos/categoriasPadrao.js, que e a fonte
+-- canonica — aqui esta repetido porque o seed cria o tenant direto em SQL, sem
+-- passar pelo service. Sem elas a FK (id_tenant, categoria) barraria qualquer
+-- evento, e o calendario da demo nasceria inutilizavel.
+INSERT INTO evento_categoria (id_tenant, chave, rotulo, cor, icone, ordem)
+SELECT t.id_tenant, d.chave, d.rotulo, d.cor, d.icone, d.ordem
+  FROM tenant t
+ CROSS JOIN (VALUES
+        ('MENTORIA', 'Mentoria', '#6366f1', 'SupervisorAccount',  1),
+        ('WORKSHOP', 'Workshop', '#0ea5e9', 'School',             2),
+        ('ENTREGA',  'Entrega',  '#10b981', 'AssignmentTurnedIn', 3),
+        ('REUNIAO',  'Reuniao',  '#f59e0b', 'Groups',             4),
+        ('EVENTO',   'Evento',   '#8b5cf6', 'Event',              5),
+        ('PITCH',    'Pitch',    '#ef4444', 'Campaign',           6),
+        ('PRAZO',    'Prazo',    '#f43f5e', 'HourglassBottom',    7),
+        ('VISITA',   'Visita',   '#14b8a6', 'Place',              8)
+      ) AS d(chave, rotulo, cor, icone, ordem)
+ WHERE t.email = 'contato@incubadorademo.com'
+    ON CONFLICT DO NOTHING;
+
 INSERT INTO usuarios (nome, email, celular, senha_hash)
 VALUES (
     'Admin',

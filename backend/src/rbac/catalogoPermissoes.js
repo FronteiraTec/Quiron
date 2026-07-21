@@ -179,6 +179,15 @@ const CATALOGO_PERMISSOES = [
           { acao: "gerenciar", rotulo: "Gerenciar roles e permissoes" },
         ],
       },
+      // Categorias e locais do calendario. So a ESCRITA mora aqui: LER as
+      // categorias exige `eventos.agenda.visualizar`, porque sao o rotulo e a
+      // cor de cada evento na tela — quem enxerga a agenda precisa delas, ou o
+      // calendario do incubado renderiza cinza e sem nome.
+      {
+        recurso: "agenda",
+        rotulo: "Categorias e locais da agenda",
+        acoes: [{ acao: "gerenciar", rotulo: "Gerenciar categorias e locais" }],
+      },
       // A auditoria (quem fez o que, e quando) e registro de conformidade, nao
       // relatorio de gestao: mora junto das demais configuracoes da incubadora.
       {

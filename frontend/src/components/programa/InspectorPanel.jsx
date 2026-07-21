@@ -469,7 +469,7 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
                     fullWidth
                     value={form.area || ""}
                     onChange={setCampo("area")}
-                    helperText="Alimenta o blueprint e o radar de maturidade."
+                    helperText="Opcional. Nomeia a celebracao ao enviar a entrega ('Mercado esta tomando forma')."
                   >
                     <MenuItem value="">
                       <em>Nenhuma</em>

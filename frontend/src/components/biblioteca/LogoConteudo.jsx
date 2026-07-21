@@ -10,14 +10,18 @@
  *   LogoConteudo -> mostra o logo; sem logo, cai no icone do tipo (o padrao).
  *   SeletorLogo  -> o mesmo quadro, clicavel, para escolher/remover a imagem.
  *
- * A imagem viaja como data URL e e gravada em conteudo.logo_url. Por isso o
- * seletor REDUZ antes de enviar: um PNG de 3000px viraria megabytes de base64
- * em cada listagem do acervo, para aparecer num quadro de 34px.
+ * A imagem SOBE para o servidor (arquivo PUBLICO) e o que fica em
+ * conteudo.logo_url e a url servida pela API. O seletor REDUZ antes de enviar:
+ * um PNG de 3000px nao tem por que ocupar disco para aparecer num quadro de
+ * 34px. Ate 20/07/2026 a data URL base64 ia inteira para a coluna, e como a
+ * listagem devolve o logo de cada card, cada abertura do acervo arrastava
+ * todas as imagens embutidas na resposta.
  */
 import { useRef, useState } from "react"
 import { Box, IconButton, Tooltip, CircularProgress } from "@mui/material"
 import { PhotoCamera, Close } from "@mui/icons-material"
 import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
+import { enviarArquivo } from "../../services/arquivos"
 
 // Lado maximo da imagem gravada, em px. Cobre o maior quadro em que ela
 // aparece (o cabecalho do editor, 40px) com folga para telas retina.
@@ -75,10 +79,21 @@ export default function LogoConteudo({ conteudo, tamanho = 34, fonteIcone }) {
  * Seletor do logo, para o editor. Mostra o quadro atual; clicar abre o
  * seletor de arquivos, e o X (so com logo definido) volta ao icone do tipo.
  *
+ * A imagem e reduzida no cliente e SOBE para o servidor como arquivo PUBLICO;
+ * o que fica em `logo_url` e a url servida pela API. Antes de 20/07/2026 a data
+ * URL base64 era gravada inteira na coluna — e como a listagem da Biblioteca
+ * devolve o logo de cada card, cada abertura da tela arrastava todas as imagens
+ * embutidas na resposta.
+ *
+ * PUBLICO e nao PRIVADO porque isto termina num <img src>, e a tag nao envia
+ * cabecalho Authorization. Logo de conteudo didatico nao e segredo; anexo de
+ * entrega e — por isso os dois regimes.
+ *
  * @param {object}   props.conteudo - conteudo em edicao (le tipo e logo_url)
- * @param {Function} props.onChange - recebe a data URL, ou null ao remover
+ * @param {number}   props.idTenant - dono do arquivo enviado
+ * @param {Function} props.onChange - recebe a url do arquivo, ou null ao remover
  */
-export function SeletorLogo({ conteudo, onChange, onErro, tamanho = 56 }) {
+export function SeletorLogo({ conteudo, idTenant, onChange, onErro, tamanho = 56 }) {
   const inputRef = useRef(null)
   const [processando, setProcessando] = useState(false)
 
@@ -98,9 +113,19 @@ export function SeletorLogo({ conteudo, onChange, onErro, tamanho = 56 }) {
 
     setProcessando(true)
     try {
-      onChange(await reduzirParaDataUrl(arquivo))
-    } catch {
-      onErro?.("Nao foi possivel ler a imagem.")
+      // Reduz ANTES de subir: o teto do regime publico e 2MB, e uma foto de
+      // celular passa disso com folga. Reduzir aqui evita subir 8MB para
+      // guardar um quadrado de 56px.
+      const dataUrl = await reduzirParaDataUrl(arquivo)
+      const blob = await (await fetch(dataUrl)).blob()
+      const reduzido = new File([blob], arquivo.name, { type: blob.type })
+
+      const enviado = await enviarArquivo(reduzido, { idTenant, visibilidade: "PUBLICO" })
+      onChange(enviado.url)
+    } catch (err) {
+      onErro?.(
+        err.response?.data?.erro || "Nao foi possivel enviar a imagem. Tente novamente."
+      )
     } finally {
       setProcessando(false)
     }

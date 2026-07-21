@@ -28,7 +28,7 @@ import {
 } from "@mui/icons-material"
 import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { categoriaInfo } from "./calendar/categorias"
+import { useCategorias } from "./calendar/categorias"
 import { useNotificacoesEventos } from "../hooks/useNotificacoesEventos"
 import { useAuthStore } from "../store/authStore"
 
@@ -47,6 +47,7 @@ function quandoFoiCriado(criadoTs) {
 }
 
 function Notificacao({ evento, onClick }) {
+  const { categoriaInfo } = useCategorias()
   const { cor, label, Icone } = categoriaInfo(evento.categoria)
   const alvo = evento.startups?.map((s) => s.nome).join(", ")
 

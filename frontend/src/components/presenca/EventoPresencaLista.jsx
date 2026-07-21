@@ -11,7 +11,7 @@
  */
 import { Box, Typography, Tooltip, LinearProgress } from "@mui/material"
 import { EventBusy, CheckCircle } from "@mui/icons-material"
-import { categoriaInfo } from "../calendar/categorias"
+import { useCategorias } from "../calendar/categorias"
 
 function dataLegivel(iso) {
   return new Date(iso).toLocaleDateString("pt-BR", {
@@ -22,6 +22,7 @@ function dataLegivel(iso) {
 }
 
 export default function EventoPresencaLista({ eventos, selecionado, onSelecionar }) {
+  const { categoriaInfo } = useCategorias()
   if (eventos.length === 0) {
     return (
       <Box sx={{ textAlign: "center", py: 8, px: 3, color: "text.secondary" }}>
