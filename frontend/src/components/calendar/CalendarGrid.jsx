@@ -19,7 +19,7 @@ import {
 import { ptBR } from "date-fns/locale"
 import CalendarEvent from "./CalendarEvent"
 
-const DIAS_SEMANA = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"]
+const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
 const MAX_POR_CELULA = 2
 
 function agruparPorDia(eventos) {
@@ -229,7 +229,7 @@ function VisaoAgenda({ eventos, onSelecionarEvento }) {
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 3, maxWidth: 720, mx: "auto", width: "100%" }}>
       {chaves.length === 0 ? (
-        <EstadoVazio texto="Nenhuma atividade no periodo." />
+        <EstadoVazio texto="Nenhuma atividade no período." />
       ) : (
         chaves.map((chave) => {
           const dia = new Date(`${chave}T00:00:00`)

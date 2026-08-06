@@ -203,9 +203,9 @@ export default function FasesGrid({ estagios, progressoEstagio, faseSugeridaId, 
                 ) : (
                   <>
                     <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>
-                      {atual ? "Atividade atual:" : "Fase concluida:"}
+                      {atual ? "Atividade atual:" : "Fase concluída:"}
                     </Box>{" "}
-                    {atual ? atual.titulo : est.nome} — {nModulos} modulo
+                    {atual ? atual.titulo : est.nome} — {nModulos} módulo
                     {nModulos !== 1 ? "s" : ""} · {prog.feitos}/{prog.total} atividade
                     {prog.total !== 1 ? "s" : ""}
                   </>

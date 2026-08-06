@@ -136,7 +136,7 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
         <EmptyState
           variante="selecao"
           titulo="Nenhum item selecionado"
-          descricao="Escolha uma fase, modulo ou tarefa na arvore a esquerda para editar suas propriedades aqui."
+          descricao="Escolha uma fase, módulo ou tarefa na árvore à esquerda para editar suas propriedades aqui."
         />
       </Box>
     )
@@ -262,7 +262,7 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
                 {form.nome || `Nova ${meta.label.toLowerCase()}`}
               </Typography>
               {alterado && (
-                <Tooltip title="Alteracoes nao salvas" arrow>
+                <Tooltip title="Alterações não salvas" arrow>
                   <Box
                     sx={{
                       width: 7,
@@ -296,10 +296,10 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
             onChange={setCampo("nome")}
             autoFocus
             error={nomeVazio}
-            helperText={nomeVazio ? "De um nome para continuar." : " "}
+            helperText={nomeVazio ? "Dê um nome para continuar." : " "}
           />
           <TextField
-            label="Descricao"
+            label="Descrição"
             fullWidth
             multiline
             minRows={3}
@@ -347,7 +347,7 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
               <Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                   {filhos.length === 0
-                    ? `Esta ${meta.label.toLowerCase()} ainda nao tem ${childMeta.label.toLowerCase()}s.`
+                    ? `Esta ${meta.label.toLowerCase()} ainda não tem ${childMeta.label.toLowerCase()}s.`
                     : `${filhos.length} ${
                         filhos.length === 1 ? childMeta.label.toLowerCase() : childMeta.plural.toLowerCase()
                       } · ${filhosAtivos} ${femininoFilho ? "ativa" : "ativo"}${filhosAtivos === 1 ? "" : "s"}.`}
@@ -433,15 +433,15 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
             <>
               <Divider textAlign="left">
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  O QUE O INCUBADO VE
+                  O QUE O INCUBADO VÊ
                 </Typography>
               </Divider>
 
               <Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  A moldura pedagogica do passo. E o que aparece na Jornada
-                  antes da entrega — e a area define que parte da empresa este
-                  passo constroi em "Minha Empresa".
+                  A moldura pedagógica do passo. É o que aparece na Jornada
+                  antes da entrega — e a área define que parte da empresa este
+                  passo constrói em "Minha Empresa".
                 </Typography>
 
                 <Stack spacing={2}>
@@ -450,7 +450,7 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
                     fullWidth
                     multiline
                     minRows={2}
-                    placeholder="O que o incubado deve alcancar aqui."
+                    placeholder="O que o incubado deve alcançar aqui."
                     value={form.objetivo || ""}
                     onChange={setCampo("objetivo")}
                   />
@@ -465,11 +465,11 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
                   />
                   <TextField
                     select
-                    label="Area da empresa que constroi"
+                    label="Área da empresa que constrói"
                     fullWidth
                     value={form.area || ""}
                     onChange={setCampo("area")}
-                    helperText="Opcional. Nomeia a celebracao ao enviar a entrega ('Mercado esta tomando forma')."
+                    helperText="Opcional. Nomeia a celebração ao enviar a entrega ('Mercado está tomando forma')."
                   >
                     <MenuItem value="">
                       <em>Nenhuma</em>
@@ -483,7 +483,7 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
 
                   <Box>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                      COMPETENCIAS QUE TREINA
+                      COMPETÊNCIAS QUE TREINA
                     </Typography>
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
                       {COMPETENCIAS.map((c) => {
@@ -528,7 +528,7 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
                   }}
                 />
                 <TextField
-                  label="Carga horaria"
+                  label="Carga horária"
                   fullWidth
                   placeholder="ex.: 2h30"
                   value={form.carga_horaria || ""}
@@ -544,7 +544,7 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
               </Stack>
 
               <TextField
-                label="Entregavel"
+                label="Entregável"
                 fullWidth
                 placeholder="O que a startup deve entregar ao concluir?"
                 value={form.entregavel || ""}
@@ -560,14 +560,14 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
 
               <Divider textAlign="left">
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  CONTEUDO ENSINADO
+                  CONTEÚDO ENSINADO
                 </Typography>
               </Divider>
 
               <Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                  O que a incubadora ensina neste passo. O incubado ve isto na
-                  Jornada. Reutilize conteudos da Biblioteca.
+                  O que a incubadora ensina neste passo. O incubado vê isto na
+                  Jornada. Reutilize conteúdos da Biblioteca.
                 </Typography>
 
                 {conteudosSel.length > 0 ? (
@@ -632,7 +632,7 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
                     }}
                   >
                     <LibraryAdd sx={{ fontSize: 22, opacity: 0.4, mb: 0.5 }} />
-                    <Typography variant="body2">Nenhum conteudo vinculado ainda.</Typography>
+                    <Typography variant="body2">Nenhum conteúdo vinculado ainda.</Typography>
                   </Box>
                 )}
 

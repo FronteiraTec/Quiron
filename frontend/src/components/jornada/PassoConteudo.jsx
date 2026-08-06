@@ -99,7 +99,7 @@ export default function PassoConteudo({
     const pdfs = arquivos.filter(
       (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
     )
-    setErroAnexo(pdfs.length < arquivos.length ? "Apenas arquivos PDF sao aceitos." : "")
+    setErroAnexo(pdfs.length < arquivos.length ? "Apenas arquivos PDF são aceitos." : "")
     if (!pdfs.length) return
 
     setEnviandoAnexo(true)
@@ -118,7 +118,7 @@ export default function PassoConteudo({
       }
     } catch (err) {
       setErroAnexo(
-        err.response?.data?.erro || "Nao foi possivel enviar o arquivo. Tente novamente."
+        err.response?.data?.erro || "Não foi possível enviar o arquivo. Tente novamente."
       )
     } finally {
       setEnviandoAnexo(false)
@@ -194,7 +194,7 @@ export default function PassoConteudo({
 
       {/* Conteudo ensinado (da Biblioteca) */}
       {conteudos.length > 0 && (
-        <SecaoBloco icone={<MenuBook />} titulo="Conteudo da incubadora">
+        <SecaoBloco icone={<MenuBook />} titulo="Conteúdo da incubadora">
           <Stack spacing={2}>
             {conteudos.map((c) => (
               <ConteudoEnsinado key={c.id_conteudo} conteudo={c} />
@@ -219,12 +219,12 @@ export default function PassoConteudo({
       <SecaoBloco icone={<Send />} titulo="Sua entrega">
         {status === "APROVADO" && (
           <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
-            Entrega aprovada pelo mentor. Este passo esta construido. ✓
+            Entrega aprovada pelo mentor. Este passo está construído. ✓
           </Alert>
         )}
         {status === "AGUARDANDO" && (
           <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
-            Enviado — aguardando a avaliacao do mentor.
+            Enviado — aguardando a avaliação do mentor.
           </Alert>
         )}
 
@@ -254,7 +254,7 @@ export default function PassoConteudo({
               <>
                 <CircularProgress size={28} />
                 <Typography sx={{ mt: 1, fontWeight: 600 }}>Enviando…</Typography>
-                <Typography variant="caption">Nao feche esta aba</Typography>
+                <Typography variant="caption">Não feche esta aba</Typography>
               </>
             ) : (
               <>
@@ -262,7 +262,7 @@ export default function PassoConteudo({
                 <Typography sx={{ mt: 1, fontWeight: 600 }}>
                   Arraste o PDF ou clique para enviar
                 </Typography>
-                <Typography variant="caption">Somente arquivos PDF (ate 15MB)</Typography>
+                <Typography variant="caption">Somente arquivos PDF (até 15MB)</Typography>
               </>
             )}
           </Box>
@@ -351,7 +351,7 @@ export default function PassoConteudo({
                     </Tooltip>
                   ) : (
                     <Typography variant="caption" color="text.disabled">
-                      indisponivel
+                      indisponível
                     </Typography>
                   )}
                   {editavel && (
@@ -373,7 +373,7 @@ export default function PassoConteudo({
             fullWidth
             multiline
             minRows={2}
-            placeholder="Observacoes (opcional)"
+            placeholder="Observações (opcional)"
             value={resposta}
             onChange={(e) => setResposta(e.target.value)}
             disabled={!editavel}
@@ -399,7 +399,7 @@ export default function PassoConteudo({
               onClick={() => onEnviar(resposta, anexos)}
               sx={{ textTransform: "none" }}
             >
-              {status === "AJUSTE" ? "Revisar e reenviar" : "Enviar para avaliacao"}
+              {status === "AJUSTE" ? "Revisar e reenviar" : "Enviar para avaliação"}
             </Button>
           </Box>
         )}
@@ -422,7 +422,7 @@ export default function PassoConteudo({
           onClick={onProximo}
           sx={{ textTransform: "none" }}
         >
-          Proximo passo
+          Próximo passo
         </Button>
       </Box>
     </Box>

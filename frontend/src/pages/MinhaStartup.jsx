@@ -55,7 +55,7 @@ export default function MinhaStartup() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Gerencie os membros, os modelos de gestao e acompanhe as fases ja concluidas da sua startup.
+          Gerencie os membros, os modelos de gestão e acompanhe as fases já concluídas da sua startup.
         </Typography>
 
         {carregando ? (
@@ -64,7 +64,7 @@ export default function MinhaStartup() {
           </Box>
         ) : !idTenant || erro || !startup ? (
           <Alert severity="info">
-            {erro || "Voce ainda nao esta vinculado a nenhuma startup."}
+            {erro || "Você ainda não está vinculado a nenhuma startup."}
           </Alert>
         ) : (
           <>
@@ -72,7 +72,7 @@ export default function MinhaStartup() {
               <Typography variant="h6" fontWeight={700} sx={{ flex: 1 }}>
                 {startup.nome}
               </Typography>
-              {startup.lider && <Chip size="small" label="Voce e o lider" color="primary" />}
+              {startup.lider && <Chip size="small" label="Você e o líder" color="primary" />}
               <Chip
                 size="small"
                 label={startup.status}
@@ -88,8 +88,8 @@ export default function MinhaStartup() {
               >
                 <Tab value="membros" label="Membros" icon={<Groups />} iconPosition="start" />
                 <Tab value="modelos" label="Modelos" icon={<ViewModule />} iconPosition="start" />
-                <Tab value="fases" label="Fases concluidas" icon={<CheckCircle />} iconPosition="start" />
-                <Tab value="evolucao" label="Evolucao" icon={<AutoAwesome />} iconPosition="start" />
+                <Tab value="fases" label="Fases concluídas" icon={<CheckCircle />} iconPosition="start" />
+                <Tab value="evolucao" label="Evolução" icon={<AutoAwesome />} iconPosition="start" />
               </Tabs>
               <Box sx={{ p: 3 }}>
                 {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={idTenant} />}

@@ -90,7 +90,7 @@ export function useEventos({ idTenant, usuarioId }) {
       })
       setEventos(data.eventos)
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar o calendario." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar o calendário." })
     } finally {
       setCarregando(false)
     }

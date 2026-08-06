@@ -44,14 +44,14 @@ export const STATUS_PASSO = {
   RASCUNHO: { label: "Em obra", cor: "#6366f1", icon: Adjust },
   AGUARDANDO: { label: "Aguardando mentor", cor: "#f59e0b", icon: HourglassTop },
   AJUSTE: { label: "Precisa de ajuste", cor: "#f97316", icon: ErrorOutline },
-  APROVADO: { label: "Construido", cor: "#22c55e", icon: CheckCircle },
+  APROVADO: { label: "Construído", cor: "#22c55e", icon: CheckCircle },
 }
 
 // Estados do ESTAGIO.
 export const STATUS_ESTAGIO = {
   BLOQUEADO: { label: "Bloqueado", cor: "#94a3b8", icon: Lock },
   EM_ANDAMENTO: { label: "Em andamento", cor: "#6366f1", icon: PlayCircle },
-  CONCLUIDO: { label: "Concluido", cor: "#22c55e", icon: TaskAlt },
+  CONCLUIDO: { label: "Concluído", cor: "#22c55e", icon: TaskAlt },
 }
 
 // Ordem dos estados considerados "entregues" (contam no progresso).
@@ -80,8 +80,8 @@ export const AREAS_EMPRESA = [
 
 // Estado visual de uma FASE no Blueprint da empresa.
 export const STATUS_BLUEPRINT = {
-  BLOQUEADA: { label: "Ainda nao liberada", cor: "#94a3b8" }, // fase anterior em aberto
+  BLOQUEADA: { label: "Ainda não liberada", cor: "#94a3b8" }, // fase anterior em aberto
   VAZIA: { label: "A construir", cor: "#94a3b8" }, // liberada, nada feito
   EM_OBRA: { label: "Em obra", cor: "#6366f1" }, // parte aprovada
-  CONSTRUIDA: { label: "Construida", cor: "#22c55e" }, // tudo aprovado
+  CONSTRUIDA: { label: "Construída", cor: "#22c55e" }, // tudo aprovado
 }

@@ -27,7 +27,7 @@ import { baixarCsv } from "../utils/csv"
 // Icone + rotulo acompanham a cor: o risco nunca e comunicado so pelo tom.
 const RISCO = {
   ALTO: { rotulo: "Alto", icone: <ErrorOutline sx={{ fontSize: 16 }} /> },
-  MEDIO: { rotulo: "Atencao", icone: <WarningAmber sx={{ fontSize: 16 }} /> },
+  MEDIO: { rotulo: "Atenção", icone: <WarningAmber sx={{ fontSize: 16 }} /> },
   OK: { rotulo: "Em dia", icone: <CheckCircleOutline sx={{ fontSize: 16 }} /> },
 }
 
@@ -38,7 +38,7 @@ const COLUNAS_CSV = [
   { chave: "aprovados", rotulo: "Passos aprovados" },
   { chave: "total_passos", rotulo: "Passos no programa" },
   { chave: "em_andamento", rotulo: "Em andamento" },
-  { chave: "nao_iniciados", rotulo: "Nao iniciados" },
+  { chave: "nao_iniciados", rotulo: "Não iniciados" },
   { chave: "atrasados", rotulo: "Com prazo vencido" },
   { chave: "dias_sem_atividade", rotulo: "Dias sem atividade" },
   { chave: "risco", rotulo: "Risco" },
@@ -51,7 +51,7 @@ export default function RelatorioProgresso() {
   return (
     <RelatorioShell
       titulo="Progresso das startups"
-      descricao="Quanto cada startup ja concluiu da trilha, o que esta em curso e quem parou de avancar."
+      descricao="Quanto cada startup já concluiu da trilha, o que está em curso e quem parou de avançar."
       icone={<Assessment />}
     >
       {({ idTenant }) => <Conteudo idTenant={idTenant} />}
@@ -79,7 +79,7 @@ function Conteudo({ idTenant }) {
             itens={[
               { rotulo: "Startups incubadas", valor: dados.resumo.startups },
               {
-                rotulo: "Progresso medio da trilha",
+                rotulo: "Progresso médio da trilha",
                 valor: dados.resumo.progresso_medio_pct,
                 sufixo: "%",
                 ajuda: "Passos aprovados sobre o total de passos ativos, somando todas as startups.",
@@ -89,10 +89,10 @@ function Conteudo({ idTenant }) {
                 valor: dados.resumo.em_risco,
                 cor: dados.resumo.em_risco > 0 ? STATUS.CRITICO : undefined,
                 icone: dados.resumo.em_risco > 0 ? <ErrorOutline fontSize="small" /> : undefined,
-                ajuda: "Tem prazo vencido E esta sem atividade.",
+                ajuda: "Tem prazo vencido E está sem atividade.",
               },
               {
-                rotulo: `Paradas ha ${dados.resumo.dias_inativa}+ dias`,
+                rotulo: `Paradas há ${dados.resumo.dias_inativa}+ dias`,
                 valor: dados.resumo.paradas,
                 cor: dados.resumo.paradas > 0 ? STATUS.ATENCAO : undefined,
                 icone: dados.resumo.paradas > 0 ? <WarningAmber fontSize="small" /> : undefined,
@@ -135,7 +135,7 @@ function Conteudo({ idTenant }) {
               {
                 chave: "fase_atual",
                 rotulo: "Fase atual",
-                render: (l) => l.fase_atual || "Trilha concluida",
+                render: (l) => l.fase_atual || "Trilha concluída",
               },
               {
                 chave: "progresso_pct",
@@ -167,7 +167,7 @@ function Conteudo({ idTenant }) {
                 chave: "em_andamento",
                 rotulo: "Em andamento",
                 alinhamento: "right",
-                ajuda: "Rascunho, aguardando avaliacao ou em ajuste.",
+                ajuda: "Rascunho, aguardando avaliação ou em ajuste.",
               },
               {
                 chave: "atrasados",

@@ -36,9 +36,9 @@ import { useAuthStore } from "../store/authStore"
 function quandoAcontece(inicioTs) {
   const data = new Date(inicioTs)
   const hora = format(data, "HH:mm")
-  if (isToday(data)) return `Hoje as ${hora}`
-  if (isTomorrow(data)) return `Amanha as ${hora}`
-  return `${format(data, "d 'de' MMMM", { locale: ptBR })} as ${hora}`
+  if (isToday(data)) return `Hoje às ${hora}`
+  if (isTomorrow(data)) return `Amanhã às ${hora}`
+  return `${format(data, "d 'de' MMMM", { locale: ptBR })} às ${hora}`
 }
 
 /** "ha 2 horas", "ha 3 dias" - quando o evento entrou no calendario. */
@@ -146,8 +146,8 @@ export default function NotificacoesEventos() {
 
   return (
     <>
-      <Tooltip title="Notificacoes">
-        <IconButton size="large" color="inherit" onClick={abrir} aria-label="notificacoes">
+      <Tooltip title="Notificações">
+        <IconButton size="large" color="inherit" onClick={abrir} aria-label="notificações">
           <Badge badgeContent={naoLidas} color="error" max={99}>
             <NotificationsNone />
           </Badge>
@@ -184,10 +184,10 @@ export default function NotificacoesEventos() {
         <Box sx={{ px: 2, py: 1.5, display: "flex", alignItems: "center", gap: 1 }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="subtitle2" fontWeight={700}>
-              Notificacoes
+              Notificações
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Eventos criados nos ultimos dias
+              Eventos criados nos últimos dias
             </Typography>
           </Box>
           {naoLidas > 0 && (

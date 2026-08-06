@@ -15,7 +15,6 @@ import SidebarItem from "./SidebarItem"
 import SidebarGroup from "./SidebarGroup"
 import SidebarSearch from "./SidebarSearch"
 import StartupSwitcher from "./StartupSwitcher"
-import SidebarFooter from "./SidebarFooter"
 import SidebarSkeleton from "./SidebarSkeleton"
 
 export { SIDEBAR_WIDTH, SIDEBAR_MINI_WIDTH }
@@ -52,9 +51,6 @@ export function SidebarConteudo({
   sidebar,
   recolhida = false,
   badges = {},
-  startups = [],
-  startupAtualId,
-  onTrocarStartup,
   onToggleSidebar,
   carregando = false,
   variante = "desktop",
@@ -86,12 +82,8 @@ export function SidebarConteudo({
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Cabecalho: startup atual / troca rapida. O logo (foguete) alterna a Sidebar. */}
       <StartupSwitcher
-        startups={startups}
-        startupAtualId={startupAtualId}
         recolhida={recolhida}
-        onTrocar={onTrocarStartup}
         onToggleSidebar={onToggleSidebar ?? (() => setRecolhida(!recolhida))}
-        usuario={usuario}
       />
       <Divider
         sx={{
@@ -110,7 +102,7 @@ export function SidebarConteudo({
       {/* Area rolavel do menu */}
       <Box
         component="nav"
-        aria-label="Navegacao principal"
+        aria-label="Navegação principal"
         sx={{
           flex: 1,
           overflowY: "auto",
@@ -233,9 +225,6 @@ export function SidebarConteudo({
           </>
         )}
       </Box>
-
-      {/* Rodape: usuario + menu (Perfil / Preferencias / Sair) */}
-      <SidebarFooter usuario={usuario} papel={papel} recolhida={recolhida} />
     </Box>
   )
 }
@@ -248,9 +237,6 @@ export function SidebarConteudo({
 export default function Sidebar({
   sidebar,
   badges = {},
-  startups = [],
-  startupAtualId,
-  onTrocarStartup,
   onToggleSidebar,
   carregando = false,
 }) {
@@ -286,15 +272,16 @@ export default function Sidebar({
         },
       }}
     >
-      <Toolbar /> {/* espacador para ficar abaixo da Navbar fixa */}
+      <Toolbar
+        sx={{
+          minHeight: "5px !important",
+        }}
+      /> {/* espacador para ficar abaixo da Navbar fixa */}
       <Box sx={{ height: "calc(100% - 64px)" }}>
         <SidebarConteudo
           sidebar={sidebar}
           recolhida={recolhida}
           badges={badges}
-          startups={startups}
-          startupAtualId={startupAtualId}
-          onTrocarStartup={onTrocarStartup}
           onToggleSidebar={onToggleSidebar}
           carregando={carregando}
           variante="desktop"

@@ -16,7 +16,7 @@ export default function CompanyBlueprint({ fases }) {
   if (!fases.length) {
     return (
       <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-        A trilha da sua incubadora ainda nao tem fases publicadas.
+        A trilha da sua incubadora ainda não tem fases publicadas.
       </Typography>
     )
   }

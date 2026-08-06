@@ -66,8 +66,8 @@ const MENU_ADMIN = [
     icone: <Business />,
     filhos: [
       { id: "tenants", texto: "Tenants", icone: <Apartment />, rota: "/tenants" },
-      { id: "usuarios", texto: "Usuarios", icone: <People />, rota: "/usuarios", permissao: "usuarios.usuarios.visualizar" },
-      { id: "config", texto: "Configuracoes", icone: <Settings />, rota: "/configuracoes" },
+      { id: "usuarios", texto: "Usuários", icone: <People />, rota: "/usuarios", permissao: "usuarios.usuarios.visualizar" },
+      { id: "config", texto: "Configurações", icone: <Settings />, rota: "/configuracoes" },
     ],
   },
   {
@@ -87,7 +87,7 @@ const MENU_ADMIN = [
     filhos: [
       { id: "programa-builder", texto: "Construtor", icone: <AccountTree />, rota: "/programa", permissao: "programa.trilha.visualizar" },
       { id: "biblioteca", texto: "Biblioteca", icone: <LocalLibrary />, rota: "/biblioteca", permissao: "programa.biblioteca.visualizar" },
-      { id: "questionarios", texto: "Questionarios", icone: <Quiz />, rota: "/questionarios", permissao: "programa.questionarios.visualizar" },
+      { id: "questionarios", texto: "Questionários", icone: <Quiz />, rota: "/questionarios", permissao: "programa.questionarios.visualizar" },
     ],
   },
   {
@@ -96,28 +96,28 @@ const MENU_ADMIN = [
     icone: <Event />,
     filhos: [
       { id: "eventos-agenda", texto: "Agenda", icone: <CalendarMonth />, rota: "/eventos", badgeKey: "eventos" },
-      { id: "eventos-presenca", texto: "Presenca", icone: <HowToReg />, rota: "/eventos/presenca", permissao: "eventos.presenca.visualizar" },
+      { id: "eventos-presenca", texto: "Presença", icone: <HowToReg />, rota: "/eventos/presenca", permissao: "eventos.presenca.visualizar" },
     ],
   },
   {
     id: "avaliacoes",
-    texto: "Avaliacoes",
+    texto: "Avaliações",
     icone: <Grading />,
     filhos: [
       { id: "entregas", texto: "Entregas", icone: <Inbox />, rota: "/entregas", badgeKey: "entregas", permissao: "avaliacoes.entregas.visualizar" },
-      { id: "avaliacoes-lista", texto: "Avaliacoes", icone: <RateReview />, rota: "/avaliacoes", permissao: "avaliacoes.avaliacoes.visualizar" },
+      { id: "avaliacoes-lista", texto: "Avaliações", icone: <RateReview />, rota: "/avaliacoes", permissao: "avaliacoes.avaliacoes.visualizar" },
     ],
   },
   {
     id: "relatorios",
-    texto: "Relatorios",
+    texto: "Relatórios",
     icone: <Assessment />,
     // Relatorios de gestao do programa. Logs e Auditoria saíram daqui: eram
     // registro tecnico/de conformidade, nao material de decisao. A auditoria
     // virou aba em Configuracoes.
     filhos: [
       { id: "rel-progresso", texto: "Progresso das startups", icone: <TrendingUp />, rota: "/relatorios/progresso", permissao: "relatorios.progresso.visualizar" },
-      { id: "rel-entregas", texto: "Entregas e avaliacoes", icone: <Inbox />, rota: "/relatorios/entregas", permissao: "relatorios.entregas.visualizar" },
+      { id: "rel-entregas", texto: "Entregas e avaliações", icone: <Inbox />, rota: "/relatorios/entregas", permissao: "relatorios.entregas.visualizar" },
       { id: "rel-gargalos", texto: "Gargalos do programa", icone: <Timeline />, rota: "/relatorios/gargalos", permissao: "relatorios.gargalos.visualizar" },
       { id: "rel-engajamento", texto: "Engajamento e eventos", icone: <Groups />, rota: "/relatorios/engajamento", permissao: "relatorios.engajamento.visualizar" },
     ],
@@ -148,7 +148,7 @@ const MENU_MENTOR = [
   },
   {
     id: "avaliacoes",
-    texto: "Avaliacoes",
+    texto: "Avaliações",
     icone: <Grading />,
     filhos: [
       { id: "entregas", texto: "Entregas", icone: <Inbox />, rota: "/entregas", badgeKey: "entregas", permissao: "avaliacoes.entregas.visualizar" },
@@ -169,7 +169,7 @@ const MENU_USUARIO = [
   { id: "minha-startup", texto: "Minha Startup", icone: <RocketLaunch />, rota: "/minha-startup" },
   // A trilha, para o incubado, e a Jornada — as telas de Fases/Modulos/Tarefas
   // eram a visao administrativa dela e saíram.
-  { id: "questionarios", texto: "Questionarios", icone: <Quiz />, rota: "/questionarios" },
+  { id: "questionarios", texto: "Questionários", icone: <Quiz />, rota: "/questionarios" },
   { id: "eventos", texto: "Eventos", icone: <Event />, rota: "/eventos", badgeKey: "eventos" },
 ]
 
@@ -184,7 +184,7 @@ const MENU_ROOT = [
     icone: <Business />,
     filhos: [
       { id: "tenants", texto: "Incubadoras", icone: <Apartment />, rota: "/tenants" },
-      { id: "config", texto: "Configuracoes", icone: <Settings />, rota: "/configuracoes" },
+      { id: "config", texto: "Configurações", icone: <Settings />, rota: "/configuracoes" },
     ],
   },
 ]

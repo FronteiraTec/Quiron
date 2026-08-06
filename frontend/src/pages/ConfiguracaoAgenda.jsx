@@ -120,7 +120,7 @@ export default function ConfiguracaoAgenda() {
       setCategorias(respC.data.categorias)
       setLocais(respL.data.locais)
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar a configuracao." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar a configuração." })
     } finally {
       setCarregando(false)
     }
@@ -293,7 +293,7 @@ export default function ConfiguracaoAgenda() {
               Categorias de evento
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              O vocabulario da sua agenda: como cada atividade aparece no calendario.
+              O vocabulário da sua agenda: como cada atividade aparece no calendário.
             </Typography>
           </Box>
           <Button
@@ -322,14 +322,14 @@ export default function ConfiguracaoAgenda() {
                   helperText={
                     formCategoria.chave
                       ? "Renomear reetiqueta os eventos existentes."
-                      : "Ex.: Demoday, Capacitacao, Banca."
+                      : "Ex.: Demoday, Capacitação, Banca."
                   }
                 />
               </Grid>
               <Grid item xs={6} sm={3}>
                 <TextField
                   select
-                  label="Icone"
+                  label="Ícone"
                   fullWidth
                   size="small"
                   value={formCategoria.icone}
@@ -361,7 +361,7 @@ export default function ConfiguracaoAgenda() {
                   <Chip
                     size="small"
                     icon={<IconePreview style={{ color: "#fff" }} />}
-                    label={formCategoria.rotulo || "Previa"}
+                    label={formCategoria.rotulo || "Prévia"}
                     sx={{ bgcolor: formCategoria.cor, color: "#fff", fontWeight: 600 }}
                   />
                 </Box>
@@ -418,7 +418,7 @@ export default function ConfiguracaoAgenda() {
               Locais
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              As salas e espacos que voce usa sempre. No evento tambem da para digitar um local avulso.
+              As salas e espaços que você usa sempre. No evento também dá para digitar um local avulso.
             </Typography>
           </Box>
           <Button
@@ -444,12 +444,12 @@ export default function ConfiguracaoAgenda() {
                   size="small"
                   value={formLocal.nome}
                   onChange={(e) => setFormLocal((f) => ({ ...f, nome: e.target.value }))}
-                  helperText="Ex.: Auditorio, Sala de reuniao 2."
+                  helperText="Ex.: Auditório, Sala de reunião 2."
                 />
               </Grid>
               <Grid item xs={12} sm={5}>
                 <TextField
-                  label="Endereco"
+                  label="Endereço"
                   fullWidth
                   size="small"
                   value={formLocal.endereco || ""}
@@ -482,7 +482,7 @@ export default function ConfiguracaoAgenda() {
         <Box sx={{ mt: 1 }}>
           {locais.length === 0 && !formLocal ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
-              Nenhum local cadastrado. Ate cadastrar, o campo de local no evento aceita texto livre.
+              Nenhum local cadastrado. Até cadastrar, o campo de local no evento aceita texto livre.
             </Typography>
           ) : (
             locais.map((l) => (
@@ -516,15 +516,15 @@ export default function ConfiguracaoAgenda() {
                   {confirmacao.eventos} evento{confirmacao.eventos === 1 ? "" : "s"}
                 </strong>{" "}
                 {confirmacao.eventos === 1 ? "usa" : "usam"}{" "}
-                {confirmacao?.tipo === "categoria" ? "esta categoria" : "este local"}. Nada sera
+                {confirmacao?.tipo === "categoria" ? "esta categoria" : "este local"}. Nada será
                 apagado: {confirmacao.eventos === 1 ? "ele continua" : "eles continuam"} aparecendo
-                normalmente no calendario e nos relatorios.
+                normalmente no calendário e nos relatórios.
               </>
             ) : (
-              <>Nada sera apagado.</>
+              <>Nada será apagado.</>
             )}{" "}
             A partir de agora {confirmacao?.tipo === "categoria" ? "ela" : "ele"} apenas deixa de ser
-            oferecid{confirmacao?.tipo === "categoria" ? "a" : "o"} ao criar um evento novo. Da para
+            oferecid{confirmacao?.tipo === "categoria" ? "a" : "o"} ao criar um evento novo. Dá para
             reativar quando quiser.
           </DialogContentText>
         </DialogContent>

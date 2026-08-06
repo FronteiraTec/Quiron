@@ -15,12 +15,12 @@ import { useNavigate } from "react-router-dom"
 import { useCategorias } from "../calendar/categorias"
 import { useAgendaSemana } from "../../hooks/useAgendaSemana"
 
-const DIAS_SEMANA = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"]
+const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
 
 /** Rotulo do cabecalho de cada grupo de dia. */
 function rotuloDia(data) {
   if (isToday(data)) return "Hoje"
-  if (isTomorrow(data)) return "Amanha"
+  if (isTomorrow(data)) return "Amanhã"
   return `${DIAS_SEMANA[data.getDay()]}, ${format(data, "dd/MM")}`
 }
 
@@ -147,7 +147,7 @@ export default function AgendaSemana({ idTenant }) {
           }}
         >
           <Typography variant="body2" fontWeight={600}>
-            Ver calendario
+            Ver calendário
           </Typography>
           <ChevronRight fontSize="small" />
         </Box>

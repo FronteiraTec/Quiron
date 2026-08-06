@@ -35,9 +35,9 @@ function tempoRelativo(iso) {
   const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
   if (dias <= 0) return "hoje"
   if (dias === 1) return "ontem"
-  if (dias < 30) return `ha ${dias} dias`
+  if (dias < 30) return `há ${dias} dias`
   const meses = Math.floor(dias / 30)
-  return meses === 1 ? "ha 1 mes" : `ha ${meses} meses`
+  return meses === 1 ? "há 1 mês" : `há ${meses} meses`
 }
 
 export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }) {
@@ -100,7 +100,7 @@ export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }
 
       {/* Titulo + resumo */}
       <Typography sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3, mt: 0.5 }}>
-        {conteudo.titulo || "Sem titulo"}
+        {conteudo.titulo || "Sem título"}
       </Typography>
       <Typography
         variant="body2"
@@ -113,7 +113,7 @@ export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }
           minHeight: 40,
         }}
       >
-        {conteudo.resumo || "Sem descricao."}
+        {conteudo.resumo || "Sem descrição."}
       </Typography>
 
       {/* Tags */}
@@ -142,13 +142,13 @@ export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }
           title={
             usos
               ? conteudo.usos.map((u) => `${u.fase} › ${u.passo}`).join("\n")
-              : "Ainda nao usado em nenhum passo"
+              : "Ainda não usado em nenhum passo"
           }
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: usos ? "primary.main" : "text.disabled" }}>
             <AccountTree sx={{ fontSize: 15 }} />
             <Typography variant="caption" sx={{ fontWeight: 600 }}>
-              {usos ? `Usado em ${usos}` : "Nao usado"}
+              {usos ? `Usado em ${usos}` : "Não usado"}
             </Typography>
           </Box>
         </Tooltip>

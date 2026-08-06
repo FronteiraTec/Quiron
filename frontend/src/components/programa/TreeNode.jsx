@@ -203,7 +203,7 @@ export default function TreeNode({
                   </IconButton>
                 </Tooltip>
               )}
-              <Tooltip title="Acoes" arrow>
+              <Tooltip title="Ações" arrow>
                 <IconButton
                   size="small"
                   onClick={(e) => {

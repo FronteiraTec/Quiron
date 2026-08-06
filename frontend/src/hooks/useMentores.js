@@ -36,7 +36,7 @@ export function useMentores(idTenant) {
       const { data } = await api.get("/mentores", { params: { id_tenant: idTenant } })
       setMentores(data.mentores)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel carregar os mentores.")
+      setErro(err.response?.data?.erro || "Não foi possível carregar os mentores.")
       setMentores([])
     } finally {
       setCarregando(false)

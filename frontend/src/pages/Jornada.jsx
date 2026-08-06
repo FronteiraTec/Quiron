@@ -118,11 +118,11 @@ export default function Jornada() {
           <Box sx={{ textAlign: "center", maxWidth: 460 }}>
             <Rocket sx={{ fontSize: 48, color: "primary.main", opacity: 0.7, mb: 1 }} />
             <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
-              {j.erro ? "Nao foi possivel abrir sua jornada" : "Sua trilha ainda nao comecou"}
+              {j.erro ? "Não foi possível abrir sua jornada" : "Sua trilha ainda não começou"}
             </Typography>
             <Typography color="text.secondary">
               {j.erro ||
-                "A incubadora ainda nao publicou o programa. Assim que a trilha estiver pronta, ela aparece aqui."}
+                "A incubadora ainda não publicou o programa. Assim que a trilha estiver pronta, ela aparece aqui."}
             </Typography>
           </Box>
         </Box>
@@ -142,8 +142,8 @@ export default function Jornada() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          A construcao da {j.jornada.startup} — escolha uma fase para ver os modulos dela.
-          Fases ainda nao alcancadas aparecem bloqueadas.
+          A construção da {j.jornada.startup} — escolha uma fase para ver os módulos dela.
+          Fases ainda não alcançadas aparecem bloqueadas.
         </Typography>
 
         <Paper
@@ -172,13 +172,13 @@ export default function Jornada() {
               </Typography>
             </Box>
             <Typography variant="caption" color="text.secondary">
-              {j.progressoGeral.feitos} de {j.progressoGeral.total} atividades concluidas
+              {j.progressoGeral.feitos} de {j.progressoGeral.total} atividades concluídas
             </Typography>
           </Box>
 
           <Tooltip
             arrow
-            title={`Jornada da equipe — todos os membros da ${j.jornada.startup} veem e editam o mesmo progresso`}
+            title={`Jornada da equipe - todos os membros da ${j.jornada.startup} veem e editam o mesmo progresso`}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
               <Groups sx={{ fontSize: 18, color: "text.disabled" }} />
@@ -224,7 +224,7 @@ export default function Jornada() {
     return (
       <AppLayout>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-          <Tooltip title="Voltar as fases" arrow>
+          <Tooltip title="Voltar às fases" arrow>
             <IconButton size="small" onClick={j.voltarParaFases}>
               <ArrowBack fontSize="small" />
             </IconButton>
@@ -234,7 +234,7 @@ export default function Jornada() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          {estagio?.resumo} Escolha um modulo para ver as atividades dele.
+          {estagio?.resumo} Escolha um módulo para ver as atividades dele.
         </Typography>
 
         <Paper
@@ -258,7 +258,7 @@ export default function Jornada() {
             </Typography>
           </Box>
           <Typography variant="caption" color="text.secondary">
-            {progFase.feitos} de {progFase.total} atividades concluidas nesta fase
+            {progFase.feitos} de {progFase.total} atividades concluídas nesta fase
           </Typography>
         </Paper>
 
@@ -309,7 +309,7 @@ export default function Jornada() {
               gap: 2,
             }}
           >
-            <Tooltip title="Voltar aos modulos" arrow>
+            <Tooltip title="Voltar aos módulos" arrow>
               <IconButton size="small" onClick={j.voltarParaModulos}>
                 <ArrowBack fontSize="small" />
               </IconButton>
@@ -413,7 +413,7 @@ export default function Jornada() {
                   <EmptyState
                     variante="selecao"
                     titulo="Escolha uma atividade"
-                    descricao="Selecione uma atividade a esquerda para comecar."
+                    descricao="Selecione uma atividade à esquerda para começar."
                   />
                 </Box>
               )}

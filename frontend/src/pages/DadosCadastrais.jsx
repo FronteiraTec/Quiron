@@ -78,7 +78,7 @@ export default function DadosCadastrais() {
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField label="Limite de usuarios" fullWidth disabled value={tenant.qtd_usuarios ?? ""} />
+              <TextField label="Limite de usuários" fullWidth disabled value={tenant.qtd_usuarios ?? ""} />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField label="Limite de startups" fullWidth disabled value={tenant.qtd_startups ?? ""} />

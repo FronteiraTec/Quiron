@@ -123,7 +123,7 @@ export default function Feedback() {
       })
       .catch((err) => {
         if (!cancelado) {
-          setErro(err.response?.data?.erro || "Nao foi possivel carregar o historico.")
+          setErro(err.response?.data?.erro || "Não foi possível carregar o histórico.")
           setAvaliacoes([])
         }
       })
@@ -170,8 +170,8 @@ export default function Feedback() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          As devolutivas que voce ja deu — o que pediu para cada startup e o que
-          ainda esta em aberto.
+          As devolutivas que você já deu — o que pediu para cada startup e o que
+          ainda está em aberto.
         </Typography>
 
         {erro && (
@@ -182,7 +182,7 @@ export default function Feedback() {
 
         <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: "wrap" }}>
           <TextField
-            placeholder="Buscar startup, passo ou comentario..."
+            placeholder="Buscar startup, passo ou comentário..."
             size="small"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
@@ -198,12 +198,12 @@ export default function Feedback() {
           <TextField
             select
             size="small"
-            label="Decisao"
+            label="Decisão"
             value={filtroStatus}
             onChange={(e) => setFiltroStatus(e.target.value)}
             sx={{ minWidth: 190 }}
           >
-            <MenuItem value="todos">Todas as decisoes</MenuItem>
+            <MenuItem value="todos">Todas as decisões</MenuItem>
             {["APROVADO", "AJUSTE", "REPROVADO"].map((s) => (
               <MenuItem key={s} value={s}>
                 {SITUACAO[s].label}
@@ -215,8 +215,8 @@ export default function Feedback() {
         {aguardandoStartup > 0 && filtroStatus === "todos" && (
           <Alert severity="info" sx={{ mb: 2 }}>
             {aguardandoStartup === 1
-              ? "1 ajuste pedido ainda nao foi reenviado pela startup."
-              : `${aguardandoStartup} ajustes pedidos ainda nao foram reenviados pelas startups.`}
+              ? "1 ajuste pedido ainda não foi reenviado pela startup."
+              : `${aguardandoStartup} ajustes pedidos ainda não foram reenviados pelas startups.`}
           </Alert>
         )}
 
@@ -230,7 +230,7 @@ export default function Feedback() {
               <FeedbackIcon sx={{ fontSize: 48, opacity: 0.4 }} />
               <Typography sx={{ mt: 1 }}>
                 {avaliacoes.length === 0
-                  ? "Voce ainda nao avaliou nenhuma entrega."
+                  ? "Você ainda não avaliou nenhuma entrega."
                   : "Nenhuma devolutiva com esses filtros."}
               </Typography>
             </Box>

@@ -49,7 +49,7 @@ function Resumo({ pendentes, atrasadas }) {
       </Typography>
       {atrasadas > 0 && (
         <Typography variant="body2" sx={{ color: "#f97316", fontWeight: 700 }}>
-          · {atrasadas} ha {DIAS_FILA_CRITICA}+ dias
+          · {atrasadas} há {DIAS_FILA_CRITICA}+ dias
         </Typography>
       )}
     </Box>

@@ -3,7 +3,7 @@
  * Tabelas relacionadas: permissao, role, role_permissao, usuario_role.
  */
 const { query } = require("../config/db")
-const { ROLES_PADRAO, permissoesDaRole } = require("../rbac/rolesPadrao")
+const { ROLES_PADRAO, permissoesDaRole, ROLE_POR_PAPEL } = require("../rbac/rolesPadrao")
 
 /** Lista o catalogo completo de permissoes (sincronizado a partir do codigo). */
 async function listarPermissoesCatalogo() {
@@ -199,6 +199,36 @@ async function desvincularUsuarioRole(idUsuario, idRole) {
 }
 
 /**
+ * Aloca um usuario na role padrao (sistema) equivalente ao papel que acabou
+ * de receber em `tenant_usuarios` — o ponto de partida do RBAC para quem
+ * esta sendo vinculado agora. Nao mexe em quem ja estiver em alguma role: so
+ * roda no momento do vinculo (criarUsuario/vincularUsuario), nunca em
+ * atualizacao de papel, para nao sobrescrever uma customizacao que o admin
+ * ja tenha feito na tela de Permissoes.
+ * @param {number} idTenant
+ * @param {number} idUsuario
+ * @param {string} papel - admin, mentor ou usuario.
+ */
+async function alocarRolePadrao(idTenant, idUsuario, papel, client) {
+  const executor = client || { query }
+  const nomeRole = ROLE_POR_PAPEL[papel]
+  if (!nomeRole) return
+
+  const { rows } = await executor.query(
+    `SELECT id_role FROM role WHERE id_tenant = $1 AND nome = $2 AND sistema = TRUE`,
+    [idTenant, nomeRole]
+  )
+  if (!rows[0]) return
+
+  await executor.query(
+    `INSERT INTO usuario_role (id_usuario, id_role)
+     VALUES ($1, $2)
+     ON CONFLICT (id_usuario, id_role) DO NOTHING`,
+    [idUsuario, rows[0].id_role]
+  )
+}
+
+/**
  * Verifica se um usuario possui uma permissao (chave) dentro de um tenant,
  * via alguma role (do tenant) a qual ele esteja vinculado.
  * @param {number} idTenant
@@ -256,6 +286,7 @@ module.exports = {
   contarPermissoesValidas,
   vincularUsuarioRole,
   desvincularUsuarioRole,
+  alocarRolePadrao,
   usuarioTemPermissao,
   listarPermissoesDoUsuario,
 }

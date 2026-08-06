@@ -35,7 +35,7 @@ export function usePresencaEventos(idTenant) {
       })
       setEventos(data.eventos)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel carregar os eventos.")
+      setErro(err.response?.data?.erro || "Não foi possível carregar os eventos.")
       setEventos([])
     } finally {
       setCarregando(false)

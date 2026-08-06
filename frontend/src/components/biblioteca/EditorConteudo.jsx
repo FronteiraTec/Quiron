@@ -153,12 +153,12 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar }) {
             </Alert>
           )}
           <TextField
-            label="Titulo"
+            label="Título"
             fullWidth
             value={form.titulo}
             onChange={setCampo("titulo")}
             autoFocus
-            placeholder={`ex.: ${meta.label} sobre validacao de mercado`}
+            placeholder={`ex.: ${meta.label} sobre validação de mercado`}
           />
           <TextField
             label="Resumo"
@@ -195,7 +195,7 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar }) {
 
           <Divider textAlign="left">
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-              CONTEUDO
+              CONTEÚDO
             </Typography>
           </Divider>
 
@@ -203,7 +203,7 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar }) {
           {form.tipo === "AULA" && (
             <>
               <TextField
-                label="Duracao estimada"
+                label="Duração estimada"
                 size="small"
                 value={form.duracao || ""}
                 onChange={setCampo("duracao")}
@@ -238,7 +238,7 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar }) {
           {form.tipo === "VIDEO" && (
             <>
               <TextField
-                label="Link do video"
+                label="Link do vídeo"
                 fullWidth
                 value={form.url || ""}
                 onChange={setCampo("url")}
@@ -252,7 +252,7 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar }) {
                 }}
               />
               <TextField
-                label="Duracao"
+                label="Duração"
                 size="small"
                 value={form.duracao || ""}
                 onChange={setCampo("duracao")}
@@ -266,7 +266,7 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar }) {
             <>
               {form.tipo === "TEMPLATE" && (
                 <Alert icon={<Inventory2 fontSize="inherit" />} severity="info" sx={{ borderRadius: 2 }}>
-                  Templates viram o modelo do <b>entregavel</b> que a startup preenche e devolve.
+                  Templates viram o modelo do <b>entregável</b> que a startup preenche e devolve.
                 </Alert>
               )}
               <TextField

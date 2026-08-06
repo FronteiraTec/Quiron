@@ -151,12 +151,12 @@ export default function PresencaEventos() {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
           <HowToReg sx={{ color: "primary.main" }} />
           <Typography variant="h4" fontWeight={700}>
-            Presenca
+            Presença
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Quem apareceu em cada evento. E daqui que sai a taxa de presenca dos
-          relatorios.
+          Quem apareceu em cada evento. É daqui que sai a taxa de presença dos
+          relatórios.
         </Typography>
 
         {erro && (

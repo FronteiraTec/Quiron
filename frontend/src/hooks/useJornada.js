@@ -77,7 +77,7 @@ export function useJornada() {
         const id = data.startup?.id_startup ?? null
         setIdStartup(id)
         if (id) await carregar(id)
-        else setErro("Voce ainda nao faz parte de uma startup.")
+        else setErro("Você ainda não faz parte de uma startup.")
       })
       .catch((err) => {
         if (!cancelado) setErro(err.response?.data?.erro || "Erro ao carregar sua startup.")
@@ -280,7 +280,7 @@ export function useJornada() {
    */
   const gravar = useCallback(
     async (rota, passoId, resposta, anexos = []) => {
-      if (!idStartup) return { ok: false, erro: "Startup nao identificada." }
+      if (!idStartup) return { ok: false, erro: "Startup não identificada." }
 
       try {
         await api.post(`/jornada/${rota}`, {

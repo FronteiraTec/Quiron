@@ -149,7 +149,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
       >
         <Chip
           icon={<Visibility />}
-          label="Pre-visualizacao — modo incubada"
+          label="Pré-visualização — modo incubada"
           size="small"
           color="primary"
           sx={{ fontWeight: 600 }}
@@ -178,7 +178,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
           variant="outlined"
           sx={{ textTransform: "none", borderRadius: "6px" }}
         >
-          Sair da previa
+          Sair da prévia
         </Button>
       </Box>
 
@@ -305,7 +305,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
                 Trilha ainda vazia
               </Typography>
               <Typography color="text.secondary">
-                Adicione fases, modulos e tarefas ativos para que a startup veja conteudo aqui.
+                Adicione fases, módulos e tarefas ativos para que a startup veja conteúdo aqui.
               </Typography>
             </Box>
           ) : (
@@ -357,12 +357,12 @@ export default function PreviewIncubada({ programa, onFechar }) {
                 >
                   <Box sx={{ textAlign: "center" }}>
                     <PlayCircleOutline sx={{ fontSize: 56, opacity: 0.6 }} />
-                    <Typography sx={{ opacity: 0.8 }}>Conteudo da tarefa</Typography>
+                    <Typography sx={{ opacity: 0.8 }}>Conteúdo da tarefa</Typography>
                   </Box>
                 </Box>
 
                 <Typography sx={{ color: "text.secondary", mb: 3, lineHeight: 1.7 }}>
-                  {atual.descricao || "Esta tarefa ainda nao possui descricao. Assim que a incubadora preencher os detalhes, eles aparecerao aqui para a startup."}
+                  {atual.descricao || "Esta tarefa ainda não possui descrição. Assim que a incubadora preencher os detalhes, eles aparecerão aqui para a startup."}
                 </Typography>
 
                 {conteudosAtual.length > 0 && (
@@ -372,7 +372,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
                       color="text.secondary"
                       sx={{ fontWeight: 700, display: "block", mb: 1 }}
                     >
-                      CONTEUDO DA INCUBADORA
+                      CONTEÚDO DA INCUBADORA
                     </Typography>
                     <Stack spacing={1.5}>
                       {conteudosAtual.map((c) => {
@@ -451,7 +451,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
                     </Avatar>
                     <Box>
                       <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                        ENTREGAVEL
+                        ENTREGÁVEL
                       </Typography>
                       <Typography>{atual.entregavel}</Typography>
                     </Box>
@@ -474,14 +474,14 @@ export default function PreviewIncubada({ programa, onFechar }) {
                     disabled={concluidas.has(atual.id_no)}
                     sx={{ textTransform: "none", borderRadius: "6px" }}
                   >
-                    {concluidas.has(atual.id_no) ? "Concluida" : "Marcar como concluida"}
+                    {concluidas.has(atual.id_no) ? "Concluída" : "Marcar como concluída"}
                   </Button>
                   <Button
                     disabled={indiceAtual >= tarefas.length - 1}
                     onClick={() => setAtualId(tarefas[indiceAtual + 1].id_no)}
                     sx={{ textTransform: "none" }}
                   >
-                    Proximo
+                    Próximo
                   </Button>
                 </Box>
               </Box>

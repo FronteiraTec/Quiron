@@ -111,7 +111,7 @@ export default function EventDrawer({ evento, aberto, onClose, onEditar, onExclu
               {format(new Date(evento.inicio_ts), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </Box>
           </Campo>
-          <Campo icone={<AccessTime fontSize="small" />} rotulo="Horario">
+          <Campo icone={<AccessTime fontSize="small" />} rotulo="Horário">
             {format(new Date(evento.inicio_ts), "HH:mm")}
             {evento.fim_ts ? ` - ${format(new Date(evento.fim_ts), "HH:mm")}` : ""}
           </Campo>
@@ -137,7 +137,7 @@ export default function EventDrawer({ evento, aberto, onClose, onEditar, onExclu
             <>
               <Divider sx={{ my: 2 }} />
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-                Descricao
+                Descrição
               </Typography>
               <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
                 {evento.descricao}
@@ -153,7 +153,7 @@ export default function EventDrawer({ evento, aberto, onClose, onEditar, onExclu
           </Typography>
           {participantes.length === 0 ? (
             <Typography variant="body2" color="text.disabled" sx={{ mb: 1 }}>
-              Ninguem confirmou presenca ainda.
+              Ninguém confirmou presença ainda.
             </Typography>
           ) : (
             <AvatarGroup max={6} sx={{ justifyContent: "flex-end", mb: 1 }}>
@@ -173,7 +173,7 @@ export default function EventDrawer({ evento, aberto, onClose, onEditar, onExclu
               disabled={confirmando}
               onClick={() => confirmar("CONFIRMADO")}
             >
-              Confirmar presenca
+              Confirmar presença
             </Button>
           </Box>
 
@@ -206,12 +206,12 @@ export default function EventDrawer({ evento, aberto, onClose, onEditar, onExclu
               <Divider sx={{ my: 2 }} />
               <Typography variant="caption" color="text.disabled" sx={{ display: "block" }}>
                 Criado por {evento.criado_por_nome} em{" "}
-                {format(new Date(evento.criado_ts), "d 'de' MMMM 'de' yyyy 'as' HH:mm", { locale: ptBR })}
+                {format(new Date(evento.criado_ts), "d 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
                 {evento.atualizado_ts && evento.atualizado_ts !== evento.criado_ts && (
                   <>
                     {" "}
                     · editado em{" "}
-                    {format(new Date(evento.atualizado_ts), "d 'de' MMMM 'as' HH:mm", { locale: ptBR })}
+                    {format(new Date(evento.atualizado_ts), "d 'de' MMMM 'às' HH:mm", { locale: ptBR })}
                   </>
                 )}
               </Typography>

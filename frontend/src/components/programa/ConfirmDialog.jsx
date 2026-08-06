@@ -16,7 +16,7 @@ import { motion } from "framer-motion"
 
 export default function ConfirmDialog({
   aberto,
-  titulo = "Confirmar exclusao",
+  titulo = "Confirmar exclusão",
   mensagem,
   confirmarTexto = "Excluir",
   onConfirmar,

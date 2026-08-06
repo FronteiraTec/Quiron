@@ -24,7 +24,7 @@ export default function MentorLista({ mentores, selecionado, onSelecionar }) {
         <SupervisorAccount sx={{ fontSize: 48, opacity: 0.4 }} />
         <Typography sx={{ mt: 1 }}>Nenhum mentor nesta incubadora.</Typography>
         <Typography variant="body2" sx={{ mt: 0.5 }}>
-          Mentor e um papel: defina "mentor" para um usuario em Usuarios e ele
+          Mentor é um papel: defina "mentor" para um usuário em Usuários e ele
           aparece aqui.
         </Typography>
       </Box>
@@ -104,7 +104,7 @@ export default function MentorLista({ mentores, selecionado, onSelecionar }) {
             </Box>
 
             {semStartups && (
-              <Tooltip title="Este mentor nao acompanha nenhuma startup: a fila dele esta vazia" arrow>
+              <Tooltip title="Este mentor não acompanha nenhuma startup: a fila dele está vazia" arrow>
                 <WarningAmber sx={{ fontSize: 17, color: "#f97316", flexShrink: 0 }} />
               </Tooltip>
             )}

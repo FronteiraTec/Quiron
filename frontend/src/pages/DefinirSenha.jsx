@@ -40,7 +40,7 @@ export default function DefinirSenha() {
       return
     }
     if (senha !== confirmar) {
-      setErro("As senhas nao conferem.")
+      setErro("As senhas não conferem.")
       return
     }
 
@@ -49,7 +49,7 @@ export default function DefinirSenha() {
       await definirNovaSenha(senha)
       navigate("/") // senha trocada: segue para o dashboard
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel definir a senha.")
+      setErro(err.response?.data?.erro || "Não foi possível definir a senha.")
     } finally {
       setCarregando(false)
     }
@@ -87,7 +87,7 @@ export default function DefinirSenha() {
             Defina sua senha
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Este e seu primeiro acesso. Crie uma nova senha para continuar.
+            Este é seu primeiro acesso. Crie uma nova senha para continuar.
           </Typography>
         </Box>
 

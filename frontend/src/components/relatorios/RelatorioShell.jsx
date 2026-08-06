@@ -19,10 +19,10 @@ import { useAuthStore } from "../../store/authStore"
 
 // Janelas oferecidas nos relatorios de periodo.
 const PERIODOS = [
-  { valor: 30, rotulo: "Ultimos 30 dias" },
-  { valor: 90, rotulo: "Ultimos 90 dias" },
-  { valor: 180, rotulo: "Ultimos 6 meses" },
-  { valor: 365, rotulo: "Ultimos 12 meses" },
+  { valor: 30, rotulo: "Últimos 30 dias" },
+  { valor: 90, rotulo: "Últimos 90 dias" },
+  { valor: 180, rotulo: "Últimos 6 meses" },
+  { valor: 365, rotulo: "Últimos 12 meses" },
 ]
 
 /**
@@ -81,7 +81,7 @@ export default function RelatorioShell({ titulo, descricao, icone, periodo = fal
               <TextField
                 select
                 size="small"
-                label="Periodo"
+                label="Período"
                 value={dias}
                 onChange={(e) => setDias(Number(e.target.value))}
                 sx={{ minWidth: 180 }}
@@ -108,7 +108,7 @@ export default function RelatorioShell({ titulo, descricao, icone, periodo = fal
               fullWidth
               value={idTenant}
               onChange={(e) => setIdTenant(e.target.value)}
-              helperText="Selecione a incubadora do relatorio."
+              helperText="Selecione a incubadora do relatório."
             >
               {tenants.map((t) => (
                 <MenuItem key={t.id_tenant} value={t.id_tenant}>
@@ -132,7 +132,7 @@ export default function RelatorioShell({ titulo, descricao, icone, periodo = fal
               <>
                 <Business sx={{ fontSize: 48, opacity: 0.4 }} />
                 <Typography sx={{ mt: 1 }}>
-                  Selecione uma incubadora para ver o relatorio.
+                  Selecione uma incubadora para ver o relatório.
                 </Typography>
               </>
             ) : (

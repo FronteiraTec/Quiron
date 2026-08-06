@@ -71,7 +71,7 @@ export default function Dashboard() {
     itens.push(
       { rotulo: "Startups incubadas", valor: kpi(rProgresso?.startups) },
       {
-        rotulo: "Progresso medio da trilha",
+        rotulo: "Progresso médio da trilha",
         valor: kpi(rProgresso?.progresso_medio_pct),
         sufixo: rProgresso ? "%" : undefined,
         ajuda: "Passos aprovados sobre o total de passos ativos, somando todas as startups.",
@@ -81,31 +81,31 @@ export default function Dashboard() {
         valor: kpi(rProgresso?.em_risco),
         cor: rProgresso?.em_risco > 0 ? STATUS.CRITICO : undefined,
         icone: rProgresso?.em_risco > 0 ? <ErrorOutline fontSize="small" /> : undefined,
-        ajuda: "Tem prazo vencido E esta sem atividade.",
+        ajuda: "Tem prazo vencido E está sem atividade.",
       }
     )
   }
 
   if (veEntregas) {
     itens.push({
-      rotulo: "Entregas aguardando avaliacao",
+      rotulo: "Entregas aguardando avaliação",
       valor: kpi(rEntregas?.na_fila),
       cor: rEntregas?.fila_atrasada > 0 ? STATUS.ATENCAO : undefined,
       icone: rEntregas?.fila_atrasada > 0 ? <WarningAmber fontSize="small" /> : undefined,
       ajuda:
         rEntregas?.fila_atrasada > 0
-          ? `${rEntregas.fila_atrasada} parada(s) ha 7 dias ou mais.`
+          ? `${rEntregas.fila_atrasada} parada(s) há 7 dias ou mais.`
           : undefined,
     })
   }
 
   if (veEngajamento) {
     itens.push({
-      rotulo: "Presenca media nos eventos",
+      rotulo: "Presença média nos eventos",
       valor: kpi(rEngajamento?.presenca_media_pct),
       sufixo: rEngajamento ? "%" : undefined,
       ajuda: rEngajamento
-        ? `Eventos ja realizados nos ultimos ${engajamento.dados.dias} dias.`
+        ? `Eventos já realizados nos últimos ${engajamento.dados.dias} dias.`
         : undefined,
     })
   }
@@ -121,11 +121,11 @@ export default function Dashboard() {
           {/* Saudacao */}
           <Paper sx={{ p: 4, borderRadius: 0, mb: 3 }}>
             <Typography variant="h4" fontWeight={700} gutterBottom>
-              Bem-vindo{usuario?.nome ? `, ${usuario.nome}` : ""}!
+              Bem-vindo(a){usuario?.nome ? `, ${usuario.nome}` : ""}!
             </Typography>
             <Typography color="text.secondary">
-              Este e o painel inicial do Quiron.
-              {usuario?.email && ` Voce esta logado como ${usuario.email}.`}
+              Este é o painel inicial do Quiron.
+              {usuario?.email && ` Você está logado como ${usuario.email}.`}
             </Typography>
           </Paper>
 

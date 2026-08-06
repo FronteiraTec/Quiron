@@ -53,13 +53,13 @@ export function TourProvider({ children }) {
 
   const iniciar = useCallback(() => {
     if (!tour) {
-      setAviso("Esta tela ainda nao tem um tour disponivel.")
+      setAviso("Esta tela ainda não tem um tour disponível.")
       return
     }
     const lista = tour.passos
     const primeiro = buscarIndice(lista, 0, 1)
     if (primeiro < 0) {
-      setAviso("Nao foi possivel iniciar o tour nesta tela.")
+      setAviso("Não foi possível iniciar o tour nesta tela.")
       return
     }
     setPassos(lista)

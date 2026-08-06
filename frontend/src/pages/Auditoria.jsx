@@ -98,7 +98,7 @@ export default function Auditoria() {
 
       <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
         <TextField
-          placeholder="Buscar por acao, entidade ou descricao..."
+          placeholder="Buscar por ação, entidade ou descrição..."
           size="small"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
@@ -134,7 +134,7 @@ export default function Auditoria() {
             <Policy sx={{ fontSize: 48, opacity: 0.4 }} />
             <Typography sx={{ mt: 1 }}>
               {logs.length === 0
-                ? "Nenhuma acao registrada nesta incubadora ainda."
+                ? "Nenhuma ação registrada nesta incubadora ainda."
                 : "Nenhum registro corresponde ao filtro."}
             </Typography>
           </Box>
@@ -144,9 +144,9 @@ export default function Auditoria() {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>Quando</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Acao</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Ação</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Entidade</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Descricao</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Descrição</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

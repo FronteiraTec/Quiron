@@ -17,7 +17,7 @@ export default function ModulosGrid({ modulos, onSelecionar }) {
     return (
       <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
         <ViewModuleOutlined sx={{ fontSize: 40, opacity: 0.4 }} />
-        <Typography sx={{ mt: 1 }}>Nenhum modulo cadastrado nesta fase ainda.</Typography>
+        <Typography sx={{ mt: 1 }}>Nenhum módulo cadastrado nesta fase ainda.</Typography>
       </Box>
     )
   }
@@ -72,7 +72,7 @@ export default function ModulosGrid({ modulos, onSelecionar }) {
               </Box>
               <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 700 }}>
-                  MODULO
+                  MÓDULO
                 </Typography>
                 <Typography sx={{ fontWeight: 800, fontSize: 16.5, lineHeight: 1.2 }}>
                   {mod.nome}
@@ -109,7 +109,7 @@ export default function ModulosGrid({ modulos, onSelecionar }) {
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <Typography variant="caption" color="text.secondary">
-                {feitos} de {total} atividade{total !== 1 ? "s" : ""} concluida{feitos !== 1 ? "s" : ""}
+                {feitos} de {total} atividade{total !== 1 ? "s" : ""} concluída{feitos !== 1 ? "s" : ""}
               </Typography>
               <ArrowForward sx={{ fontSize: 15, color: "text.disabled" }} />
             </Box>

@@ -9,7 +9,7 @@ import { useCategorias } from "./categorias"
 
 function rotuloDia(data) {
   if (isToday(data)) return "Hoje"
-  if (isTomorrow(data)) return "Amanha"
+  if (isTomorrow(data)) return "Amanhã"
   return format(data, "dd/MM")
 }
 
@@ -39,7 +39,7 @@ export default function UpcomingEvents({ eventos = [], onSelecionar, limite = 6 
         variant="overline"
         sx={{ color: "text.secondary", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em" }}
       >
-        Proximos eventos
+        Próximos eventos
       </Typography>
 
       {grupos.length === 0 ? (

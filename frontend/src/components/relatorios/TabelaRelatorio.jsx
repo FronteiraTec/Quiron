@@ -59,7 +59,7 @@ export default function TabelaRelatorio({
   ordemInicial,
   direcaoInicial = "desc",
   onClickLinha,
-  mensagemVazio = "Nada a exibir no periodo.",
+  mensagemVazio = "Nada a exibir no período.",
 }) {
   const [ordem, setOrdem] = useState(ordemInicial ?? colunas[0]?.chave)
   const [direcao, setDirecao] = useState(direcaoInicial)

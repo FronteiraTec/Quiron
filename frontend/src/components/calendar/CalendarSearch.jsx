@@ -22,7 +22,7 @@ export default function CalendarSearch({ valor, onChange }) {
     >
       <Search sx={{ fontSize: 18, color: "text.disabled" }} />
       <InputBase
-        placeholder="Pesquisar calendarios ou atividades"
+        placeholder="Pesquisar calendários ou atividades"
         value={valor}
         onChange={(e) => onChange(e.target.value)}
         sx={{ fontSize: 13.5, flex: 1 }}

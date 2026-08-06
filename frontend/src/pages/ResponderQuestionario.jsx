@@ -69,7 +69,7 @@ export default function ResponderQuestionario() {
         setPasso(p)
 
         if (p.tipo_passo !== "QUESTIONARIO" || !p.id_questionario) {
-          setAviso({ tipo: "error", texto: "Este passo nao possui questionario." })
+          setAviso({ tipo: "error", texto: "Este passo não possui questionário." })
           return
         }
 
@@ -81,7 +81,7 @@ export default function ResponderQuestionario() {
         setStartups(sResp.data.startups)
         if (sResp.data.startups.length === 1) setStartupId(sResp.data.startups[0].id_startup)
       } catch (err) {
-        setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar o questionario." })
+        setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar o questionário." })
       } finally {
         setCarregando(false)
       }
@@ -108,7 +108,7 @@ export default function ResponderQuestionario() {
     setAviso(null)
 
     if (!startupId) {
-      setAviso({ tipo: "error", texto: "Selecione a startup responsavel pela entrega." })
+      setAviso({ tipo: "error", texto: "Selecione a startup responsável pela entrega." })
       return
     }
 
@@ -158,7 +158,7 @@ export default function ResponderQuestionario() {
               Respostas enviadas!
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 2 }}>
-              A entrega do questionario foi registrada com sucesso.
+              A entrega do questionário foi registrada com sucesso.
             </Typography>
             <Button variant="contained" onClick={() => navigate(-1)}>
               Concluir
@@ -187,12 +187,12 @@ export default function ResponderQuestionario() {
 
               <TextField
                 select
-                label="Startup responsavel"
+                label="Startup responsável"
                 required
                 value={startupId}
                 onChange={(e) => setStartupId(e.target.value)}
                 sx={{ mt: 2, minWidth: 260 }}
-                helperText="A entrega sera registrada em nome desta startup."
+                helperText="A entrega será registrada em nome desta startup."
               >
                 {startups.map((s) => (
                   <MenuItem key={s.id_startup} value={s.id_startup}>

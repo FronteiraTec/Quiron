@@ -5,7 +5,7 @@
 import { Box, InputBase, IconButton } from "@mui/material"
 import { Search, Close } from "@mui/icons-material"
 
-export default function SearchInput({ value, onChange, placeholder = "Buscar na arvore…" }) {
+export default function SearchInput({ value, onChange, placeholder = "Buscar na árvore…" }) {
   return (
     <Box
       sx={{

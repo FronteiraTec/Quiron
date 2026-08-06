@@ -13,6 +13,7 @@ const routes = require("./routes")
 const { autenticar } = require("./middlewares/auth")
 const { errorHandler } = require("./middlewares/errorHandler")
 const { sincronizarCatalogo } = require("./rbac/sincronizarCatalogo")
+const { repararRolesTenants } = require("./rbac/repararRoles")
 const arquivoService = require("./services/arquivoService")
 
 const app = express()
@@ -46,10 +47,15 @@ const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 
-  // Mantem a tabela de permissoes em dia com o catalogo definido em codigo.
-  sincronizarCatalogo().catch((err) => {
-    console.error("Falha ao sincronizar catalogo de permissoes:", err)
-  })
+  // Mantem a tabela de permissoes em dia com o catalogo definido em codigo, e
+  // so depois repara tenants/usuarios que ficaram fora do RBAC (o
+  // Administrador so pode receber o catalogo inteiro se ele ja estiver
+  // sincronizado).
+  sincronizarCatalogo()
+    .then(() => repararRolesTenants())
+    .catch((err) => {
+      console.error("Falha ao sincronizar RBAC (catalogo/roles):", err)
+    })
 
   // Garante o diretorio de uploads. Feito na subida e nao no primeiro envio:
   // se o volume nao estiver montado, o erro aparece agora, no log do boot, e

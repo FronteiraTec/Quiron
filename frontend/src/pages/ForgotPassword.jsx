@@ -34,7 +34,7 @@ export default function ForgotPassword() {
       await api.post("/auth/forgot-password", { email })
       setEnviado(true)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel enviar o email.")
+      setErro(err.response?.data?.erro || "Não foi possível enviar o email.")
     } finally {
       setCarregando(false)
     }
@@ -72,14 +72,14 @@ export default function ForgotPassword() {
             Recuperar senha
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Enviaremos um link de redefinicao para o seu email
+            Enviaremos um link de redefinição para o seu email
           </Typography>
         </Box>
 
         {enviado ? (
           <>
             <Alert severity="success" sx={{ mb: 2 }}>
-              Se o email estiver cadastrado, voce recebera um link para redefinir a senha.
+              Se o email estiver cadastrado, você receberá um link para redefinir a senha.
             </Alert>
             <Button component={RouterLink} to="/login" fullWidth>
               Voltar ao login

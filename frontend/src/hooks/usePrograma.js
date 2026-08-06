@@ -59,7 +59,7 @@ export function usePrograma() {
    * A arvore precisa de uma raiz antes de aceitar fases.
    */
   const criarPrograma = useCallback(
-    async (nome = "Trilha de Incubacao") => {
+    async (nome = "Trilha de Incubação") => {
       const { data } = await api.post("/trilha", { id_tenant: idTenant, nome })
       await carregar()
       return data.no
@@ -107,7 +107,7 @@ export function usePrograma() {
         const { data } = await api.post("/trilha", {
           id_tenant: idTenant,
           id_pai: parentId ?? programa?.id_no ?? null,
-          nome: nome || "Sem titulo",
+          nome: nome || "Sem título",
         })
         await carregar()
         if (parentId) setExpandidos((e) => ({ ...e, [parentId]: true }))
@@ -221,7 +221,7 @@ export function usePrograma() {
         const { data } = await api.post("/trilha", {
           id_tenant: idTenant,
           id_pai: pai.id_no,
-          nome: `${no.nome} (copia)`,
+          nome: `${no.nome} (cópia)`,
           descricao: no.descricao,
           ...(no.tipo === "PASSO" && {
             tipo_passo: no.tipo_passo,

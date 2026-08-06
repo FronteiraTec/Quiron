@@ -99,10 +99,10 @@ export default function AbaMembros({ idStartup, idTenant }) {
               <TableRow>
                 <TableCell>Nome</TableCell>
                 <TableCell>Email</TableCell>
-                <TableCell align="center">Lider</TableCell>
+                <TableCell align="center">Líder</TableCell>
                 <TableCell align="center">Entrada</TableCell>
                 <TableCell align="center" width={70}>
-                  Acoes
+                  Ações
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -112,7 +112,7 @@ export default function AbaMembros({ idStartup, idTenant }) {
                   <TableCell>{m.nome}</TableCell>
                   <TableCell>{m.email}</TableCell>
                   <TableCell align="center">
-                    {m.lider && <Chip size="small" label="Lider" color="primary" />}
+                    {m.lider && <Chip size="small" label="Líder" color="primary" />}
                   </TableCell>
                   <TableCell align="center">
                     {m.entrada_dt ? new Date(m.entrada_dt).toLocaleDateString("pt-BR") : "-"}
@@ -183,7 +183,7 @@ function DialogAdicionarMembro({ aberto, onFechar, idStartup, usuarios, idsMembr
           )}
           <TextField
             select
-            label="Usuario"
+            label="Usuário"
             fullWidth
             required
             value={idUsuario}
@@ -204,7 +204,7 @@ function DialogAdicionarMembro({ aberto, onFechar, idStartup, usuarios, idsMembr
             onChange={(e) => setLider(e.target.value === "1")}
           >
             <MenuItem value="0">Membro</MenuItem>
-            <MenuItem value="1">Lider</MenuItem>
+            <MenuItem value="1">Líder</MenuItem>
           </TextField>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>

@@ -9,7 +9,7 @@ export default function StartupTimeline({ eventos }) {
   if (!eventos.length) {
     return (
       <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-        Sua historia comeca aqui. Conclua os primeiros passos e os marcos vao
+        Sua história começa aqui. Conclua os primeiros passos e os marcos vão
         aparecer nesta linha do tempo.
       </Typography>
     )

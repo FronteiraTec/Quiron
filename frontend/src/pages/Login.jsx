@@ -51,7 +51,7 @@ export default function Login() {
       }
     } catch (err) {
       // Usa a mensagem do backend ou uma generica.
-      setErro(err.response?.data?.erro || "Nao foi possivel entrar. Tente novamente.")
+      setErro(err.response?.data?.erro || "Não foi possível entrar. Tente novamente.")
     } finally {
       setCarregando(false)
     }

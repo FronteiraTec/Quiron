@@ -48,13 +48,13 @@ const COLUNAS_FILA_CSV = [
 
 const COLUNAS_MENTORES_CSV = [
   { chave: "mentor", rotulo: "Mentor" },
-  { chave: "avaliacoes", rotulo: "Avaliacoes" },
+  { chave: "avaliacoes", rotulo: "Avaliações" },
   { chave: "aprovadas", rotulo: "Aprovadas" },
   { chave: "ajustes", rotulo: "Pedidos de ajuste" },
   { chave: "reprovadas", rotulo: "Reprovadas" },
-  { chave: "taxa_aprovacao_pct", rotulo: "Taxa de aprovacao (%)" },
-  { chave: "nota_media", rotulo: "Nota media" },
-  { chave: "dias_resposta_media", rotulo: "Dias ate responder (media)" },
+  { chave: "taxa_aprovacao_pct", rotulo: "Taxa de aprovação (%)" },
+  { chave: "nota_media", rotulo: "Nota média" },
+  { chave: "dias_resposta_media", rotulo: "Dias até responder (média)" },
   { chave: "startups_atendidas", rotulo: "Startups atendidas" },
 ]
 
@@ -65,8 +65,8 @@ const dataCurta = (ts) =>
 export default function RelatorioEntregas() {
   return (
     <RelatorioShell
-      titulo="Entregas e avaliacoes"
-      descricao="Onde as entregas estao paradas, quanto tempo esperam por avaliacao e como cada mentor responde."
+      titulo="Entregas e avaliações"
+      descricao="Onde as entregas estão paradas, quanto tempo esperam por avaliação e como cada mentor responde."
       icone={<Inbox />}
       periodo
     >
@@ -105,40 +105,40 @@ function Conteudo({ idTenant, dias }) {
       carregando={carregando}
       erro={erro}
       vazio={dados && dados.funil.total === 0}
-      mensagemVazio="Ainda nao ha trilha montada ou startups incubadas para medir entregas."
+      mensagemVazio="Ainda não há trilha montada ou startups incubadas para medir entregas."
     >
       {dados && (
         <>
           <KpiRow
             itens={[
               {
-                rotulo: "Entregas esperando avaliacao",
+                rotulo: "Entregas esperando avaliação",
                 valor: dados.resumo.na_fila,
                 cor: dados.resumo.na_fila > 0 ? STATUS.ATENCAO : undefined,
               },
               {
-                rotulo: `Paradas ha ${DIAS_FILA_CRITICA}+ dias`,
+                rotulo: `Paradas há ${DIAS_FILA_CRITICA}+ dias`,
                 valor: dados.resumo.fila_atrasada,
                 cor: dados.resumo.fila_atrasada > 0 ? STATUS.CRITICO : undefined,
                 icone:
                   dados.resumo.fila_atrasada > 0 ? <ErrorOutline fontSize="small" /> : undefined,
               },
               {
-                rotulo: "Tempo medio ate avaliar",
+                rotulo: "Tempo médio até avaliar",
                 valor: dados.resumo.tempo_resposta_medio_dias ?? "—",
                 sufixo: dados.resumo.tempo_resposta_medio_dias != null ? " dias" : "",
-                ajuda: "Do envio ate a avaliacao, ponderado pelo volume de cada mentor.",
+                ajuda: "Do envio até a avaliação, ponderado pelo volume de cada mentor.",
               },
-              { rotulo: `Enviadas nos ultimos ${dias} dias`, valor: dados.resumo.enviadas_periodo },
+              { rotulo: `Enviadas nos últimos ${dias} dias`, valor: dados.resumo.enviadas_periodo },
               {
-                rotulo: `Avaliadas nos ultimos ${dias} dias`,
+                rotulo: `Avaliadas nos últimos ${dias} dias`,
                 valor: dados.resumo.avaliadas_periodo,
               },
               {
-                rotulo: "Taxa de aprovacao",
+                rotulo: "Taxa de aprovação",
                 valor: dados.resumo.taxa_aprovacao_pct,
                 sufixo: "%",
-                ajuda: "Passos aprovados sobre os passos que ja tiveram alguma entrega.",
+                ajuda: "Passos aprovados sobre os passos que já tiveram alguma entrega.",
               },
             ]}
           />
@@ -150,7 +150,7 @@ function Conteudo({ idTenant, dias }) {
             <Grid item xs={12} md={6}>
               <Paper sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, height: "100%" }}>
                 <Typography variant="h6" fontWeight={700}>
-                  Onde estao as entregas
+                  Onde estão as entregas
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Cada passo da trilha, para cada startup incubada — {dados.funil.total} no total.
@@ -219,7 +219,7 @@ function Conteudo({ idTenant, dias }) {
                   Ritmo semanal
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Envios das startups contra avaliacoes dos mentores.
+                  Envios das startups contra avaliações dos mentores.
                 </Typography>
 
                 <ResponsiveContainer width="100%" height={260}>
@@ -272,7 +272,7 @@ function Conteudo({ idTenant, dias }) {
 
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
             <Typography variant="h6" fontWeight={700}>
-              Fila de avaliacao
+              Fila de avaliação
             </Typography>
             <BotaoExportar
               onClick={() => baixarCsv("fila-avaliacao", COLUNAS_FILA_CSV, dados.fila)}
@@ -287,13 +287,13 @@ function Conteudo({ idTenant, dias }) {
               linhas={dados.fila}
               ordemInicial="dias_parada"
               onClickLinha={(l) => navigate(`/startups/${l.id_startup}`)}
-              mensagemVazio="Nenhuma entrega esperando avaliacao. A fila esta zerada."
+              mensagemVazio="Nenhuma entrega esperando avaliação. A fila está zerada."
               colunas={[
                 { chave: "startup", rotulo: "Startup" },
                 { chave: "passo", rotulo: "Passo" },
                 {
                   chave: "dias_parada",
-                  rotulo: "Parada ha",
+                  rotulo: "Parada há",
                   alinhamento: "right",
                   render: (l) => (
                     <Typography
@@ -315,7 +315,7 @@ function Conteudo({ idTenant, dias }) {
                 },
                 {
                   chave: "mentores",
-                  rotulo: "Mentor responsavel",
+                  rotulo: "Mentor responsável",
                   render: (l) =>
                     l.mentores.length ? (
                       l.mentores.join(", ")
@@ -352,10 +352,10 @@ function Conteudo({ idTenant, dias }) {
             chaveId="id_usuario"
             linhas={dados.mentores}
             ordemInicial="avaliacoes"
-            mensagemVazio="Nenhuma avaliacao registrada no periodo."
+            mensagemVazio="Nenhuma avaliação registrada no período."
             colunas={[
               { chave: "mentor", rotulo: "Mentor" },
-              { chave: "avaliacoes", rotulo: "Avaliacoes", alinhamento: "right" },
+              { chave: "avaliacoes", rotulo: "Avaliações", alinhamento: "right" },
               {
                 chave: "dias_resposta_media",
                 rotulo: "Responde em",
@@ -365,14 +365,14 @@ function Conteudo({ idTenant, dias }) {
               },
               {
                 chave: "taxa_aprovacao_pct",
-                rotulo: "Aprovacao",
+                rotulo: "Aprovação",
                 alinhamento: "right",
                 render: (l) => `${l.taxa_aprovacao_pct}%`,
               },
               { chave: "ajustes", rotulo: "Pediu ajuste", alinhamento: "right" },
               {
                 chave: "nota_media",
-                rotulo: "Nota media",
+                rotulo: "Nota média",
                 alinhamento: "right",
                 render: (l) => (l.nota_media == null ? "—" : l.nota_media.toFixed(1)),
               },

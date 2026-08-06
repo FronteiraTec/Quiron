@@ -51,7 +51,7 @@ export default function AbaFasesConcluidas({ idStartup }) {
       {fases.length === 0 ? (
         <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
           <CheckCircle sx={{ fontSize: 48, opacity: 0.4 }} />
-          <Typography sx={{ mt: 1 }}>Nenhuma fase concluida ainda.</Typography>
+          <Typography sx={{ mt: 1 }}>Nenhuma fase concluída ainda.</Typography>
         </Box>
       ) : (
         <TableContainer>
@@ -62,8 +62,8 @@ export default function AbaFasesConcluidas({ idStartup }) {
                   Ordem
                 </TableCell>
                 <TableCell>Nome</TableCell>
-                <TableCell>Descricao</TableCell>
-                <TableCell align="center">Concluida em</TableCell>
+                <TableCell>Descrição</TableCell>
+                <TableCell align="center">Concluída em</TableCell>
                 <TableCell align="center">Aprovada por</TableCell>
               </TableRow>
             </TableHead>

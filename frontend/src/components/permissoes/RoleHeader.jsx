@@ -26,11 +26,11 @@ export default function RoleHeader({ role, onEditar, onExcluir }) {
           <Stack direction="row" spacing={2} sx={{ mt: 1.5 }}>
             <Stack direction="row" alignItems="center" spacing={0.5} color="text.secondary">
               <People fontSize="small" />
-              <Typography variant="body2">{role.usuarios?.length ?? 0} usuario(s)</Typography>
+              <Typography variant="body2">{role.usuarios?.length ?? 0} usuário(s)</Typography>
             </Stack>
             <Stack direction="row" alignItems="center" spacing={0.5} color="text.secondary">
               <Key fontSize="small" />
-              <Typography variant="body2">{role.permissoes?.length ?? 0} permissao(oes)</Typography>
+              <Typography variant="body2">{role.permissoes?.length ?? 0} permissão(ões)</Typography>
             </Stack>
           </Stack>
         </Box>
@@ -41,7 +41,7 @@ export default function RoleHeader({ role, onEditar, onExcluir }) {
               <Edit fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title={role.sistema ? "Roles de sistema nao podem ser excluidas" : "Excluir role"}>
+          <Tooltip title={role.sistema ? "Roles de sistema não podem ser excluídas" : "Excluir role"}>
             <span>
               <IconButton onClick={onExcluir} disabled={role.sistema} color="error">
                 <Delete fontSize="small" />

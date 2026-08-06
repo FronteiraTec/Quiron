@@ -33,12 +33,12 @@ const COLUNAS_EVENTOS_CSV = [
   { chave: "categoria", rotulo: "Categoria" },
   { chave: "inicio_ts", rotulo: "Data" },
   { chave: "local", rotulo: "Local" },
-  { chave: "obrigatorio", rotulo: "Obrigatorio" },
-  { chave: "publico", rotulo: "Publico convidado" },
+  { chave: "obrigatorio", rotulo: "Obrigatório" },
+  { chave: "publico", rotulo: "Público convidado" },
   { chave: "confirmados", rotulo: "Confirmaram" },
   { chave: "presentes", rotulo: "Compareceram" },
-  { chave: "taxa_presenca_pct", rotulo: "Presenca (%)" },
-  { chave: "taxa_confirmacao_pct", rotulo: "Confirmacao (%)" },
+  { chave: "taxa_presenca_pct", rotulo: "Presença (%)" },
+  { chave: "taxa_confirmacao_pct", rotulo: "Confirmação (%)" },
   { chave: "faltaram_confirmados", rotulo: "Confirmaram e faltaram" },
 ]
 
@@ -47,8 +47,8 @@ const COLUNAS_STARTUPS_CSV = [
   { chave: "eventos_convidada", rotulo: "Eventos convidada" },
   { chave: "eventos_presente", rotulo: "Eventos presente" },
   { chave: "faltas", rotulo: "Faltas" },
-  { chave: "faltas_obrigatorias", rotulo: "Faltas em obrigatorios" },
-  { chave: "taxa_presenca_pct", rotulo: "Presenca (%)" },
+  { chave: "faltas_obrigatorias", rotulo: "Faltas em obrigatórios" },
+  { chave: "taxa_presenca_pct", rotulo: "Presença (%)" },
   { chave: "dias_sem_presenca", rotulo: "Dias sem aparecer" },
 ]
 
@@ -88,7 +88,7 @@ function Conteudo({ idTenant, dias }) {
       carregando={carregando}
       erro={erro}
       vazio={dados && dados.eventos.length === 0}
-      mensagemVazio={`Nenhum evento realizado nos ultimos ${dias} dias.`}
+      mensagemVazio={`Nenhum evento realizado nos últimos ${dias} dias.`}
     >
       {dados && (
         <>
@@ -96,12 +96,12 @@ function Conteudo({ idTenant, dias }) {
             itens={[
               { rotulo: `Eventos realizados em ${dias} dias`, valor: dados.resumo.eventos_realizados },
               {
-                rotulo: "Presenca media",
+                rotulo: "Presença média",
                 valor: dados.resumo.presenca_media_pct,
                 sufixo: "%",
                 cor:
                   dados.resumo.presenca_media_pct < PRESENCA_BAIXA_PCT ? STATUS.ATENCAO : undefined,
-                ajuda: "Pessoas presentes sobre o publico convidado, somando todos os eventos.",
+                ajuda: "Pessoas presentes sobre o público convidado, somando todos os eventos.",
               },
               {
                 rotulo: "Dos que confirmaram, compareceram",
@@ -110,7 +110,7 @@ function Conteudo({ idTenant, dias }) {
                 ajuda: "Mede o quanto a lista de confirmados serve para planejar o evento.",
               },
               {
-                rotulo: "Startups que nao apareceram em nada",
+                rotulo: "Startups que não apareceram em nada",
                 valor: dados.resumo.startups_desengajadas,
                 cor: dados.resumo.startups_desengajadas > 0 ? STATUS.CRITICO : undefined,
                 icone:
@@ -119,7 +119,7 @@ function Conteudo({ idTenant, dias }) {
                   ) : undefined,
               },
               {
-                rotulo: "Faltas em eventos obrigatorios",
+                rotulo: "Faltas em eventos obrigatórios",
                 valor: dados.resumo.faltas_obrigatorias,
                 cor: dados.resumo.faltas_obrigatorias > 0 ? STATUS.ATENCAO : undefined,
               },
@@ -152,7 +152,7 @@ function Conteudo({ idTenant, dias }) {
                         {l.obrigatorio && (
                           <Chip
                             size="small"
-                            label="obrigatorio"
+                            label="obrigatório"
                             sx={{ ml: 1, height: 18, fontSize: 11 }}
                           />
                         )}
@@ -174,7 +174,7 @@ function Conteudo({ idTenant, dias }) {
                 { chave: "presentes", rotulo: "Compareceram", alinhamento: "right" },
                 {
                   chave: "taxa_presenca_pct",
-                  rotulo: "Presenca",
+                  rotulo: "Presença",
                   alinhamento: "right",
                   render: (l) => <Taxa valor={l.taxa_presenca_pct} />,
                 },
@@ -204,7 +204,7 @@ function Conteudo({ idTenant, dias }) {
             ordemInicial="taxa_presenca_pct"
             direcaoInicial="asc"
             onClickLinha={(l) => navigate(`/startups/${l.id_startup}`)}
-            mensagemVazio="Nenhuma startup foi convidada a eventos no periodo."
+            mensagemVazio="Nenhuma startup foi convidada a eventos no período."
             colunas={[
               { chave: "startup", rotulo: "Startup" },
               {
@@ -215,13 +215,13 @@ function Conteudo({ idTenant, dias }) {
               },
               {
                 chave: "taxa_presenca_pct",
-                rotulo: "Presenca",
+                rotulo: "Presença",
                 alinhamento: "right",
                 render: (l) => <Taxa valor={l.taxa_presenca_pct} />,
               },
               {
                 chave: "faltas_obrigatorias",
-                rotulo: "Faltou em obrigatorio",
+                rotulo: "Faltou em obrigatório",
                 alinhamento: "right",
                 render: (l) =>
                   l.faltas_obrigatorias > 0 ? (
@@ -242,13 +242,13 @@ function Conteudo({ idTenant, dias }) {
               },
               {
                 chave: "dias_sem_presenca",
-                rotulo: "Sem aparecer ha",
+                rotulo: "Sem aparecer há",
                 alinhamento: "right",
                 render: (l) => (l.dias_sem_presenca == null ? "nunca veio" : `${l.dias_sem_presenca}d`),
               },
               {
                 chave: "desengajada",
-                rotulo: "Situacao",
+                rotulo: "Situação",
                 render: (l) =>
                   l.desengajada ? (
                     <Chip

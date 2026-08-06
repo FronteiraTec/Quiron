@@ -33,7 +33,7 @@ export default function ConfiguracaoEmail() {
           email_reply_to: data.tenant.email_reply_to || "",
         })
       )
-      .catch((err) => setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar a configuracao." }))
+      .catch((err) => setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar a configuração." }))
       .finally(() => setCarregando(false))
   }, [idTenant])
 
@@ -45,9 +45,9 @@ export default function ConfiguracaoEmail() {
     setSalvando(true)
     try {
       await api.put(`/tenants/${idTenant}/config-email`, configEmail)
-      setAviso({ tipo: "success", texto: "Configuracao de e-mail atualizada com sucesso." })
+      setAviso({ tipo: "success", texto: "Configuração de e-mail atualizada com sucesso." })
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao salvar a configuracao." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao salvar a configuração." })
     } finally {
       setSalvando(false)
     }
@@ -71,7 +71,7 @@ export default function ConfiguracaoEmail() {
 
       <Paper sx={{ borderRadius: 0, p: { xs: 2, sm: 3 } }}>
         <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-          Configuracao de e-mail
+          Configuração de e-mail
         </Typography>
         <Divider sx={{ mb: 2 }} />
         <Box component="form" onSubmit={salvarConfigEmail}>

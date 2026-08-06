@@ -68,7 +68,7 @@ function DialogVincular({ pessoa, startups, onFechar, onVincular }) {
       await onVincular(idStartup, pessoa.id_usuario, lider)
       onFechar()
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel vincular.")
+      setErro(err.response?.data?.erro || "Não foi possível vincular.")
       setSalvando(false)
     }
   }
@@ -106,7 +106,7 @@ function DialogVincular({ pessoa, startups, onFechar, onVincular }) {
             onChange={(e) => setLider(e.target.value === "1")}
           >
             <MenuItem value="0">Membro</MenuItem>
-            <MenuItem value="1">Lider</MenuItem>
+            <MenuItem value="1">Líder</MenuItem>
           </TextField>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
@@ -172,7 +172,7 @@ export default function Membros() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Quem esta em cada startup da incubadora.
+          Quem está em cada startup da incubadora.
         </Typography>
 
         {erro && (
@@ -197,9 +197,9 @@ export default function Membros() {
                     : "incubados sem startup"}
                 </AlertTitle>
                 <Typography variant="body2" sx={{ mb: 1.5 }}>
-                  Sem vinculo, essas pessoas entram no sistema e nao encontram
-                  jornada, entrega nem startup — e a tela delas nao explica o
-                  porque.
+                  Sem vínculo, essas pessoas entram no sistema e não encontram
+                  jornada, entrega nem startup — e a tela delas não explica o
+                  porquê.
                 </Typography>
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                   {semStartup.map((p) => (
@@ -271,7 +271,7 @@ export default function Membros() {
                   <Typography sx={{ mt: 1 }}>
                     {membros.length === 0
                       ? "Nenhuma startup tem membros ainda."
-                      : "Ninguem corresponde ao filtro."}
+                      : "Ninguém corresponde ao filtro."}
                   </Typography>
                 </Box>
               ) : (
@@ -321,7 +321,7 @@ export default function Membros() {
                           </TableCell>
                           <TableCell align="center">
                             {m.lider ? (
-                              <Chip size="small" label="Lider" color="primary" />
+                              <Chip size="small" label="Líder" color="primary" />
                             ) : (
                               <Typography variant="caption" color="text.secondary">
                                 Membro

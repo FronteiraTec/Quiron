@@ -64,7 +64,7 @@ const USUARIO_VAZIO = { nome: "", email: "", celular: "", senha: "", papel: "usu
 const PAPEIS = [
   { valor: "admin", rotulo: "Admin" },
   { valor: "mentor", rotulo: "Mentor" },
-  { valor: "usuario", rotulo: "Usuario" },
+  { valor: "usuario", rotulo: "Usuário" },
 ]
 
 export default function Tenants() {
@@ -170,7 +170,7 @@ export default function Tenants() {
       const { data } = await api.get(`/tenants/${idTenant}/usuarios`)
       setUsuarios(data.usuarios)
     } catch (err) {
-      setAvisoUsuario({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar usuarios." })
+      setAvisoUsuario({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar usuários." })
     } finally {
       setCarregandoUsuarios(false)
     }
@@ -194,13 +194,13 @@ export default function Tenants() {
       await api.post(`/tenants/${usuariosDialog.id_tenant}/usuarios`, usuarioForm)
       setAvisoUsuario({
         tipo: "success",
-        texto: "Usuario criado. Ele devera redefinir a senha no primeiro acesso.",
+        texto: "Usuário criado. Ele deverá redefinir a senha no primeiro acesso.",
       })
       setUsuarioForm(USUARIO_VAZIO)
       await carregarUsuarios(usuariosDialog.id_tenant)
       await carregar() // atualiza a contagem de usuarios na tabela
     } catch (err) {
-      setAvisoUsuario({ tipo: "error", texto: err.response?.data?.erro || "Erro ao criar o usuario." })
+      setAvisoUsuario({ tipo: "error", texto: err.response?.data?.erro || "Erro ao criar o usuário." })
     } finally {
       setSalvandoUsuario(false)
     }
@@ -248,10 +248,10 @@ export default function Tenants() {
                     <TableCell>Nome</TableCell>
                     <TableCell>Contato</TableCell>
                     <TableCell>Local</TableCell>
-                    <TableCell align="center">Usuarios</TableCell>
+                    <TableCell align="center">Usuários</TableCell>
                     <TableCell align="center">Startups</TableCell>
                     <TableCell align="center">Status</TableCell>
-                    <TableCell align="right">Acoes</TableCell>
+                    <TableCell align="right">Ações</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -289,7 +289,7 @@ export default function Tenants() {
                       </TableCell>
                       <TableCell align="right">
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
-                          <Tooltip title="Usuarios">
+                          <Tooltip title="Usuários">
                             <IconButton size="small" onClick={() => abrirUsuarios(t)}>
                               <People fontSize="small" />
                             </IconButton>
@@ -353,7 +353,7 @@ export default function Tenants() {
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  label="Pais"
+                  label="País"
                   fullWidth
                   required
                   value={form.pais}
@@ -389,7 +389,7 @@ export default function Tenants() {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  label="Limite de usuarios"
+                  label="Limite de usuários"
                   type="number"
                   fullWidth
                   inputProps={{ min: 1 }}
@@ -425,7 +425,7 @@ export default function Tenants() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Usuarios — {usuariosDialog?.nome}</DialogTitle>
+        <DialogTitle>Usuários — {usuariosDialog?.nome}</DialogTitle>
         <DialogContent dividers>
           {avisoUsuario && (
             <Alert severity={avisoUsuario.tipo} sx={{ mb: 2 }} onClose={() => setAvisoUsuario(null)}>
@@ -436,7 +436,7 @@ export default function Tenants() {
           {/* Formulario de criacao de usuario com senha provisoria */}
           <Box component="form" onSubmit={criarUsuario} sx={{ mb: 3 }}>
             <Typography variant="subtitle2" sx={{ mb: 1, display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Add fontSize="small" /> Novo usuario
+              <Add fontSize="small" /> Novo usuário
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
@@ -472,13 +472,13 @@ export default function Tenants() {
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  label="Senha provisoria"
+                  label="Senha provisória"
                   fullWidth
                   required
                   size="small"
                   value={usuarioForm.senha}
                   onChange={(e) => alterarUsuarioCampo("senha", e.target.value)}
-                  helperText="Minimo 6 caracteres"
+                  helperText="Mínimo 6 caracteres"
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -501,7 +501,7 @@ export default function Tenants() {
             </Grid>
             <Box sx={{ mt: 2, textAlign: "right" }}>
               <Button type="submit" variant="contained" size="small" disabled={salvandoUsuario}>
-                {salvandoUsuario ? <CircularProgress size={20} color="inherit" /> : "Criar usuario"}
+                {salvandoUsuario ? <CircularProgress size={20} color="inherit" /> : "Criar usuário"}
               </Button>
             </Box>
           </Box>
@@ -515,7 +515,7 @@ export default function Tenants() {
             </Box>
           ) : usuarios.length === 0 ? (
             <Typography color="text.secondary" sx={{ textAlign: "center", py: 3 }}>
-              Nenhum usuario vinculado a esta incubadora.
+              Nenhum usuário vinculado a esta incubadora.
             </Typography>
           ) : (
             <TableContainer>
@@ -538,8 +538,8 @@ export default function Tenants() {
                       </TableCell>
                       <TableCell align="center">
                         {u.deve_redefinir_senha ? (
-                          <Tooltip title="Senha provisoria — sera trocada no primeiro acesso">
-                            <Chip size="small" color="warning" icon={<Key />} label="Provisoria" />
+                          <Tooltip title="Senha provisória — será trocada no primeiro acesso">
+                            <Chip size="small" color="warning" icon={<Key />} label="Provisória" />
                           </Tooltip>
                         ) : (
                           <Chip size="small" color="success" label="Definida" />

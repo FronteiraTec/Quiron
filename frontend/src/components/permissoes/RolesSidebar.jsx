@@ -52,7 +52,7 @@ export default function RolesSidebar({ roles, selecionadaId, busca, onBuscar, on
               />
               <ListItemText
                 primary={r.nome}
-                secondary={`${r.total_usuarios} usuario(s) · ${r.total_permissoes} permissao(oes)`}
+                secondary={`${r.total_usuarios} usuário(s) · ${r.total_permissoes} permissão(ões)`}
                 primaryTypographyProps={{ fontWeight: r.id_role === selecionadaId ? 700 : 500 }}
                 secondaryTypographyProps={{ variant: "caption" }}
               />

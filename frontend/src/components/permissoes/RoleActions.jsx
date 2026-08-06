@@ -13,13 +13,13 @@ export default function RoleActions({ temAlteracoes, salvando, onSelecionarTudo,
           Selecionar todas
         </Button>
         <Button size="small" startIcon={<ClearAll />} onClick={onLimparTudo} sx={{ textTransform: "none" }}>
-          Limpar selecao
+          Limpar seleção
         </Button>
       </Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
         {temAlteracoes && (
           <Typography variant="caption" color="text.secondary">
-            Alteracoes nao salvas
+            Alterações não salvas
           </Typography>
         )}
         <Button
@@ -28,7 +28,7 @@ export default function RoleActions({ temAlteracoes, salvando, onSelecionarTudo,
           disabled={!temAlteracoes || salvando}
           onClick={onSalvar}
         >
-          Salvar alteracoes
+          Salvar alterações
         </Button>
       </Box>
     </Box>

@@ -60,9 +60,9 @@ import { useAuthStore } from "../store/authStore"
 // Tipos de pergunta: valor no backend (enum) + rotulo e icone.
 const TIPOS_PERGUNTA = [
   { valor: "TEXTO_CURTO", rotulo: "Texto curto", icone: <Notes fontSize="small" />, alternativas: false },
-  { valor: "PARAGRAFO", rotulo: "Paragrafo", icone: <Subject fontSize="small" />, alternativas: false },
-  { valor: "ESCOLHA_UNICA", rotulo: "Escolha unica", icone: <RadioButtonChecked fontSize="small" />, alternativas: true },
-  { valor: "CAIXAS_SELECAO", rotulo: "Caixas de selecao", icone: <CheckBox fontSize="small" />, alternativas: true },
+  { valor: "PARAGRAFO", rotulo: "Parágrafo", icone: <Subject fontSize="small" />, alternativas: false },
+  { valor: "ESCOLHA_UNICA", rotulo: "Escolha única", icone: <RadioButtonChecked fontSize="small" />, alternativas: true },
+  { valor: "CAIXAS_SELECAO", rotulo: "Caixas de seleção", icone: <CheckBox fontSize="small" />, alternativas: true },
 ]
 const TIPO_POR_VALOR = Object.fromEntries(TIPOS_PERGUNTA.map((t) => [t.valor, t]))
 const tipoTemAlternativas = (tipo) => !!TIPO_POR_VALOR[tipo]?.alternativas
@@ -105,7 +105,7 @@ export default function Questionarios() {
       const { data } = await api.get("/questionarios", { params: { id_tenant: idTenant } })
       setQuestionarios(data.questionarios)
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar os questionarios." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar os questionários." })
     } finally {
       setCarregando(false)
     }
@@ -181,11 +181,11 @@ export default function Questionarios() {
         descricao: form.descricao,
         perguntas,
       })
-      setAviso({ tipo: "success", texto: "Questionario criado com sucesso." })
+      setAviso({ tipo: "success", texto: "Questionário criado com sucesso." })
       setDialogAberto(false)
       await carregar()
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao criar o questionario." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao criar o questionário." })
     } finally {
       setSalvando(false)
     }
@@ -208,7 +208,7 @@ export default function Questionarios() {
       const { data } = await api.get(`/questionarios/${id}`)
       setPreview(data.questionario)
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao abrir o questionario." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao abrir o questionário." })
       setPreview(null)
     } finally {
       setCarregandoPreview(false)
@@ -222,18 +222,18 @@ export default function Questionarios() {
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Quiz sx={{ color: "primary.main" }} />
             <Typography variant="h4" fontWeight={700}>
-              Questionarios
+              Questionários
             </Typography>
           </Box>
           {isAdmin && (
             <Button variant="contained" startIcon={<Add />} onClick={abrirCriacao} disabled={!idTenant}>
-              Novo questionario
+              Novo questionário
             </Button>
           )}
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Crie formularios com perguntas de texto e de escolha. Os questionarios ficam disponiveis
-          para as tarefas do tipo Questionario.
+          Crie formulários com perguntas de texto e de escolha. Os questionários ficam disponíveis
+          para as tarefas do tipo Questionário.
         </Typography>
 
         {aviso && (
@@ -244,7 +244,7 @@ export default function Questionarios() {
 
         {!idTenant ? (
           <Alert severity="info">
-            Seu usuario nao esta vinculado a nenhuma incubadora, entao nao ha questionarios para gerenciar.
+            Seu usuário não está vinculado a nenhuma incubadora, então não há questionários para gerenciar.
           </Alert>
         ) : carregando ? (
           <Box sx={{ textAlign: "center", py: 6 }}>
@@ -255,9 +255,9 @@ export default function Questionarios() {
             {questionarios.length === 0 ? (
               <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
                 <Quiz sx={{ fontSize: 48, opacity: 0.4 }} />
-                <Typography sx={{ mt: 1 }}>Nenhum questionario cadastrado ainda.</Typography>
+                <Typography sx={{ mt: 1 }}>Nenhum questionário cadastrado ainda.</Typography>
                 {isAdmin && (
-                  <Typography variant="body2">Clique em "Novo questionario" para comecar.</Typography>
+                  <Typography variant="body2">Clique em "Novo questionário" para começar.</Typography>
                 )}
               </Box>
             ) : (
@@ -265,7 +265,7 @@ export default function Questionarios() {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Titulo</TableCell>
+                      <TableCell>Título</TableCell>
                       <TableCell align="center" width={120}>
                         Perguntas
                       </TableCell>
@@ -273,7 +273,7 @@ export default function Questionarios() {
                         Status
                       </TableCell>
                       <TableCell align="right" width={120}>
-                        Acoes
+                        Ações
                       </TableCell>
                     </TableRow>
                   </TableHead>
@@ -328,11 +328,11 @@ export default function Questionarios() {
       {/* ---------------- Construtor (dialog de criacao) ---------------- */}
       <Dialog open={dialogAberto} onClose={() => setDialogAberto(false)} maxWidth="md" fullWidth>
         <Box component="form" onSubmit={salvar}>
-          <DialogTitle>Novo questionario</DialogTitle>
+          <DialogTitle>Novo questionário</DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2}>
               <TextField
-                label="Titulo"
+                label="Título"
                 fullWidth
                 required
                 autoFocus
@@ -340,7 +340,7 @@ export default function Questionarios() {
                 onChange={(e) => alterarCampo("titulo", e.target.value)}
               />
               <TextField
-                label="Descricao"
+                label="Descrição"
                 fullWidth
                 required
                 multiline
@@ -408,7 +408,7 @@ export default function Questionarios() {
                             onChange={(e) => alterarPergunta(i, { obrigatoria: e.target.checked })}
                           />
                         }
-                        label="Obrigatoria"
+                        label="Obrigatória"
                       />
                     </Stack>
 
@@ -455,7 +455,7 @@ export default function Questionarios() {
           <DialogActions sx={{ px: 3, py: 2 }}>
             <Button onClick={() => setDialogAberto(false)}>Cancelar</Button>
             <Button type="submit" variant="contained" disabled={salvando}>
-              {salvando ? <CircularProgress size={22} color="inherit" /> : "Criar questionario"}
+              {salvando ? <CircularProgress size={22} color="inherit" /> : "Criar questionário"}
             </Button>
           </DialogActions>
         </Box>

@@ -191,7 +191,7 @@ export default function ChamadaPainel({ chamada, carregando, salvandoIds, onMarc
     try {
       await onMarcar(pessoas.map((p) => p.id_usuario), presente)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel marcar a presenca.")
+      setErro(err.response?.data?.erro || "Não foi possível marcar a presença.")
     }
   }
 
@@ -200,7 +200,7 @@ export default function ChamadaPainel({ chamada, carregando, salvandoIds, onMarc
     try {
       await onMarcar([idUsuario], presente)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel marcar a presenca.")
+      setErro(err.response?.data?.erro || "Não foi possível marcar a presença.")
     }
   }
 
@@ -297,7 +297,7 @@ export default function ChamadaPainel({ chamada, carregando, salvandoIds, onMarc
       </Box>
 
       <Box sx={{ px: 3, pb: 2, display: "flex", gap: 1, flexWrap: "wrap" }}>
-        <Tooltip title="Quem respondeu que ia e ainda nao foi marcado como presente" arrow>
+        <Tooltip title="Quem respondeu que ia e ainda não foi marcado como presente" arrow>
           <span>
             <Button
               size="small"
@@ -311,7 +311,7 @@ export default function ChamadaPainel({ chamada, carregando, salvandoIds, onMarc
             </Button>
           </span>
         </Tooltip>
-        <Tooltip title="Fecha a chamada: quem nao foi conferido vira falta" arrow>
+        <Tooltip title="Fecha a chamada: quem não foi conferido vira falta" arrow>
           <span>
             <Button
               size="small"
@@ -344,12 +344,12 @@ export default function ChamadaPainel({ chamada, carregando, salvandoIds, onMarc
           <Typography sx={{ mt: 1 }}>
             {publico.length === 0
               ? "Nenhum convidado para este evento."
-              : "Ninguem corresponde ao filtro."}
+              : "Ninguém corresponde ao filtro."}
           </Typography>
           {publico.length === 0 && (
             <Typography variant="body2" sx={{ mt: 0.5 }}>
-              O publico sao os membros ativos das startups convidadas — sem
-              membros ativos, nao ha chamada a fazer.
+              O público são os membros ativos das startups convidadas — sem
+              membros ativos, não há chamada a fazer.
             </Typography>
           )}
         </Box>

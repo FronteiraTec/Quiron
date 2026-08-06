@@ -32,19 +32,19 @@ import { baixarCsv } from "../utils/csv"
 
 const COLUNAS_CSV = [
   { chave: "fase", rotulo: "Fase" },
-  { chave: "modulo", rotulo: "Modulo" },
+  { chave: "modulo", rotulo: "Módulo" },
   { chave: "passo", rotulo: "Passo" },
   { chave: "startups", rotulo: "Startups no programa" },
   { chave: "iniciaram", rotulo: "Iniciaram" },
   { chave: "aprovados", rotulo: "Aprovados" },
-  { chave: "aguardando", rotulo: "Aguardando avaliacao" },
+  { chave: "aguardando", rotulo: "Aguardando avaliação" },
   { chave: "em_ajuste", rotulo: "Em ajuste" },
   { chave: "rascunho", rotulo: "Em rascunho" },
-  { chave: "nao_iniciados", rotulo: "Nao iniciados" },
+  { chave: "nao_iniciados", rotulo: "Não iniciados" },
   { chave: "atrasados", rotulo: "Com prazo vencido" },
-  { chave: "taxa_aprovacao_pct", rotulo: "Taxa de aprovacao (%)" },
-  { chave: "dias_ate_aprovar", rotulo: "Dias ate aprovar (media)" },
-  { chave: "dias_na_fila", rotulo: "Dias na fila (media)" },
+  { chave: "taxa_aprovacao_pct", rotulo: "Taxa de aprovação (%)" },
+  { chave: "dias_ate_aprovar", rotulo: "Dias até aprovar (média)" },
+  { chave: "dias_na_fila", rotulo: "Dias na fila (média)" },
 ]
 
 /** Encurta o nome do passo para caber no eixo do grafico. */
@@ -89,7 +89,7 @@ function Conteudo({ idTenant }) {
       carregando={carregando}
       erro={erro}
       vazio={dados && dados.passos.length === 0}
-      mensagemVazio="A trilha ainda nao tem passos ativos para analisar."
+      mensagemVazio="A trilha ainda não tem passos ativos para analisar."
     >
       {dados && (
         <>
@@ -104,7 +104,7 @@ function Conteudo({ idTenant }) {
               {
                 rotulo: "Startups presas em algum passo",
                 valor: dados.resumo.startups_presas,
-                ajuda: "Soma de startups em rascunho, aguardando avaliacao ou em ajuste.",
+                ajuda: "Soma de startups em rascunho, aguardando avaliação ou em ajuste.",
               },
               {
                 rotulo: "Passos com prazo vencido",
@@ -114,7 +114,7 @@ function Conteudo({ idTenant }) {
                   dados.resumo.passos_atrasados > 0 ? <ErrorOutline fontSize="small" /> : undefined,
               },
               {
-                rotulo: "Passo mais lento ate aprovar",
+                rotulo: "Passo mais lento até aprovar",
                 valor: dados.resumo.passo_mais_lento
                   ? `${dados.resumo.passo_mais_lento.dias}`
                   : "—",
@@ -130,8 +130,8 @@ function Conteudo({ idTenant }) {
                 Os passos que mais travam
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Quantas startups estao paradas em cada um — em rascunho, esperando avaliacao ou
-                refazendo apos um pedido de ajuste.
+                Quantas startups estão paradas em cada um — em rascunho, esperando avaliação ou
+                refazendo após um pedido de ajuste.
               </Typography>
 
               <ResponsiveContainer width="100%" height={Math.max(200, ranking.length * 34)}>
@@ -248,9 +248,9 @@ function Conteudo({ idTenant }) {
               },
               {
                 chave: "taxa_aprovacao_pct",
-                rotulo: "Aprovacao",
+                rotulo: "Aprovação",
                 alinhamento: "right",
-                ajuda: "Sobre quem ja comecou o passo.",
+                ajuda: "Sobre quem já começou o passo.",
                 render: (l) => (l.iniciaram === 0 ? "—" : `${l.taxa_aprovacao_pct}%`),
               },
               {

@@ -53,7 +53,7 @@ export default function Biblioteca() {
       setEditando(await bib.criar(tipo))
     } catch (err) {
       setToast({
-        texto: err.response?.data?.erro || "Erro ao criar o conteudo.",
+        texto: err.response?.data?.erro || "Erro ao criar o conteúdo.",
         severidade: "error",
       })
     }
@@ -68,7 +68,7 @@ export default function Biblioteca() {
     try {
       setEditando(await bib.carregarCompleto(conteudo.id_conteudo))
     } catch {
-      setToast({ texto: "Erro ao carregar o conteudo.", severidade: "error" })
+      setToast({ texto: "Erro ao carregar o conteúdo.", severidade: "error" })
     }
   }
 
@@ -78,10 +78,10 @@ export default function Biblioteca() {
       setEditando((atual) =>
         atual && atual.id_conteudo === id ? { ...atual, ...atualizado } : atual
       )
-      setToast({ texto: "Conteudo salvo.", severidade: "success" })
+      setToast({ texto: "Conteúdo salvo.", severidade: "success" })
     } catch (err) {
       setToast({
-        texto: err.response?.data?.erro || "Erro ao salvar o conteudo.",
+        texto: err.response?.data?.erro || "Erro ao salvar o conteúdo.",
         severidade: "error",
       })
     }
@@ -90,7 +90,7 @@ export default function Biblioteca() {
   const duplicar = async (conteudo) => {
     try {
       await bib.duplicar(conteudo.id_conteudo)
-      setToast({ texto: "Conteudo duplicado.", severidade: "success" })
+      setToast({ texto: "Conteúdo duplicado.", severidade: "success" })
     } catch (err) {
       setToast({
         texto: err.response?.data?.erro || "Erro ao duplicar.",
@@ -118,7 +118,7 @@ export default function Biblioteca() {
 
     if (editando?.id_conteudo === alvo.id_conteudo) setEditando(null)
     setToast({
-      texto: `"${alvo.titulo || "Conteudo"}" excluido.`,
+      texto: `"${alvo.titulo || "Conteúdo"}" excluído.`,
       severidade: "info",
     })
   }
@@ -149,11 +149,11 @@ export default function Biblioteca() {
             onClick={(e) => setNovoMenu(e.currentTarget)}
             sx={{ textTransform: "none" }}
           >
-            Novo conteudo
+            Novo conteúdo
           </Button>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Tudo o que sua incubadora ensina, em um so lugar. Crie uma vez e reutilize
+          Tudo o que sua incubadora ensina, em um só lugar. Crie uma vez e reutilize
           em qualquer passo da trilha.
         </Typography>
 
@@ -161,7 +161,7 @@ export default function Biblioteca() {
         <TextField
           fullWidth
           size="small"
-          placeholder="Buscar por titulo, resumo ou tag…"
+          placeholder="Buscar por título, resumo ou tag…"
           value={bib.termo}
           onChange={(e) => bib.setTermo(e.target.value)}
           sx={{ mb: 2, maxWidth: 480 }}
@@ -228,8 +228,8 @@ export default function Biblioteca() {
           <Box sx={{ py: 8, display: "grid", placeItems: "center" }}>
             <EmptyState
               variante="selecao"
-              titulo="Nenhum conteudo aqui"
-              descricao="Ajuste os filtros ou crie um novo conteudo para comecar seu acervo."
+              titulo="Nenhum conteúdo aqui"
+              descricao="Ajuste os filtros ou crie um novo conteúdo para começar seu acervo."
             />
           </Box>
         ) : (
@@ -288,10 +288,10 @@ export default function Biblioteca() {
         mensagem={
           confirmar
             ? confirmar.usos?.length
-              ? `"${confirmar.titulo || "Este conteudo"}" e usado em ${
+              ? `"${confirmar.titulo || "Este conteúdo"}" é usado em ${
                   confirmar.usos.length
                 } passo(s) da trilha. Desvincule-o antes de excluir.`
-              : `Excluir "${confirmar.titulo || "este conteudo"}"? Esta acao nao pode ser desfeita.`
+              : `Excluir "${confirmar.titulo || "este conteúdo"}"? Esta ação não pode ser desfeita.`
             : ""
         }
         onConfirmar={excluirConfirmado}

@@ -151,7 +151,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
           <Grid container spacing={2}>
             <Grid item xs={12} data-tour="form-evento-titulo">
               <TextField
-                label="Titulo"
+                label="Título"
                 fullWidth
                 required
                 autoFocus
@@ -199,7 +199,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
             </Grid>
             <Grid item xs={5} data-tour="form-evento-quando">
               <TextField
-                label="Inicio"
+                label="Início"
                 type="time"
                 fullWidth
                 required
@@ -249,7 +249,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
             </Grid>
             <Grid item xs={5}>
               <TextField
-                label="Termino"
+                label="Término"
                 type="time"
                 fullWidth
                 InputLabelProps={{ shrink: true }}
@@ -292,7 +292,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
             </Grid>
             <Grid item xs={12}>
               <TextField
-                label="Mentor responsavel"
+                label="Mentor responsável"
                 fullWidth
                 value={form.mentor_nome}
                 onChange={(e) => alterar("mentor_nome", e.target.value)}
@@ -300,7 +300,7 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
             </Grid>
             <Grid item xs={12}>
               <TextField
-                label="Descricao"
+                label="Descrição"
                 fullWidth
                 multiline
                 minRows={3}

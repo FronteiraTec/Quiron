@@ -16,7 +16,7 @@ import {
 const HIST_ROTULO = {
   criada: "Iniciada",
   rascunho: "Rascunho salvo",
-  enviada: "Enviada para avaliacao",
+  enviada: "Enviada para avaliação",
   aprovada: "Aprovada pelo mentor",
   ajuste: "Ajuste solicitado",
 }
@@ -26,7 +26,7 @@ export default function PassoImpacto({ passo, mentor, progresso }) {
     <Box sx={{ height: "100%", overflowY: "auto", p: 2.5 }}>
       <Stack spacing={3}>
         {/* Progresso do modulo */}
-        <Secao icone={<Insights sx={{ fontSize: 18 }} />} titulo="Progresso do modulo">
+        <Secao icone={<Insights sx={{ fontSize: 18 }} />} titulo="Progresso do módulo">
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <LinearProgress
               variant="determinate"
@@ -38,12 +38,12 @@ export default function PassoImpacto({ passo, mentor, progresso }) {
             </Typography>
           </Box>
           <Typography variant="caption" color="text.secondary">
-            {progresso.feitos} de {progresso.total} passos concluidos
+            {progresso.feitos} de {progresso.total} passos concluídos
           </Typography>
         </Secao>
 
         {/* Area da empresa que este passo constroi */}
-        <Secao icone={<Insights sx={{ fontSize: 18 }} />} titulo="Constroi na sua empresa">
+        <Secao icone={<Insights sx={{ fontSize: 18 }} />} titulo="Constrói na sua empresa">
           <Chip
             label={passo.area}
             sx={{ fontWeight: 700, bgcolor: "primary.main", color: "primary.contrastText" }}
@@ -66,7 +66,7 @@ export default function PassoImpacto({ passo, mentor, progresso }) {
 
         {/* Competencias */}
         {passo.competencias?.length > 0 && (
-          <Secao icone={<School sx={{ fontSize: 18 }} />} titulo="Competencias">
+          <Secao icone={<School sx={{ fontSize: 18 }} />} titulo="Competências">
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
               {passo.competencias.map((c) => (
                 <Chip key={c} label={c} size="small" variant="outlined" />
@@ -102,14 +102,14 @@ export default function PassoImpacto({ passo, mentor, progresso }) {
           <Box>
             <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{mentor.nome}</Typography>
             <Typography variant="caption" color="text.secondary">
-              Mentora {mentor.online ? "· disponivel" : ""}
+              Mentora {mentor.online ? "· disponível" : ""}
             </Typography>
           </Box>
         </Box>
 
         {/* Historico */}
         {passo.entrega.historico?.length > 0 && (
-          <Secao icone={<HistoryIcon sx={{ fontSize: 18 }} />} titulo="Historico">
+          <Secao icone={<HistoryIcon sx={{ fontSize: 18 }} />} titulo="Histórico">
             <Stack spacing={1}>
               {passo.entrega.historico.map((h, i) => (
                 <Box key={i} sx={{ display: "flex", gap: 1.5 }}>

@@ -35,7 +35,7 @@ export function useRelatorio(caminho, { idTenant, dias } = {}) {
       const { data } = await api.get(`/relatorios/${caminho}`, { params })
       setDados(data)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel carregar o relatorio.")
+      setErro(err.response?.data?.erro || "Não foi possível carregar o relatório.")
       setDados(null)
     } finally {
       setCarregando(false)

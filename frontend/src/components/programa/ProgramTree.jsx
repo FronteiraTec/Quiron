@@ -68,7 +68,7 @@ export default function ProgramTree({ arvore, termo, ctx }) {
           <EmptyState
             variante="fases"
             titulo="Comece seu programa"
-            descricao="Crie a primeira fase da trilha de incubacao."
+            descricao="Crie a primeira fase da trilha de incubação."
           />
         )}
 

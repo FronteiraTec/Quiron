@@ -86,7 +86,9 @@ async function vincularUsuario(idTenant, idUsuario, papel) {
   if (!idUsuario || !PAPEIS_VALIDOS.includes(papel)) {
     throw erroNegocio(400, "Informe id_usuario e um papel valido.")
   }
-  return tenantRepository.vincularUsuario(idTenant, idUsuario, papel)
+  const vinculo = await tenantRepository.vincularUsuario(idTenant, idUsuario, papel)
+  await rbacRepository.alocarRolePadrao(idTenant, idUsuario, papel)
+  return vinculo
 }
 
 /** Lista os usuarios vinculados a um tenant (root ou admin daquele tenant). */
@@ -131,6 +133,7 @@ async function criarUsuario(idTenant, { nome, email, celular, senha, papel }, us
         client
       )
       await tenantRepository.vincularUsuario(idTenant, usuario.id_usuario, papel, client)
+      await rbacRepository.alocarRolePadrao(idTenant, usuario.id_usuario, papel, client)
       return { ...usuario, papel }
     })
   } catch (err) {

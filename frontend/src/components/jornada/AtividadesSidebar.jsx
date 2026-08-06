@@ -13,7 +13,7 @@ export default function AtividadesSidebar({ passos, selecionadoId, onSelecionar 
   if (!passos.length) {
     return (
       <Box sx={{ p: 2.5, color: "text.secondary" }}>
-        <Typography variant="body2">Nenhuma atividade cadastrada neste modulo ainda.</Typography>
+        <Typography variant="body2">Nenhuma atividade cadastrada neste módulo ainda.</Typography>
       </Box>
     )
   }

@@ -75,7 +75,7 @@ export default function Perfil() {
       return
     }
     if (arquivo.size > FOTO_MAX_BYTES) {
-      setAviso({ tipo: "error", texto: "A imagem deve ter no maximo 2MB." })
+      setAviso({ tipo: "error", texto: "A imagem deve ter no máximo 2MB." })
       return
     }
 

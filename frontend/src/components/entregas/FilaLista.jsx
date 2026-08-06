@@ -22,7 +22,7 @@ export function diasEsperando(iso) {
 function esperaLegivel(dias) {
   if (dias <= 0) return "hoje"
   if (dias === 1) return "ontem"
-  return `ha ${dias} dias`
+  return `há ${dias} dias`
 }
 
 export default function FilaLista({ entregas, selecionada, onSelecionar }) {
@@ -82,7 +82,7 @@ export default function FilaLista({ entregas, selecionada, onSelecionar }) {
               )}
               <Box sx={{ flex: 1 }} />
               {atrasada && (
-                <Tooltip title={`Parada ha ${dias} dias`} arrow>
+                <Tooltip title={`Parada há ${dias} dias`} arrow>
                   <WarningAmber sx={{ fontSize: 15, color: "#f97316" }} />
                 </Tooltip>
               )}

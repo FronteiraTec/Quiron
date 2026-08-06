@@ -44,7 +44,7 @@ export default function Toolbar({
           Construtor de Programa
         </Typography>
         <Typography variant="caption" color="text.secondary" noWrap sx={{ display: { xs: "none", sm: "block" } }}>
-          Monte a trilha de incubacao arrastando, criando e editando em um so lugar
+          Monte a trilha de incubação arrastando, criando e editando em um só lugar
         </Typography>
       </Box>
 

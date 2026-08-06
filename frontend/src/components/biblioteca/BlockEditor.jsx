@@ -61,8 +61,8 @@ const TIPOS_TEXTO = ["h1", "h2", "paragrafo", "lista", "callout"]
 // Cores das variantes de destaque (callout).
 const CALLOUT_VARIANTES = {
   dica: { cor: "#0ea5e9", bg: "#0ea5e914", rotulo: "Dica" },
-  atencao: { cor: "#f59e0b", bg: "#f59e0b14", rotulo: "Atencao" },
-  sucesso: { cor: "#22c55e", bg: "#22c55e14", rotulo: "Boa pratica" },
+  atencao: { cor: "#f59e0b", bg: "#f59e0b14", rotulo: "Atenção" },
+  sucesso: { cor: "#22c55e", bg: "#22c55e14", rotulo: "Boa prática" },
 }
 
 export default function BlockEditor({ blocos, onChange }) {
@@ -143,7 +143,7 @@ export default function BlockEditor({ blocos, onChange }) {
                     <Add sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Opcoes do bloco" arrow>
+                <Tooltip title="Opções do bloco" arrow>
                   <IconButton
                     size="small"
                     onClick={(e) => setMenuBloco({ ancora: e.currentTarget, index })}
@@ -273,12 +273,12 @@ function BlocoConteudo({ bloco, onPatch }) {
   switch (bloco.tipo) {
     case "h1":
       return campoTexto({
-        placeholder: "Titulo",
+        placeholder: "Título",
         sx: { "& textarea": { fontSize: 28, fontWeight: 800, lineHeight: 1.2 } },
       })
     case "h2":
       return campoTexto({
-        placeholder: "Subtitulo",
+        placeholder: "Subtítulo",
         sx: { "& textarea": { fontSize: 20, fontWeight: 700, lineHeight: 1.3 } },
       })
     case "lista":
@@ -334,9 +334,9 @@ function BlocoConteudo({ bloco, onPatch }) {
           bloco={bloco}
           onPatch={onPatch}
           icone={<Videocam sx={{ fontSize: 18 }} />}
-          rotulo="Video"
+          rotulo="Vídeo"
           placeholderUrl="Cole o link do YouTube/Vimeo"
-          placeholderNome="Titulo do video (opcional)"
+          placeholderNome="Título do vídeo (opcional)"
         />
       )
     case "arquivo":
@@ -346,7 +346,7 @@ function BlocoConteudo({ bloco, onPatch }) {
           onPatch={onPatch}
           icone={<AttachFile sx={{ fontSize: 18 }} />}
           rotulo="Anexo"
-          placeholderUrl="URL do arquivo (ou faca upload depois)"
+          placeholderUrl="URL do arquivo (ou faça upload depois)"
           placeholderNome="Nome do arquivo"
         />
       )

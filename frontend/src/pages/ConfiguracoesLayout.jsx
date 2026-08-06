@@ -22,7 +22,7 @@ import { useAuthStore } from "../store/authStore"
 
 const ABAS = [
   { valor: "", rotulo: "Dados cadastrais" },
-  { valor: "email", rotulo: "Configuracao de e-mail" },
+  { valor: "email", rotulo: "Configuração de e-mail" },
   { valor: "agenda", rotulo: "Categorias e locais" },
   { valor: "auditoria", rotulo: "Auditoria" },
 ]
@@ -53,7 +53,7 @@ export default function ConfiguracoesLayout() {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
           <Settings sx={{ color: "primary.main" }} />
           <Typography variant="h4" fontWeight={700}>
-            Configuracoes
+            Configurações
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
@@ -95,7 +95,7 @@ export default function ConfiguracoesLayout() {
         {ehRoot && !idTenant ? (
           <Paper sx={{ borderRadius: 0, p: { xs: 3, sm: 6 }, textAlign: "center", color: "text.secondary" }}>
             <Business sx={{ fontSize: 48, opacity: 0.4 }} />
-            <Typography sx={{ mt: 1 }}>Selecione uma incubadora para ver as configuracoes.</Typography>
+            <Typography sx={{ mt: 1 }}>Selecione uma incubadora para ver as configurações.</Typography>
           </Paper>
         ) : (
           <Outlet context={{ idTenant }} />

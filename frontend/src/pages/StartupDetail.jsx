@@ -126,7 +126,7 @@ export default function StartupDetail() {
   if (!startup) {
     return (
       <AppLayout>
-        <Alert severity="error">{aviso?.texto || "Startup nao encontrada."}</Alert>
+        <Alert severity="error">{aviso?.texto || "Startup não encontrada."}</Alert>
       </AppLayout>
     )
   }
@@ -206,7 +206,7 @@ export default function StartupDetail() {
           >
             <Tab value="membros" label="Membros" icon={<Groups />} iconPosition="start" />
             <Tab value="modelos" label="Modelos" icon={<ViewModule />} iconPosition="start" />
-            <Tab value="fases" label="Fases concluidas" icon={<CheckCircle />} iconPosition="start" />
+            <Tab value="fases" label="Fases concluídas" icon={<CheckCircle />} iconPosition="start" />
           </Tabs>
           <Box sx={{ p: 3 }}>
             {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={startup.id_tenant} />}

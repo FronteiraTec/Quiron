@@ -29,8 +29,8 @@ export default function EventoPresencaLista({ eventos, selecionado, onSelecionar
         <EventBusy sx={{ fontSize: 48, opacity: 0.4 }} />
         <Typography sx={{ mt: 1 }}>Nenhum evento realizado.</Typography>
         <Typography variant="body2" sx={{ mt: 0.5 }}>
-          A chamada so faz sentido depois que o evento acontece — eventos
-          futuros nao aparecem aqui.
+          A chamada só faz sentido depois que o evento acontece — eventos
+          futuros não aparecem aqui.
         </Typography>
       </Box>
     )
@@ -76,7 +76,7 @@ export default function EventoPresencaLista({ eventos, selecionado, onSelecionar
             <Typography variant="caption" color="text.secondary" component="div" noWrap>
               {dataLegivel(ev.inicio_ts)}
               {ev.local ? ` · ${ev.local}` : ""}
-              {ev.obrigatorio ? " · obrigatorio" : ""}
+              {ev.obrigatorio ? " · obrigatório" : ""}
             </Typography>
 
             <LinearProgress
@@ -96,7 +96,7 @@ export default function EventoPresencaLista({ eventos, selecionado, onSelecionar
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.75 }}>
               {naoIniciado ? (
                 <Typography variant="caption" sx={{ color: "#f97316", fontWeight: 700 }}>
-                  chamada nao feita
+                  chamada não feita
                 </Typography>
               ) : (
                 <Typography variant="caption" color="text.secondary">

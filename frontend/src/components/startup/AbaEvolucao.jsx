@@ -38,8 +38,8 @@ export default function AbaEvolucao() {
       <Box>
         <SecaoTitulo icone={<AutoAwesome sx={{ fontSize: 18 }} />} texto="A sua empresa" />
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Voce concluiu {j.progressoGeral.feitos} de {j.progressoGeral.total} passos da trilha
-          {" "}({j.progressoGeral.pct}%). Cada fase se acende quando voce conclui os passos dela.
+          Você concluiu {j.progressoGeral.feitos} de {j.progressoGeral.total} passos da trilha
+          {" "}({j.progressoGeral.pct}%). Cada fase se acende quando você conclui os passos dela.
         </Typography>
         <CompanyBlueprint fases={j.blueprintFases} />
       </Box>

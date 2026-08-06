@@ -31,7 +31,7 @@ export function useFilaEntregas(idTenant) {
       const { data } = await api.get("/entregas/fila", { params: { id_tenant: idTenant } })
       setEntregas(data.entregas)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel carregar a fila de entregas.")
+      setErro(err.response?.data?.erro || "Não foi possível carregar a fila de entregas.")
       setEntregas([])
     } finally {
       setCarregando(false)

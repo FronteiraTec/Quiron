@@ -140,7 +140,7 @@ export default function Eventos() {
       <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         {!idTenant ? (
           <Alert severity="info" sx={{ m: 3 }}>
-            Seu usuario nao esta vinculado a nenhuma incubadora, entao nao ha calendario para exibir.
+            Seu usuário não está vinculado a nenhuma incubadora, então não há calendário para exibir.
           </Alert>
         ) : (
           <Paper

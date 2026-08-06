@@ -120,7 +120,7 @@ export default function MentorPainel({ mentor, detalhe, carregando, onVincular, 
       await onVincular(mentor.id_usuario, aVincular)
       setAVincular("")
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel vincular a startup.")
+      setErro(err.response?.data?.erro || "Não foi possível vincular a startup.")
     } finally {
       setSalvando(false)
     }
@@ -133,7 +133,7 @@ export default function MentorPainel({ mentor, detalhe, carregando, onVincular, 
     try {
       await onDesvincular(mentor.id_usuario, alvo.id_startup)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel desvincular a startup.")
+      setErro(err.response?.data?.erro || "Não foi possível desvincular a startup.")
     }
   }
 
@@ -175,7 +175,7 @@ export default function MentorPainel({ mentor, detalhe, carregando, onVincular, 
           onChange={(e) => setAVincular(e.target.value)}
           disabled={disponiveis.length === 0 || salvando}
           helperText={
-            disponiveis.length === 0 ? "Este mentor ja acompanha todas as startups." : " "
+            disponiveis.length === 0 ? "Este mentor já acompanha todas as startups." : " "
           }
           sx={{ flex: 1, maxWidth: 380 }}
         >
@@ -218,10 +218,10 @@ export default function MentorPainel({ mentor, detalhe, carregando, onVincular, 
       ) : startups.length === 0 ? (
         <Box sx={{ textAlign: "center", py: 6, px: 4, color: "text.secondary" }}>
           <RocketLaunch sx={{ fontSize: 44, opacity: 0.35 }} />
-          <Typography sx={{ mt: 1 }}>Ainda nao acompanha nenhuma startup.</Typography>
+          <Typography sx={{ mt: 1 }}>Ainda não acompanha nenhuma startup.</Typography>
           <Typography variant="body2" sx={{ mt: 0.5 }}>
-            Enquanto isso, a fila de entregas dele fica vazia — ele nao consegue
-            avaliar ninguem.
+            Enquanto isso, a fila de entregas dele fica vazia — ele não consegue
+            avaliar ninguém.
           </Typography>
         </Box>
       ) : (

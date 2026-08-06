@@ -49,7 +49,7 @@ export async function abrirArquivo(url, nome) {
   if (!resposta.ok) {
     // A API responde JSON de erro; se nem isso vier, cai na mensagem generica.
     const detalhe = await resposta.json().catch(() => null)
-    throw new Error(detalhe?.erro || "Nao foi possivel abrir o arquivo.")
+    throw new Error(detalhe?.erro || "Não foi possível abrir o arquivo.")
   }
 
   const blob = await resposta.blob()

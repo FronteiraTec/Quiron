@@ -117,11 +117,11 @@ export default function Avaliacoes() {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
           <Grading sx={{ color: "primary.main" }} />
           <Typography variant="h4" fontWeight={700}>
-            Avaliacoes
+            Avaliações
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Todas as devolutivas dadas as startups — quem respondeu, quando e o
+          Todas as devolutivas dadas às startups — quem respondeu, quando e o
           que disse.
         </Typography>
 
@@ -142,26 +142,26 @@ export default function Avaliacoes() {
               <Indicador valor={visiveis.length} rotulo="devolutivas" />
               <Indicador
                 valor={tempoMedio == null ? "—" : `${tempoMedio.toFixed(1)}d`}
-                rotulo="tempo medio de resposta"
+                rotulo="tempo médio de resposta"
                 ajuda="Do envio da entrega ate a devolutiva. Reenvio reinicia a contagem."
               />
               <Indicador
                 valor={notaMedia == null ? "—" : notaMedia.toFixed(1)}
-                rotulo="nota media"
-                ajuda="So entram as devolutivas que atribuiram nota — ela e opcional."
+                rotulo="nota média"
+                ajuda="Só entram as devolutivas que atribuíram nota - ela é opcional."
               />
               <Indicador
                 valor={semComentario}
-                rotulo="sem comentario"
+                rotulo="sem comentário"
                 cor={semComentario > 0 ? "#f97316" : undefined}
-                ajuda="Devolutiva sem texto nao diz a startup o que fazer com a decisao."
+                ajuda="Devolutiva sem texto não diz à startup o que fazer com a decisão."
               />
             </Paper>
 
             {/* ---- Filtros ---- */}
             <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
               <TextField
-                placeholder="Buscar startup, passo, mentor ou comentario..."
+                placeholder="Buscar startup, passo, mentor ou comentário..."
                 size="small"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
@@ -181,7 +181,7 @@ export default function Avaliacoes() {
                 onChange={(e) => setFiltroDecisao(e.target.value)}
                 sx={{ minWidth: 170 }}
               >
-                <MenuItem value="todas">Todas as decisoes</MenuItem>
+                <MenuItem value="todas">Todas as decisões</MenuItem>
                 {["APROVADO", "AJUSTE", "REPROVADO"].map((s) => (
                   <MenuItem key={s} value={s}>
                     {SITUACAO[s]?.label || s}
@@ -216,7 +216,7 @@ export default function Avaliacoes() {
                   </Typography>
                   {avaliacoes.length === 0 && (
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      Elas aparecem aqui conforme os mentores respondem as
+                      Elas aparecem aqui conforme os mentores respondem às
                       entregas da fila.
                     </Typography>
                   )}
@@ -282,7 +282,7 @@ export default function Avaliacoes() {
                         >
                           <CommentsDisabled sx={{ fontSize: 15 }} />
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            Sem comentario — a startup recebeu so a decisao.
+                            Sem comentário — a startup recebeu só a decisão.
                           </Typography>
                         </Box>
                       ) : (

@@ -8,8 +8,8 @@ import { Lightbulb, PlayCircleOutline, InsertDriveFile, OpenInNew } from "@mui/i
 
 const CALLOUT = {
   dica: { cor: "#0ea5e9", bg: "#0ea5e914", rotulo: "Dica" },
-  atencao: { cor: "#f59e0b", bg: "#f59e0b14", rotulo: "Atencao" },
-  sucesso: { cor: "#22c55e", bg: "#22c55e14", rotulo: "Boa pratica" },
+  atencao: { cor: "#f59e0b", bg: "#f59e0b14", rotulo: "Atenção" },
+  sucesso: { cor: "#22c55e", bg: "#22c55e14", rotulo: "Boa prática" },
 }
 
 export default function BlocoView({ blocos = [] }) {
@@ -68,7 +68,7 @@ function Bloco({ bloco }) {
       )
     }
     case "video":
-      return <MidiaLink bloco={bloco} icone={<PlayCircleOutline />} rotulo="Video" />
+      return <MidiaLink bloco={bloco} icone={<PlayCircleOutline />} rotulo="Vídeo" />
     case "arquivo":
       return <MidiaLink bloco={bloco} icone={<InsertDriveFile />} rotulo="Anexo" />
     case "divisor":

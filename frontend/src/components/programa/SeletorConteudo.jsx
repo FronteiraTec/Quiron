@@ -79,7 +79,7 @@ export default function SeletorConteudo({ aberto, jaSelecionados = [], onAdicion
           fullWidth
           size="small"
           autoFocus
-          placeholder="Buscar conteudo…"
+          placeholder="Buscar conteúdo…"
           value={termo}
           onChange={(e) => setTermo(e.target.value)}
           sx={{ mb: 2 }}
@@ -98,7 +98,7 @@ export default function SeletorConteudo({ aberto, jaSelecionados = [], onAdicion
           </Typography>
         ) : disponiveis.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
-            Nenhum conteudo disponivel para adicionar.
+            Nenhum conteúdo disponível para adicionar.
           </Typography>
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>

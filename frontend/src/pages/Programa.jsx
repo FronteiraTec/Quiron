@@ -79,7 +79,7 @@ export default function Programa() {
   }
 
   const feedbackSalvo = () =>
-    setToast({ texto: "Alteracoes salvas.", severidade: "success" })
+    setToast({ texto: "Alterações salvas.", severidade: "success" })
 
   /**
    * Fluxo de exclusao: confirmacao -> exclui no servidor.
@@ -97,7 +97,7 @@ export default function Programa() {
     setToast(
       r.ok
         ? {
-            texto: `${TIPO_META[alvo.tipo].label} "${alvo.nome}" excluido.`,
+            texto: `${TIPO_META[alvo.tipo].label} "${alvo.nome}" excluído.`,
             severidade: "info",
           }
         : { texto: r.erro, severidade: "error" }
@@ -142,8 +142,8 @@ export default function Programa() {
               Comece sua trilha
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 3 }}>
-              Sua incubadora ainda nao tem um programa. Crie a trilha para
-              comecar a montar fases, modulos e passos.
+              Sua incubadora ainda não tem um programa. Crie a trilha para
+              começar a montar fases, módulos e passos.
             </Typography>
             {prog.erro && (
               <Alert severity="error" sx={{ mb: 2, borderRadius: "6px" }}>
@@ -156,7 +156,7 @@ export default function Programa() {
               onClick={() => prog.criarPrograma()}
               sx={{ textTransform: "none" }}
             >
-              Criar trilha de incubacao
+              Criar trilha de incubação
             </Button>
           </Box>
         </Box>
@@ -243,9 +243,9 @@ export default function Programa() {
           confirmar
             ? `Tem certeza que deseja excluir "${confirmar.no.nome}"?${
                 TIPO_META[confirmar.no.tipo].childTipo
-                  ? " Todo o conteudo dentro dele sera removido."
+                  ? " Todo o conteúdo dentro dele será removido."
                   : ""
-              } Esta acao nao pode ser desfeita.`
+              } Esta ação não pode ser desfeita.`
             : ""
         }
         onConfirmar={confirmarExclusao}

@@ -107,7 +107,7 @@ export function SeletorLogo({ conteudo, idTenant, onChange, onErro, tamanho = 56
       return
     }
     if (arquivo.size > ARQUIVO_MAX_BYTES) {
-      onErro?.("A imagem deve ter no maximo 5MB.")
+      onErro?.("A imagem deve ter no máximo 5MB.")
       return
     }
 
@@ -124,7 +124,7 @@ export function SeletorLogo({ conteudo, idTenant, onChange, onErro, tamanho = 56
       onChange(enviado.url)
     } catch (err) {
       onErro?.(
-        err.response?.data?.erro || "Nao foi possivel enviar a imagem. Tente novamente."
+        err.response?.data?.erro || "Não foi possível enviar a imagem. Tente novamente."
       )
     } finally {
       setProcessando(false)
@@ -152,7 +152,7 @@ export function SeletorLogo({ conteudo, idTenant, onChange, onErro, tamanho = 56
         <IconButton
           size="small"
           disabled={processando}
-          aria-label={conteudo.logo_url ? "Remover logo do conteudo" : "Escolher logo do conteudo"}
+          aria-label={conteudo.logo_url ? "Remover logo do conteúdo" : "Escolher logo do conteúdo"}
           onClick={() =>
             conteudo.logo_url ? onChange(null) : inputRef.current?.click()
           }
@@ -205,7 +205,7 @@ function reduzirParaDataUrl(arquivo) {
       }
 
       const img = new Image()
-      img.onerror = () => reject(new Error("imagem invalida"))
+      img.onerror = () => reject(new Error("imagem inválida"))
       img.onload = () => {
         const escala = Math.min(1, LADO_MAX / Math.max(img.width, img.height))
         const largura = Math.round(img.width * escala)

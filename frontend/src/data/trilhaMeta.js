@@ -28,13 +28,13 @@ export const TIPO_META = {
     label: "Fase",
     plural: "Fases",
     childTipo: "MODULO",
-    childLabel: "modulo",
+    childLabel: "módulo",
     icon: Timeline,
     cor: "#6366f1",
   },
   MODULO: {
-    label: "Modulo",
-    plural: "Modulos",
+    label: "Módulo",
+    plural: "Módulos",
     childTipo: "PASSO",
     childLabel: "passo",
     icon: ViewModule,
@@ -56,8 +56,8 @@ export const TIPO_META = {
 export const TIPOS_PASSO = [
   { valor: "TEXTO", label: "Resposta em texto" },
   { valor: "ANEXO", label: "Envio de arquivo" },
-  { valor: "VIDEO", label: "Video" },
-  { valor: "QUESTIONARIO", label: "Questionario" },
+  { valor: "VIDEO", label: "Vídeo" },
+  { valor: "QUESTIONARIO", label: "Questionário" },
 ]
 
 /** Percorre a arvore aplicando `fn` a cada no (pre-ordem). */

@@ -332,7 +332,7 @@ export default function TourOverlay({ passo, indice, total, primeiro, ultimo, on
               onClick={ultimo ? onFechar : onProximo}
               sx={{ textTransform: "none", borderRadius: 2, fontWeight: 600 }}
             >
-              {ultimo ? "Concluir" : "Proximo"}
+              {ultimo ? "Concluir" : "Próximo"}
             </Button>
           </Box>
         </Paper>

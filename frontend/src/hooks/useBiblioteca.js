@@ -79,7 +79,7 @@ export function useBiblioteca() {
       const corpo = {
         id_tenant: idTenant,
         tipo,
-        titulo: "Sem titulo",
+        titulo: "Sem título",
         ...(tipo === "LINK" || tipo === "VIDEO" ? { url: "https://" } : {}),
         ...(tipo === "AULA" ? { blocos: [{ tipo: "paragrafo", texto: "" }] } : {}),
       }
@@ -135,7 +135,7 @@ export function useBiblioteca() {
       } catch (err) {
         return {
           ok: false,
-          erro: err.response?.data?.erro || "Erro ao excluir o conteudo.",
+          erro: err.response?.data?.erro || "Erro ao excluir o conteúdo.",
         }
       }
     },

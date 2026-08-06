@@ -28,7 +28,7 @@ export function useAvaliacoes(idTenant) {
       const { data } = await api.get("/avaliacoes", { params: { id_tenant: idTenant } })
       setAvaliacoes(data.avaliacoes)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel carregar as avaliacoes.")
+      setErro(err.response?.data?.erro || "Não foi possível carregar as avaliações.")
       setAvaliacoes([])
     } finally {
       setCarregando(false)

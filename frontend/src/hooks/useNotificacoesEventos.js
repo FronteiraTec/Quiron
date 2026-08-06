@@ -72,7 +72,7 @@ export function useNotificacoesEventos({ idTenant, idUsuario }) {
       })
       setEventos(data.eventos)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Erro ao carregar as notificacoes.")
+      setErro(err.response?.data?.erro || "Erro ao carregar as notificações.")
       setEventos([])
     } finally {
       setCarregando(false)

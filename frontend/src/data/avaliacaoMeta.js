@@ -18,7 +18,7 @@ import {
 } from "@mui/icons-material"
 
 export const SITUACAO = {
-  PENDENTE: { label: "Aguardando voce", cor: "#f59e0b", icon: HourglassTop },
+  PENDENTE: { label: "Aguardando você", cor: "#f59e0b", icon: HourglassTop },
   APROVADO: { label: "Aprovado", cor: "#22c55e", icon: CheckCircle },
   AJUSTE: { label: "Ajuste pedido", cor: "#f97316", icon: ErrorOutline },
   REPROVADO: { label: "Reprovado", cor: "#ef4444", icon: Cancel },
@@ -32,5 +32,5 @@ export const SITUACAO = {
 export const DECISOES = [
   { valor: "APROVADO", label: "Aprovar", ajuda: "A entrega atende ao que o passo pedia." },
   { valor: "AJUSTE", label: "Pedir ajuste", ajuda: "Volta para a startup corrigir e reenviar." },
-  { valor: "REPROVADO", label: "Reprovar", ajuda: "A entrega nao atende e nao sera retomada agora." },
+  { valor: "REPROVADO", label: "Reprovar", ajuda: "A entrega não atende e não será retomada agora." },
 ]

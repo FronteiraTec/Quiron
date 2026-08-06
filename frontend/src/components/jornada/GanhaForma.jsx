@@ -94,10 +94,10 @@ export default function GanhaForma({ evento, onClose }) {
             </Box>
 
             <Typography variant="overline" sx={{ color: "success.main", fontWeight: 800, letterSpacing: 1 }}>
-              Sua empresa avancou
+              Sua empresa avançou
             </Typography>
             <Typography sx={{ fontWeight: 800, fontSize: 20, mt: 0.5 }}>
-              {evento.area} esta tomando forma
+              {evento.area} está tomando forma
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {evento.mensagem || "Entrega enviada. O mentor foi notificado para avaliar."}

@@ -40,7 +40,7 @@ export default function ResetPassword() {
       return
     }
     if (senha !== confirmar) {
-      setErro("As senhas nao conferem.")
+      setErro("As senhas não conferem.")
       return
     }
 
@@ -51,7 +51,7 @@ export default function ResetPassword() {
       // Redireciona ao login apos alguns segundos.
       setTimeout(() => navigate("/login"), 2500)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel redefinir a senha.")
+      setErro(err.response?.data?.erro || "Não foi possível redefinir a senha.")
     } finally {
       setCarregando(false)
     }
@@ -92,7 +92,7 @@ export default function ResetPassword() {
 
         {!token ? (
           <Alert severity="error">
-            Link invalido. Solicite uma nova redefinicao de senha.
+            Link inválido. Solicite uma nova redefinição de senha.
           </Alert>
         ) : ok ? (
           <Alert severity="success">

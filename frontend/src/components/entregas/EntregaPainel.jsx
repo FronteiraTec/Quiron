@@ -132,7 +132,7 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
           <Inbox sx={{ fontSize: 56, opacity: 0.35 }} />
           <Typography sx={{ mt: 1 }}>Escolha uma entrega da fila</Typography>
           <Typography variant="body2" sx={{ mt: 0.5 }}>
-            O conteudo entregue e o campo de devolutiva aparecem aqui.
+            O conteúdo entregue e o campo de devolutiva aparecem aqui.
           </Typography>
         </Box>
       </Box>
@@ -156,7 +156,7 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
       })
       setForm(FORM_VAZIO)
     } catch (err) {
-      setAviso(err.response?.data?.erro || "Nao foi possivel registrar a avaliacao.")
+      setAviso(err.response?.data?.erro || "Não foi possível registrar a avaliação.")
     } finally {
       setSalvando(false)
     }
@@ -259,9 +259,9 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
                       </IconButton>
                     </Tooltip>
                   ) : (
-                    <Tooltip title="O arquivo nao foi armazenado no servidor — peca a startup pelo canal combinado." arrow>
+                    <Tooltip title="O arquivo não foi armazenado no servidor — peça a startup pelo canal combinado." arrow>
                       <Typography variant="caption" color="text.secondary">
-                        indisponivel
+                        indisponível
                       </Typography>
                     </Tooltip>
                   )}
@@ -320,7 +320,7 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-                {entrega.comentario || "Sem comentario."}
+                {entrega.comentario || "Sem comentário."}
               </Typography>
               {entrega.avaliador && (
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
@@ -331,7 +331,7 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: "block" }}>
               {entrega.situacao === "AJUSTE"
                 ? "A startup pode corrigir e reenviar — quando isso acontecer, a entrega volta para a sua fila."
-                : "Esta entrega ja foi respondida."}
+                : "Esta entrega já foi respondida."}
             </Typography>
           </>
         ) : (
@@ -351,7 +351,7 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
                 select
                 required
                 size="small"
-                label="Decisao"
+                label="Decisão"
                 value={form.status}
                 onChange={(e) => alterar("status", e.target.value)}
                 sx={{ flex: 1 }}
@@ -379,8 +379,8 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
               fullWidth
               multiline
               minRows={4}
-              label="Comentario"
-              placeholder="O que funcionou, o que falta e o proximo passo."
+              label="Comentário"
+              placeholder="O que funcionou, o que falta e o próximo passo."
               value={form.comentario}
               onChange={(e) => alterar("comentario", e.target.value)}
               // Pedir ajuste sem dizer o que ajustar devolve a startup ao ponto

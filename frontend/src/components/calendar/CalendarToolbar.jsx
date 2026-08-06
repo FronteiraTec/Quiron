@@ -11,7 +11,7 @@ import { ptBR } from "date-fns/locale"
 const VISOES = [
   { chave: "dia", label: "Dia" },
   { chave: "semana", label: "Semana" },
-  { chave: "mes", label: "Mes" },
+  { chave: "mes", label: "Mês" },
   { chave: "agenda", label: "Agenda" },
 ]
 
@@ -63,7 +63,7 @@ export default function CalendarToolbar({
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ lineHeight: 1.2 }}>
-            Calendario da Incubacao
+            Calendário da Incubação
           </Typography>
           {contexto && (
             <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block", lineHeight: 1.2 }}>

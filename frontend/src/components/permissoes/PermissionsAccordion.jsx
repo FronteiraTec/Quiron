@@ -12,7 +12,7 @@ export default function PermissionsAccordion({ catalogo, selecionadas, onToggle,
   if (catalogo.length === 0) {
     return (
       <Typography color="text.secondary" sx={{ textAlign: "center", py: 6 }}>
-        Nenhuma permissao encontrada para a busca informada.
+        Nenhuma permissão encontrada para a busca informada.
       </Typography>
     )
   }
@@ -42,7 +42,7 @@ export default function PermissionsAccordion({ catalogo, selecionadas, onToggle,
                     }}
                     sx={{ textTransform: "none" }}
                   >
-                    {todasMarcadas ? "Limpar modulo" : "Selecionar todas"}
+                    {todasMarcadas ? "Limpar módulo" : "Selecionar todas"}
                   </Button>
                 </Box>
               </Box>

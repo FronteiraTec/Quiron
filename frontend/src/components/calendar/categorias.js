@@ -71,7 +71,7 @@ const FALLBACK = {
   MENTORIA: { label: "Mentoria", cor: "#6366f1", Icone: SupervisorAccount },
   WORKSHOP: { label: "Workshop", cor: "#0ea5e9", Icone: School },
   ENTREGA: { label: "Entrega", cor: "#10b981", Icone: AssignmentTurnedIn },
-  REUNIAO: { label: "Reuniao", cor: "#f59e0b", Icone: Groups },
+  REUNIAO: { label: "Reunião", cor: "#f59e0b", Icone: Groups },
   EVENTO: { label: "Evento", cor: "#8b5cf6", Icone: Event },
   PITCH: { label: "Pitch", cor: "#ef4444", Icone: Campaign },
   PRAZO: { label: "Prazo", cor: "#f43f5e", Icone: HourglassBottom },

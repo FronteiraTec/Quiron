@@ -104,7 +104,7 @@ import RoleActions from "../components/permissoes/RoleActions"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
 
-const PAPEL_ROTULO = { admin: "Administrador", mentor: "Mentor", usuario: "Usuario" }
+const PAPEL_ROTULO = { admin: "Administrador", mentor: "Mentor", usuario: "Usuário" }
 const PAPEL_COR = { admin: "warning", mentor: "info", usuario: "default" }
 const FORM_USUARIO_VAZIO = { nome: "", email: "", celular: "", senha: "", papel: "usuario" }
 
@@ -124,19 +124,19 @@ export default function Usuarios() {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
           <People sx={{ color: "primary.main" }} />
           <Typography variant="h4" fontWeight={700}>
-            Usuarios
+            Usuários
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Gerencie os usuarios, permissoes, grupos e acessos da incubadora.
+          Gerencie os usuários, permissões, grupos e acessos da incubadora.
         </Typography>
 
         <Paper sx={{ borderRadius: 0, mb: 3 }}>
           <Tabs value={aba} onChange={(_, v) => setAba(v)} variant="scrollable" scrollButtons="auto">
-            <Tab value="usuarios" label="Usuarios" sx={{ textTransform: "none" }} />
-            <Tab value="permissoes" label="Permissoes" sx={{ textTransform: "none" }} />
+            <Tab value="usuarios" label="Usuários" sx={{ textTransform: "none" }} />
+            <Tab value="permissoes" label="Permissões" sx={{ textTransform: "none" }} />
             <Tab value="grupos" label="Grupos" sx={{ textTransform: "none" }} />
-            <Tab value="ativar" label="Ativar usuarios" sx={{ textTransform: "none" }} />
+            <Tab value="ativar" label="Ativar usuários" sx={{ textTransform: "none" }} />
             <Tab value="startups" label="Startups" sx={{ textTransform: "none" }} />
           </Tabs>
         </Paper>
@@ -144,7 +144,7 @@ export default function Usuarios() {
         {!idTenant ? (
           <Paper sx={{ borderRadius: 0, p: { xs: 3, sm: 6 }, textAlign: "center", color: "text.secondary" }}>
             <Business sx={{ fontSize: 48, opacity: 0.4 }} />
-            <Typography sx={{ mt: 1 }}>Nenhuma incubadora vinculada ao seu usuario.</Typography>
+            <Typography sx={{ mt: 1 }}>Nenhuma incubadora vinculada ao seu usuário.</Typography>
           </Paper>
         ) : (
           <>
@@ -201,7 +201,7 @@ function AbaUsuarios({ idTenant }) {
       setUsuarios(data.usuarios)
       setSelecionadoId((atual) => atual ?? data.usuarios.find((u) => u.ativo)?.id_usuario ?? null)
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar usuarios." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar usuários." })
     } finally {
       setCarregando(false)
     }
@@ -230,7 +230,7 @@ function AbaUsuarios({ idTenant }) {
       await api.patch(`/tenants/${idTenant}/usuarios/${idUsuario}/status`, { ativo })
       await carregar()
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao alterar o status do usuario." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao alterar o status do usuário." })
     }
   }
 
@@ -238,9 +238,9 @@ function AbaUsuarios({ idTenant }) {
     setAviso(null)
     try {
       const { data } = await api.post(`/tenants/${idTenant}/usuarios/${idUsuario}/redefinir-senha`)
-      setAviso({ tipo: "success", texto: data.mensagem || "Link de redefinicao de senha enviado." })
+      setAviso({ tipo: "success", texto: data.mensagem || "Link de redefinição de senha enviado." })
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao redefinir a senha do usuario." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao redefinir a senha do usuário." })
     }
   }
 
@@ -262,27 +262,27 @@ function AbaUsuarios({ idTenant }) {
               onChange={(e) => setFiltro(e.target.value)}
               sx={{ minWidth: 190 }}
             >
-              <MenuItem value="ativos">Usuarios Ativos ({usuarios.filter((u) => u.ativo).length})</MenuItem>
-              <MenuItem value="todos">Todos os usuarios ({usuarios.length})</MenuItem>
+              <MenuItem value="ativos">Usuários Ativos ({usuarios.filter((u) => u.ativo).length})</MenuItem>
+              <MenuItem value="todos">Todos os usuários ({usuarios.length})</MenuItem>
             </Select>
             <Box sx={{ flex: 1 }} />
             <ButtonGroup variant="contained" size="small">
               <Button startIcon={<Add />} sx={{ textTransform: "none" }} onClick={() => setDialogNovo(true)}>
-                Novo usuario
+                Novo usuário
               </Button>
               <Button size="small" onClick={(e) => setMenuNovoAncora(e.currentTarget)} sx={{ px: 0.5 }}>
                 <ArrowDropDown fontSize="small" />
               </Button>
             </ButtonGroup>
             <Menu anchorEl={menuNovoAncora} open={Boolean(menuNovoAncora)} onClose={() => setMenuNovoAncora(null)}>
-              <MenuItem disabled>Importar usuarios (em breve)</MenuItem>
+              <MenuItem disabled>Importar usuários (em breve)</MenuItem>
             </Menu>
           </Box>
 
           <TextField
             fullWidth
             size="small"
-            placeholder="Buscar usuario..."
+            placeholder="Buscar usuário..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             sx={{ mb: 1.5 }}
@@ -304,7 +304,7 @@ function AbaUsuarios({ idTenant }) {
               <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
                 <People sx={{ fontSize: 40, opacity: 0.4 }} />
                 <Typography sx={{ mt: 1 }} variant="body2">
-                  Nenhum usuario encontrado.
+                  Nenhum usuário encontrado.
                 </Typography>
               </Box>
             ) : (
@@ -362,7 +362,7 @@ function AbaUsuarios({ idTenant }) {
           {!selecionado ? (
             <Paper sx={{ borderRadius: 0, p: { xs: 3, sm: 6 }, textAlign: "center", color: "text.secondary" }}>
               <People sx={{ fontSize: 48, opacity: 0.4 }} />
-              <Typography sx={{ mt: 1 }}>Selecione um usuario para ver os detalhes.</Typography>
+              <Typography sx={{ mt: 1 }}>Selecione um usuário para ver os detalhes.</Typography>
             </Paper>
           ) : (
             <DetalheUsuario
@@ -417,7 +417,7 @@ function DetalheUsuario({ usuario, onEditar, onAlterarStatus, podeRedefinirSenha
             </Typography>
             <Chip size="small" label={PAPEL_ROTULO[usuario.papel] || usuario.papel} color={PAPEL_COR[usuario.papel] || "default"} />
             {!usuario.ativo && <Chip size="small" label="Inativo" variant="outlined" />}
-            <IconButton size="small" onClick={onEditar} aria-label="Editar usuario">
+            <IconButton size="small" onClick={onEditar} aria-label="Editar usuário">
               <Edit fontSize="small" />
             </IconButton>
           </Box>
@@ -441,7 +441,7 @@ function DetalheUsuario({ usuario, onEditar, onAlterarStatus, podeRedefinirSenha
 
       <Box sx={{ display: "flex", alignItems: "center", mb: 1.5 }}>
         <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
-          Informacoes da conta
+          Informações da conta
         </Typography>
         {podeRedefinirSenha && (
           <Button
@@ -458,10 +458,10 @@ function DetalheUsuario({ usuario, onEditar, onAlterarStatus, podeRedefinirSenha
       <Grid container spacing={1.5} sx={{ mb: 2 }}>
         <LinhaDetalhe rotulo="Vinculado desde" valor={new Date(usuario.criado_ts).toLocaleDateString("pt-BR")} />
         <LinhaDetalhe
-          rotulo="Ultimo login"
+          rotulo="Último login"
           valor={usuario.ultimo_login_ts ? new Date(usuario.ultimo_login_ts).toLocaleString("pt-BR") : "Nunca acessou"}
         />
-        <LinhaDetalhe rotulo="Deve redefinir senha" valor={usuario.deve_redefinir_senha ? "Sim" : "Nao"} />
+        <LinhaDetalhe rotulo="Deve redefinir senha" valor={usuario.deve_redefinir_senha ? "Sim" : "Não"} />
         <Grid item xs={12} sm={6}>
           <Typography variant="caption" color="text.secondary" display="block">
             Status
@@ -514,7 +514,7 @@ function DialogNovoUsuario({ aberto, onFechar, idTenant, onCriado }) {
       const { data } = await api.post(`/tenants/${idTenant}/usuarios`, form)
       onCriado(data.usuario.id_usuario)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Erro ao criar o usuario.")
+      setErro(err.response?.data?.erro || "Erro ao criar o usuário.")
     } finally {
       setSalvando(false)
     }
@@ -522,7 +522,7 @@ function DialogNovoUsuario({ aberto, onFechar, idTenant, onCriado }) {
 
   return (
     <Dialog open={aberto} onClose={onFechar} maxWidth="sm" fullWidth component="form" onSubmit={salvar}>
-      <DialogTitle>Novo usuario</DialogTitle>
+      <DialogTitle>Novo usuário</DialogTitle>
       <DialogContent>
         {erro && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -563,16 +563,16 @@ function DialogNovoUsuario({ aberto, onFechar, idTenant, onCriado }) {
             >
               <MenuItem value="admin">Administrador</MenuItem>
               <MenuItem value="mentor">Mentor</MenuItem>
-              <MenuItem value="usuario">Usuario</MenuItem>
+              <MenuItem value="usuario">Usuário</MenuItem>
             </TextField>
           </Grid>
           <Grid item xs={12}>
             <TextField
-              label="Senha provisoria"
+              label="Senha provisória"
               type="password"
               fullWidth
               required
-              helperText="O usuario sera obrigado a redefini-la no primeiro login."
+              helperText="O usuário será obrigado a redefini-la no primeiro login."
               value={form.senha}
               onChange={(e) => alterarCampo("senha", e.target.value)}
             />
@@ -584,7 +584,7 @@ function DialogNovoUsuario({ aberto, onFechar, idTenant, onCriado }) {
           Cancelar
         </Button>
         <Button type="submit" variant="contained" disabled={salvando}>
-          {salvando ? <CircularProgress size={22} color="inherit" /> : "Criar usuario"}
+          {salvando ? <CircularProgress size={22} color="inherit" /> : "Criar usuário"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -614,7 +614,7 @@ function DialogEditarUsuario({ aberto, onFechar, idTenant, usuario, onSalvo }) {
       await api.put(`/tenants/${idTenant}/usuarios/${usuario.id_usuario}`, form)
       onSalvo()
     } catch (err) {
-      setErro(err.response?.data?.erro || "Erro ao salvar o usuario.")
+      setErro(err.response?.data?.erro || "Erro ao salvar o usuário.")
     } finally {
       setSalvando(false)
     }
@@ -622,7 +622,7 @@ function DialogEditarUsuario({ aberto, onFechar, idTenant, usuario, onSalvo }) {
 
   return (
     <Dialog open={aberto} onClose={onFechar} maxWidth="sm" fullWidth component="form" onSubmit={salvar}>
-      <DialogTitle>Editar usuario</DialogTitle>
+      <DialogTitle>Editar usuário</DialogTitle>
       <DialogContent>
         {erro && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -656,7 +656,7 @@ function DialogEditarUsuario({ aberto, onFechar, idTenant, usuario, onSalvo }) {
             >
               <MenuItem value="admin">Administrador</MenuItem>
               <MenuItem value="mentor">Mentor</MenuItem>
-              <MenuItem value="usuario">Usuario</MenuItem>
+              <MenuItem value="usuario">Usuário</MenuItem>
             </TextField>
           </Grid>
         </Grid>
@@ -713,7 +713,7 @@ function AbaPermissoes({ idTenant }) {
         setRoles(rolesRes.data.roles)
         setRoleSelecionadaId((atual) => atual ?? rolesRes.data.roles[0]?.id_role ?? null)
       })
-      .catch((err) => setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar permissoes." }))
+      .catch((err) => setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar permissões." }))
       .finally(() => setCarregando(false))
   }, [idTenant])
 
@@ -790,11 +790,11 @@ function AbaPermissoes({ idTenant }) {
       await api.put(`/tenants/${idTenant}/roles/${roleSelecionadaId}/permissoes`, {
         permissoes: Array.from(permissoesSelecionadas),
       })
-      setAviso({ tipo: "success", texto: "Permissoes atualizadas com sucesso." })
+      setAviso({ tipo: "success", texto: "Permissões atualizadas com sucesso." })
       await carregarDetalheRole(roleSelecionadaId)
       await carregarRoles()
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao salvar as permissoes." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao salvar as permissões." })
     } finally {
       setSalvando(false)
     }
@@ -861,7 +861,7 @@ function AbaPermissoes({ idTenant }) {
       setRoleSelecionadaId(null)
       setRoleDetalhe(null)
       await carregarRoles()
-      setAviso({ tipo: "success", texto: "Role excluida com sucesso." })
+      setAviso({ tipo: "success", texto: "Role excluída com sucesso." })
     } catch (err) {
       setConfirmExcluir(false)
       setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao excluir a role." })
@@ -944,7 +944,7 @@ function AbaPermissoes({ idTenant }) {
                   <SearchPermissions
                     valor={buscaPermissoes}
                     onChange={setBuscaPermissoes}
-                    placeholder="Buscar permissao (ex.: cliente, startup)..."
+                    placeholder="Buscar permissão (ex.: cliente, startup)..."
                   />
                 </Box>
 
@@ -982,7 +982,7 @@ function AbaPermissoes({ idTenant }) {
               onChange={(e) => setRoleForm((f) => ({ ...f, nome: e.target.value }))}
             />
             <TextField
-              label="Descricao"
+              label="Descrição"
               fullWidth
               multiline
               minRows={2}
@@ -1003,7 +1003,7 @@ function AbaPermissoes({ idTenant }) {
       <ConfirmDialog
         aberto={confirmExcluir}
         titulo="Excluir role"
-        mensagem={`Tem certeza que deseja excluir a role "${roleDetalhe?.nome}"? Esta acao nao pode ser desfeita.`}
+        mensagem={`Tem certeza que deseja excluir a role "${roleDetalhe?.nome}"? Esta ação não pode ser desfeita.`}
         onConfirmar={excluirRole}
         onCancelar={() => setConfirmExcluir(false)}
       />
@@ -1065,7 +1065,7 @@ function AbaGrupos({ idTenant }) {
       }
       await carregar()
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao atualizar o vinculo." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao atualizar o vínculo." })
     } finally {
       setAlternandoUsuario(null)
     }
@@ -1171,7 +1171,7 @@ function AbaAtivarUsuarios({ idTenant }) {
       const { data } = await api.get(`/tenants/${idTenant}/usuarios`)
       setUsuarios(data.usuarios.filter((u) => !u.ativo))
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar usuarios inativos." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar usuários inativos." })
     } finally {
       setCarregando(false)
     }
@@ -1189,7 +1189,7 @@ function AbaAtivarUsuarios({ idTenant }) {
       await api.patch(`/tenants/${idTenant}/usuarios/${idUsuario}/status`, { ativo: true })
       await carregar()
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao ativar o usuario." })
+      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao ativar o usuário." })
     } finally {
       setAtivando(null)
     }
@@ -1211,7 +1211,7 @@ function AbaAtivarUsuarios({ idTenant }) {
         ) : usuarios.length === 0 ? (
           <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
             <HowToReg sx={{ fontSize: 48, opacity: 0.4 }} />
-            <Typography sx={{ mt: 1 }}>Nenhum usuario inativo no momento.</Typography>
+            <Typography sx={{ mt: 1 }}>Nenhum usuário inativo no momento.</Typography>
           </Box>
         ) : (
           <TableContainer>
@@ -1221,7 +1221,7 @@ function AbaAtivarUsuarios({ idTenant }) {
                   <TableCell>Nome</TableCell>
                   <TableCell>E-mail</TableCell>
                   <TableCell>Papel</TableCell>
-                  <TableCell align="right">Acao</TableCell>
+                  <TableCell align="right">Ação</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -1484,7 +1484,7 @@ function AbaStartups({ idTenant }) {
                           <TableCell>{m.email}</TableCell>
                           <TableCell align="right">
                             {m.lider ? (
-                              <Chip size="small" icon={<StarRate sx={{ fontSize: 14 }} />} label="Lider" color="primary" />
+                              <Chip size="small" icon={<StarRate sx={{ fontSize: 14 }} />} label="Líder" color="primary" />
                             ) : (
                               <Chip size="small" label="Membro" variant="outlined" />
                             )}
@@ -1637,12 +1637,12 @@ function DialogAdicionarMembro({ aberto, onFechar, idStartup, usuarios, idsMembr
           <Grid item xs={12}>
             <TextField
               select
-              label="Usuario"
+              label="Usuário"
               fullWidth
               required
               value={idUsuario}
               onChange={(e) => setIdUsuario(e.target.value)}
-              helperText={disponiveis.length === 0 ? "Todos os usuarios ativos ja fazem parte desta startup." : undefined}
+              helperText={disponiveis.length === 0 ? "Todos os usuários ativos já fazem parte desta startup." : undefined}
             >
               {disponiveis.map((u) => (
                 <MenuItem key={u.id_usuario} value={u.id_usuario}>
@@ -1655,7 +1655,7 @@ function DialogAdicionarMembro({ aberto, onFechar, idStartup, usuarios, idsMembr
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Checkbox checked={lider} onChange={(e) => setLider(e.target.checked)} id="lider-checkbox" />
               <Typography component="label" htmlFor="lider-checkbox" variant="body2">
-                Definir como lider da startup
+                Definir como líder da startup
               </Typography>
             </Box>
           </Grid>

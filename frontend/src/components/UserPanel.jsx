@@ -11,9 +11,7 @@ import { alpha } from "@mui/material/styles"
 import {
   Avatar,
   Box,
-  Button,
   ButtonBase,
-  Chip,
   Divider,
   Popover,
   Stack,
@@ -24,15 +22,9 @@ import {
 import {
   LightMode,
   DarkMode,
-  SettingsBrightness,
   Check,
-  NotificationsNone,
-  Language,
-  Keyboard,
-  Accessibility,
   ChatBubbleOutline,
   HelpOutline,
-  MenuBook,
   OndemandVideo,
   ExploreOutlined,
   Feedback,
@@ -44,7 +36,7 @@ import { useAuthStore } from "../store/authStore"
 import { usePreferenciaStore } from "../store/preferenciaStore"
 import { useTour } from "../tour/TourProvider"
 
-const ROTULO_PAPEL = { admin: "Administrador", mentor: "Mentor", usuario: "Usuario" }
+const ROTULO_PAPEL = { admin: "Administrador", mentor: "Mentor", usuario: "Usuário" }
 
 const CORES_ACCENT = [
   { nome: "Azul", cor: "#4f46e5" },
@@ -57,27 +49,12 @@ const CORES_ACCENT = [
   { nome: "Amarelo", cor: "#ca8a04" },
 ]
 
-const PREFERENCIAS_ITENS = [
-  { chave: "notificacoes", label: "Notificacoes", Icone: NotificationsNone },
-  { chave: "idioma", label: "Idioma", Icone: Language },
-  { chave: "atalhos", label: "Atalhos", Icone: Keyboard },
-  { chave: "acessibilidade", label: "Acessibilidade", Icone: Accessibility },
-]
-
 const AJUDA_ITENS = [
   { chave: "conversar", label: "Conversar conosco", Icone: ChatBubbleOutline },
   { chave: "central", label: "Central de Ajuda", Icone: HelpOutline },
-  { chave: "documentacao", label: "Documentacao", Icone: MenuBook },
-  { chave: "videos", label: "Videos", Icone: OndemandVideo },
+  { chave: "videos", label: "Vídeos", Icone: OndemandVideo },
   { chave: "tour", label: "Fazer Tour", Icone: ExploreOutlined },
   { chave: "feedback", label: "Enviar Feedback", Icone: Feedback },
-]
-
-const APLICATIVOS_PADRAO = [
-  { chave: "crm", label: "CRM", ativo: true },
-  { chave: "analytics", label: "Analytics", ativo: false },
-  { chave: "financeiro", label: "Financeiro", ativo: false },
-  { chave: "portal", label: "Portal", ativo: false },
 ]
 
 function iniciais(nome = "") {
@@ -112,12 +89,7 @@ function LinhaAcao({ icone: Icone, label, onClick }) {
 }
 
 export default function UserPanel({
-  plano = { nome: "Free", diasRestantes: null },
-  onUpgrade,
-  onPreferenciaItem,
   onAjudaItem,
-  onAbrirApp,
-  aplicativos = APLICATIVOS_PADRAO,
 }) {
   const navigate = useNavigate()
   const usuario = useAuthStore((s) => s.usuario)
@@ -159,7 +131,7 @@ export default function UserPanel({
     try {
       await salvarPreferencias(patch)
     } catch (erro) {
-      console.error("Falha ao salvar preferencias", erro)
+      console.error("Falha ao salvar preferências", erro)
     }
   }
 
@@ -247,63 +219,19 @@ export default function UserPanel({
             {iniciais(usuario?.nome)}
           </Avatar>
           <Typography variant="subtitle1" fontWeight={700} noWrap>
-            {usuario?.nome || "Usuario"}
+            {usuario?.nome || "Usuário"}
           </Typography>
           {(rotuloPapel || empresa) && (
             <Typography variant="body2" sx={{ opacity: 0.85 }} noWrap>
               {[rotuloPapel, empresa].filter(Boolean).join(" - ")}
             </Typography>
           )}
-          {usuario?.id != null && (
-            <Typography
-              variant="caption"
-              sx={{ display: "block", mt: 0.75, opacity: 0.7, fontFamily: "monospace", letterSpacing: 0.4 }}
-            >
-              ID {usuario.id}
-            </Typography>
-          )}
         </Box>
-
-        {/* Card de plano */}
-        {plano && (
-          <Box
-            sx={{
-              mx: 2.5,
-              mt: 2,
-              p: 1.75,
-              borderRadius: 2.5,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1.5,
-              bgcolor: (t) => alpha(t.palette.primary.main, 0.07),
-              border: "1px solid",
-              borderColor: (t) => alpha(t.palette.primary.main, 0.18),
-            }}
-          >
-            <Box sx={{ minWidth: 0 }}>
-              <Chip label={`Plano ${plano.nome}`} size="small" color="primary" sx={{ fontWeight: 700 }} />
-              {plano.diasRestantes != null && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                  Expira em {plano.diasRestantes} dias
-                </Typography>
-              )}
-            </Box>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={onUpgrade}
-              sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600, px: 2, flexShrink: 0 }}
-            >
-              Upgrade
-            </Button>
-          </Box>
-        )}
 
         {/* Aparencia */}
         <Box sx={{ px: 2.5, pt: 2.5, pb: 2 }}>
           <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.6 }}>
-            Aparencia
+            Aparência
           </Typography>
 
           <ToggleButtonGroup
@@ -318,6 +246,9 @@ export default function UserPanel({
               borderRadius: 2.5,
               p: 0.5,
               gap: 0.5,
+              "& .MuiToggleButton-root": {
+                flex: 1,
+              },
               "& .MuiToggleButtonGroup-grouped": {
                 border: 0,
                 borderRadius: "18px !important",
@@ -331,7 +262,9 @@ export default function UserPanel({
                 bgcolor: (t) => `${t.palette.background.paper} !important`,
                 color: "text.primary !important",
                 boxShadow: (t) =>
-                  t.palette.mode === "dark" ? "0 1px 4px rgba(0,0,0,0.5)" : "0 1px 4px rgba(15,23,42,0.16)",
+                  t.palette.mode === "dark"
+                    ? "0 1px 4px rgba(0,0,0,0.5)"
+                    : "0 1px 4px rgba(15,23,42,0.16)",
               },
             }}
           >
@@ -342,10 +275,6 @@ export default function UserPanel({
             <ToggleButton value="escuro" aria-label="Tema escuro">
               <DarkMode fontSize="small" sx={{ mr: 0.75 }} />
               Escuro
-            </ToggleButton>
-            <ToggleButton value="automatico" aria-label="Tema automatico">
-              <SettingsBrightness fontSize="small" sx={{ mr: 0.75 }} />
-              Auto
             </ToggleButton>
           </ToggleButtonGroup>
 
@@ -383,25 +312,6 @@ export default function UserPanel({
 
         <Divider />
 
-        {/* Preferencias */}
-        <Box sx={{ py: 1.25 }}>
-          <Typography variant="overline" color="text.secondary" sx={{ px: 2.5, letterSpacing: 0.6 }}>
-            Preferencias
-          </Typography>
-          <Stack sx={{ mt: 0.5 }}>
-            {PREFERENCIAS_ITENS.map(({ chave, label, Icone }) => (
-              <LinhaAcao
-                key={chave}
-                icone={Icone}
-                label={label}
-                onClick={() => onPreferenciaItem?.(chave)}
-              />
-            ))}
-          </Stack>
-        </Box>
-
-        <Divider />
-
         {/* Ajuda */}
         <Box sx={{ py: 1.25 }}>
           <Typography variant="overline" color="text.secondary" sx={{ px: 2.5, letterSpacing: 0.6 }}>
@@ -410,28 +320,6 @@ export default function UserPanel({
           <Stack sx={{ mt: 0.5 }}>
             {AJUDA_ITENS.map(({ chave, label, Icone }) => (
               <LinhaAcao key={chave} icone={Icone} label={label} onClick={() => clicarAjuda(chave)} />
-            ))}
-          </Stack>
-        </Box>
-
-        <Divider />
-
-        {/* Aplicativos */}
-        <Box sx={{ px: 2.5, py: 2 }}>
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.6 }}>
-            Aplicativos
-          </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-            {aplicativos.map((app) => (
-              <Chip
-                key={app.chave}
-                label={app.label}
-                size="small"
-                onClick={() => onAbrirApp?.(app)}
-                color={app.ativo ? "primary" : "default"}
-                variant={app.ativo ? "filled" : "outlined"}
-                sx={{ fontWeight: 600, borderRadius: 1.5 }}
-              />
             ))}
           </Stack>
         </Box>

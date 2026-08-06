@@ -39,7 +39,7 @@ export function useMembros(idTenant) {
       setSemStartup(membrosRes.data.semStartup)
       setStartups(startupsRes.data.startups)
     } catch (err) {
-      setErro(err.response?.data?.erro || "Nao foi possivel carregar os membros.")
+      setErro(err.response?.data?.erro || "Não foi possível carregar os membros.")
       setMembros([])
       setSemStartup([])
     } finally {
