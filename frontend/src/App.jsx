@@ -18,6 +18,9 @@ import ForgotPassword from "./pages/ForgotPassword"
 import ResetPassword from "./pages/ResetPassword"
 import Dashboard from "./pages/Dashboard"
 import Perfil from "./pages/Perfil"
+import FalaConosco from "./pages/FalaConosco"
+import EnviarFeedback from "./pages/EnviarFeedback"
+import CentralAjuda from "./pages/CentralAjuda"
 import DefinirSenha from "./pages/DefinirSenha"
 import Tenants from "./pages/Tenants"
 import Programa from "./pages/Programa"
@@ -102,6 +105,41 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Perfil />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Fala Conosco: canais de contato (Instagram/WhatsApp) da
+                FronteiraTec e da INNE. Aberta pelo item "Conversar conosco"
+                do UserPanel. */}
+            <Route
+              path="/fala-conosco"
+              element={
+                <ProtectedRoute>
+                  <FalaConosco />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Enviar Feedback: formulario livre sobre a plataforma. Aberta
+                pelo item "Enviar Feedback" do UserPanel. Distinta de
+                /feedback, que e o historico de devolutivas do mentor. */}
+            <Route
+              path="/enviar-feedback"
+              element={
+                <ProtectedRoute>
+                  <EnviarFeedback />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Central de Ajuda: FAQ estatico. Aberta pelo item "Central de
+                Ajuda" do UserPanel. */}
+            <Route
+              path="/central-ajuda"
+              element={
+                <ProtectedRoute>
+                  <CentralAjuda />
                 </ProtectedRoute>
               }
             />

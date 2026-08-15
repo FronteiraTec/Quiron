@@ -6,6 +6,7 @@
  *   entrega enviada   -> os mentores que acompanham a startup
  *   entrega avaliada  -> os membros ativos da startup
  *   evento criado     -> o publico do evento (geral ou startups direcionadas)
+ *   feedback enviado  -> presidencia da FronteiraTec (endereco fixo)
  *
  * DISPARO EM SEGUNDO PLANO. Todas as funcoes exportadas retornam imediatamente
  * e nunca lancam: notificar e efeito colateral do fato, nao parte dele. Um SMTP
@@ -223,4 +224,48 @@ function eventoCriado(evento) {
   })
 }
 
-module.exports = { entregaEnviada, entregaAvaliada, eventoCriado }
+// ---------------------------------------------------------------------------
+// FEEDBACK ENVIADO -> presidencia da FronteiraTec
+// ---------------------------------------------------------------------------
+
+// Destino fixo: feedback e sobre a plataforma como um todo, nao sobre uma
+// incubadora especifica, entao nao usa o email configuravel do tenant.
+const EMAIL_PRESIDENCIA = "presidente@fronteiratec.com"
+
+/**
+ * Avisa a presidencia de que um usuario enviou feedback pela plataforma.
+ *
+ * O replyTo vai para o proprio autor do feedback (nao para o remetente da
+ * incubadora): assim quem recebe pode responder diretamente a pessoa, sem
+ * precisar abrir o sistema pra descobrir o email de ninguem.
+ *
+ * @param {{id_feedback:number, id_usuario:number, id_tenant?:number, mensagem:string, criado_ts:string}} feedback
+ */
+function feedbackEnviado(feedback) {
+  emSegundoPlano(`feedback=${feedback?.id_feedback}`, async () => {
+    const [autor, tenant] = await Promise.all([
+      usuarioRepository.buscarPorId(feedback.id_usuario),
+      feedback.id_tenant ? tenantRepository.buscarPorId(feedback.id_tenant) : null,
+    ])
+
+    await enviarEmail({
+      para: EMAIL_PRESIDENCIA,
+      assunto: `Novo feedback${autor ? ` de ${autor.nome}` : ""} - Quiron`,
+      remetente: { replyTo: autor?.email || undefined },
+      html: layout({
+        titulo: "Novo feedback recebido",
+        paragrafos: [
+          autor ? `<strong>${escapar(autor.nome)}</strong> (${escapar(autor.email)})` : "Um usuario",
+          tenant ? `Incubadora: <strong>${escapar(tenant.nome)}</strong>.` : "",
+          `<blockquote style="border-left:3px solid #e5e7eb;margin:16px 0;
+                              padding:4px 0 4px 12px;color:#4b5563;">
+             ${escapar(feedback.mensagem).replace(/\n/g, "<br>")}
+           </blockquote>`,
+        ].filter(Boolean),
+        rodape: "Responda este email para falar diretamente com quem enviou.",
+      }),
+    })
+  })
+}
+
+module.exports = { entregaEnviada, entregaAvaliada, eventoCriado, feedbackEnviado }

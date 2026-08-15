@@ -876,6 +876,29 @@ CREATE TABLE IF NOT EXISTS usuario_preferencias (
 );
 
 -- ---------------------------------------------------------------------------
+-- Feedback enviado pelo usuario sobre a plataforma (item "Enviar Feedback"
+-- do UserPanel). Registro simples, sem fluxo de resposta - fica guardado
+-- para o time da FronteiraTec/INNE ler depois.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS feedback (
+    id_feedback BIGINT GENERATED ALWAYS AS IDENTITY,
+    id_usuario INTEGER NOT NULL,
+    id_tenant INTEGER,
+    mensagem TEXT NOT NULL,
+    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_feedback PRIMARY KEY (id_feedback),
+    CONSTRAINT fk_feedback_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_feedback_tenant
+        FOREIGN KEY (id_tenant)
+        REFERENCES tenant (id_tenant)
+        ON DELETE SET NULL
+);
+
+-- ---------------------------------------------------------------------------
 -- RBAC (Roles e Permissoes).
 --
 -- O catalogo de permissoes NAO e cadastrado manualmente: e sincronizado a

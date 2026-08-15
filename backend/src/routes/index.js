@@ -14,6 +14,10 @@ router.use("/auth", require("./authRoutes"))
 // Preferencias visuais do usuario logado (protegido).
 router.use("/preferencias", require("./preferenciaRoutes"))
 
+// Feedback livre do usuario logado sobre a plataforma (item "Enviar
+// Feedback" do UserPanel).
+router.use("/feedback", require("./feedbackRoutes"))
+
 // Arquivos: upload e download. Cada rota declara sua propria autenticacao — o
 // download atende tambem o anonimo, para imagem publica em <img>.
 router.use("/arquivos", require("./arquivoRoutes"))

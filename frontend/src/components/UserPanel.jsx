@@ -25,7 +25,6 @@ import {
   Check,
   ChatBubbleOutline,
   HelpOutline,
-  OndemandVideo,
   ExploreOutlined,
   Feedback,
   Person,
@@ -52,7 +51,6 @@ const CORES_ACCENT = [
 const AJUDA_ITENS = [
   { chave: "conversar", label: "Conversar conosco", Icone: ChatBubbleOutline },
   { chave: "central", label: "Central de Ajuda", Icone: HelpOutline },
-  { chave: "videos", label: "Vídeos", Icone: OndemandVideo },
   { chave: "tour", label: "Fazer Tour", Icone: ExploreOutlined },
   { chave: "feedback", label: "Enviar Feedback", Icone: Feedback },
 ]
@@ -114,13 +112,26 @@ export default function UserPanel({
   }
 
   // "Fazer Tour" e resolvido aqui: fecha o painel e inicia o tutorial da tela
-  // atual (os passos de cada tela ficam em tour/tours.js). Os demais itens de
-  // ajuda continuam delegados a quem usa o componente.
+  // atual (os passos de cada tela ficam em tour/tours.js). "Conversar conosco",
+  // "Enviar Feedback" e "Central de Ajuda" levam as respectivas paginas.
+  // Os demais itens de ajuda continuam delegados a quem usa o componente.
   const clicarAjuda = (chave) => {
     if (chave === "tour") {
       fechar()
       // Espera o Popover fechar para o overlay medir a tela ja sem ele.
       setTimeout(tour.iniciar, 220)
+      return
+    }
+    if (chave === "conversar") {
+      irPara("/fala-conosco")
+      return
+    }
+    if (chave === "feedback") {
+      irPara("/enviar-feedback")
+      return
+    }
+    if (chave === "central") {
+      irPara("/central-ajuda")
       return
     }
     onAjudaItem?.(chave)

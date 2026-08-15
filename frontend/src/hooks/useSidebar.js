@@ -64,13 +64,28 @@ export function useSidebar({ onNavegar } = {}) {
   const itensPlanos = useMemo(() => achatarMenu(menu), [menu])
 
   // --- Deteccao de rota ativa ---
+  //
+  // Entre as rotas do menu, varias podem "bater" com o pathname atual por
+  // prefixo (ex.: "/eventos" e "/eventos/presenca" ambas batem em
+  // "/eventos/presenca"). Se cada item checasse isso isoladamente, os dois
+  // ficariam marcados como ativos ao mesmo tempo. Por isso resolvemos a rota
+  // mais especifica (a mais longa que bate) uma unica vez e so ela conta
+  // como ativa.
+  const rotaMaisEspecifica = useMemo(() => {
+    const pathname = location.pathname
+    let melhor = null
+    for (const item of itensPlanos) {
+      const rota = item.rota
+      if (!rota) continue
+      const bate = rota === "/" ? pathname === "/" : pathname === rota || pathname.startsWith(rota + "/")
+      if (bate && (!melhor || rota.length > melhor.length)) melhor = rota
+    }
+    return melhor
+  }, [itensPlanos, location.pathname])
+
   const rotaAtiva = useCallback(
-    (rota) => {
-      if (!rota) return false
-      if (rota === "/") return location.pathname === "/"
-      return location.pathname === rota || location.pathname.startsWith(rota + "/")
-    },
-    [location.pathname]
+    (rota) => !!rota && rota === rotaMaisEspecifica,
+    [rotaMaisEspecifica]
   )
   const grupoAtivo = useCallback(
     (filhos) => filhos.some((f) => rotaAtiva(f.rota)),
