@@ -79,6 +79,7 @@ export default function RelatorioShell({ titulo, descricao, icone, periodo = fal
           <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
             {periodo && (
               <TextField
+                data-tour="relatorio-periodo"
                 select
                 size="small"
                 label="Período"
@@ -101,7 +102,7 @@ export default function RelatorioShell({ titulo, descricao, icone, periodo = fal
         </Typography>
 
         {ehRoot && (
-          <Paper sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mb: 3 }}>
+          <Paper data-tour="relatorio-tenant" sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mb: 3 }}>
             <TextField
               select
               label="Incubadora"

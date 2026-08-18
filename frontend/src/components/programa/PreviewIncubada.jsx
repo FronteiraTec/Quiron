@@ -325,10 +325,10 @@ export default function PreviewIncubada({ programa, onFechar }) {
                 </Typography>
 
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 3, color: "text.secondary" }}>
-                  {atual.cargaHoraria && (
+                  {atual.carga_horaria && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       <Timelapse sx={{ fontSize: 18 }} />
-                      <Typography variant="body2">{atual.cargaHoraria}</Typography>
+                      <Typography variant="body2">{atual.carga_horaria}</Typography>
                     </Box>
                   )}
                   {atual.prazo && (
@@ -446,7 +446,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
                       mb: 3,
                     }}
                   >
-                    <Avatar variant="rounded" sx={{ bgcolor: `${TIPO_META.tarefa.cor}22`, color: TIPO_META.tarefa.cor }}>
+                    <Avatar variant="rounded" sx={{ bgcolor: `${TIPO_META.PASSO.cor}22`, color: TIPO_META.PASSO.cor }}>
                       <Inventory2 />
                     </Avatar>
                     <Box>

@@ -17,6 +17,7 @@ import { FileDownload } from "@mui/icons-material"
 export default function BotaoExportar({ onClick, rotulo = "Exportar CSV", desabilitado }) {
   return (
     <Button
+      data-tour="relatorio-exportar"
       size="small"
       variant="text"
       startIcon={<FileDownload fontSize="small" />}

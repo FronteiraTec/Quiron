@@ -35,8 +35,9 @@ import AppLayout from "../components/AppLayout"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
 import { STATUS_ROTULO, STATUS_COR } from "../data/startupMeta"
+import { MAX_CNPJ, cnpjValido, mascararCnpj, somenteDigitos } from "../utils/mascaras"
 
-const FORM_VAZIO = { nome: "", cnpj: "" }
+const FORM_VAZIO = { nome: "", cnpj: "", id_trilha: "" }
 
 export default function Startups() {
   const navigate = useNavigate()
@@ -45,6 +46,8 @@ export default function Startups() {
 
   const [startups, setStartups] = useState([])
   const [fases, setFases] = useState([])
+  // Trilhas da incubadora, para o seletor do cadastro.
+  const [trilhas, setTrilhas] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [aviso, setAviso] = useState(null)
 
@@ -63,13 +66,17 @@ export default function Startups() {
     }
     setCarregando(true)
     try {
-      const [startupsRes, trilhaRes] = await Promise.all([
+      const [startupsRes, trilhaRes, programasRes] = await Promise.all([
         api.get("/startups", { params: { id_tenant: idTenant } }),
         api.get("/trilha", { params: { id_tenant: idTenant } }),
+        api.get("/trilha/programas", { params: { id_tenant: idTenant } }),
       ])
       setStartups(startupsRes.data.startups)
-      // As fases sao os filhos diretos do programa (raiz da arvore).
+      // As fases do filtro sao os filhos diretos das trilhas. Com varias
+      // trilhas o filtro passa a listar as fases de todas — o nome da fase e
+      // o que a linha da tabela mostra, e ele nao diz de qual trilha veio.
       setFases(trilhaRes.data.trilha.flatMap((programa) => programa.filhos || []))
+      setTrilhas(programasRes.data.programas)
     } catch (err) {
       setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar as startups." })
     } finally {
@@ -92,8 +99,14 @@ export default function Startups() {
     })
   }, [startups, busca, filtroFase, filtroStatus])
 
+  /**
+   * Abre o cadastro com a trilha PADRAO ja escolhida — e so uma sugestao:
+   * o campo continua editavel, e quem cadastra pode comecar a startup em
+   * qualquer outra trilha.
+   */
   const abrirCriacao = () => {
-    setForm(FORM_VAZIO)
+    const padrao = trilhas.find((t) => t.padrao) ?? trilhas[0]
+    setForm({ ...FORM_VAZIO, id_trilha: padrao?.id_no ?? "" })
     setDialogAberto(true)
   }
 
@@ -101,10 +114,20 @@ export default function Startups() {
 
   const salvar = async (e) => {
     e.preventDefault()
+    if (form.cnpj && !cnpjValido(form.cnpj)) {
+      setAviso({ tipo: "error", texto: "CNPJ inválido — confira os números digitados." })
+      return
+    }
     setSalvando(true)
     setAviso(null)
     try {
-      await api.post("/startups", { id_tenant: idTenant, nome: form.nome, cnpj: form.cnpj || null })
+      await api.post("/startups", {
+        id_tenant: idTenant,
+        nome: form.nome,
+        // Sem mascara: a coluna e CHAR(14).
+        cnpj: somenteDigitos(form.cnpj) || null,
+        id_trilha: form.id_trilha || null,
+      })
       setDialogAberto(false)
       await carregar()
     } catch (err) {
@@ -124,7 +147,7 @@ export default function Startups() {
               Startups
             </Typography>
           </Box>
-          <Button variant="contained" startIcon={<Add />} onClick={abrirCriacao}>
+          <Button data-tour="startups-nova" variant="contained" startIcon={<Add />} onClick={abrirCriacao}>
             Nova Startup
           </Button>
         </Box>
@@ -140,6 +163,7 @@ export default function Startups() {
 
         <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
           <TextField
+            data-tour="startups-busca"
             placeholder="Pesquisar..."
             size="small"
             value={busca}
@@ -154,6 +178,7 @@ export default function Startups() {
             }}
           />
           <TextField
+            data-tour="startups-filtros"
             select
             size="small"
             label="Fase"
@@ -170,6 +195,7 @@ export default function Startups() {
             <MenuItem value="Graduada">Graduada</MenuItem>
           </TextField>
           <TextField
+            data-tour="startups-filtros"
             select
             size="small"
             label="Status"
@@ -186,7 +212,7 @@ export default function Startups() {
           </TextField>
         </Box>
 
-        <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
+        <Paper data-tour="startups-lista" sx={{ borderRadius: 0, overflow: "hidden" }}>
           {carregando ? (
             <Box sx={{ textAlign: "center", py: 6 }}>
               <CircularProgress />
@@ -264,8 +290,37 @@ export default function Startups() {
                   label="CNPJ"
                   fullWidth
                   value={form.cnpj}
-                  onChange={(e) => alterarCampo("cnpj", e.target.value)}
+                  onChange={(e) => alterarCampo("cnpj", mascararCnpj(e.target.value))}
+                  placeholder="12.345.678/0001-95"
+                  inputProps={{ maxLength: MAX_CNPJ, inputMode: "numeric" }}
+                  error={Boolean(form.cnpj) && !cnpjValido(form.cnpj)}
+                  helperText={form.cnpj && !cnpjValido(form.cnpj) ? "CNPJ inválido." : "Opcional."}
                 />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  select
+                  label="Trilha"
+                  fullWidth
+                  value={form.id_trilha}
+                  onChange={(e) => alterarCampo("id_trilha", e.target.value)}
+                  disabled={trilhas.length === 0}
+                  helperText={
+                    trilhas.length === 0
+                      ? "Sua incubadora ainda não tem trilhas. A startup será criada sem trilha."
+                      : "A trilha padrão já vem escolhida — troque se esta startup começa em outra."
+                  }
+                >
+                  <MenuItem value="">
+                    <em>Sem trilha por enquanto</em>
+                  </MenuItem>
+                  {trilhas.map((t) => (
+                    <MenuItem key={t.id_no} value={t.id_no}>
+                      {t.nome}
+                      {t.padrao ? " (padrão)" : ""}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </Grid>
             </Grid>
           </DialogContent>

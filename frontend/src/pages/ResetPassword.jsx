@@ -8,16 +8,18 @@ import { useState } from "react"
 import { useSearchParams, useNavigate, Link as RouterLink } from "react-router-dom"
 import {
   Box,
-  Paper,
   TextField,
   Button,
-  Typography,
   Alert,
+  Collapse,
   CircularProgress,
+  InputAdornment,
+  IconButton,
   Link,
 } from "@mui/material"
-import { LockResetOutlined } from "@mui/icons-material"
+import { LockOutlined, Visibility, VisibilityOff } from "@mui/icons-material"
 import api from "../services/api"
+import AuthLayout from "../components/AuthLayout"
 
 export default function ResetPassword() {
   const [params] = useSearchParams()
@@ -26,6 +28,7 @@ export default function ResetPassword() {
 
   const [senha, setSenha] = useState("")
   const [confirmar, setConfirmar] = useState("")
+  const [mostrar, setMostrar] = useState(false)
   const [erro, setErro] = useState("")
   const [ok, setOk] = useState(false)
   const [carregando, setCarregando] = useState(false)
@@ -57,91 +60,103 @@ export default function ResetPassword() {
     }
   }
 
-  return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        bgcolor: "#f5f7fb",
-        p: 2,
-      }}
-    >
-      <Paper elevation={0} sx={{ p: 4, width: "100%", maxWidth: 400, borderRadius: 0, border: "1px solid", borderColor: "divider" }}>
-        <Box sx={{ textAlign: "center", mb: 3 }}>
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              bgcolor: "primary.main",
-              color: "#fff",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              mb: 1,
-            }}
-          >
-            <LockResetOutlined />
-          </Box>
-          <Typography variant="h5" fontWeight={700}>
-            Nova senha
-          </Typography>
-        </Box>
+  // Adorno compartilhado pelos dois campos: cadeado + olho de mostrar/ocultar.
+  const adornos = {
+    startAdornment: (
+      <InputAdornment position="start">
+        <LockOutlined fontSize="small" color="action" />
+      </InputAdornment>
+    ),
+    endAdornment: (
+      <InputAdornment position="end">
+        <IconButton
+          onClick={() => setMostrar((v) => !v)}
+          edge="end"
+          aria-label={mostrar ? "ocultar senha" : "mostrar senha"}
+        >
+          {mostrar ? <VisibilityOff /> : <Visibility />}
+        </IconButton>
+      </InputAdornment>
+    ),
+  }
 
-        {!token ? (
-          <Alert severity="error">
+  return (
+    <AuthLayout titulo="Nova senha" subtitulo="Escolha uma senha com pelo menos 6 caracteres">
+      {!token ? (
+        <>
+          <Alert severity="error" sx={{ mb: 2, borderRadius: 0 }}>
             Link inválido. Solicite uma nova redefinição de senha.
           </Alert>
-        ) : ok ? (
-          <Alert severity="success">
-            Senha redefinida com sucesso! Redirecionando para o login...
-          </Alert>
-        ) : (
-          <Box component="form" onSubmit={handleSubmit} noValidate>
-            {erro && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {erro}
-              </Alert>
-            )}
-            <TextField
-              label="Nova senha"
-              type="password"
-              fullWidth
-              required
-              margin="normal"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              autoFocus
-            />
-            <TextField
-              label="Confirmar nova senha"
-              type="password"
-              fullWidth
-              required
-              margin="normal"
-              value={confirmar}
-              onChange={(e) => setConfirmar(e.target.value)}
-            />
-            <Button
-              type="submit"
-              variant="contained"
-              fullWidth
-              size="large"
-              disabled={carregando}
-              sx={{ mt: 3 }}
-            >
-              {carregando ? <CircularProgress size={24} color="inherit" /> : "Redefinir senha"}
-            </Button>
-            <Box sx={{ textAlign: "center", mt: 2 }}>
-              <Link component={RouterLink} to="/login" variant="body2">
-                Voltar ao login
-              </Link>
-            </Box>
+          <Button
+            component={RouterLink}
+            to="/forgot-password"
+            variant="contained"
+            fullWidth
+            size="large"
+            disableElevation
+            sx={{ borderRadius: 0, py: 1.25, fontWeight: 600 }}
+          >
+            Solicitar novo link
+          </Button>
+        </>
+      ) : ok ? (
+        <Alert severity="success" sx={{ borderRadius: 0 }}>
+          Senha redefinida com sucesso! Redirecionando para o login...
+        </Alert>
+      ) : (
+        <Box component="form" onSubmit={handleSubmit} noValidate>
+          <Collapse in={Boolean(erro)}>
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 0 }}>
+              {erro}
+            </Alert>
+          </Collapse>
+
+          <TextField
+            label="Nova senha"
+            type={mostrar ? "text" : "password"}
+            fullWidth
+            required
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            autoComplete="new-password"
+            autoFocus
+            disabled={carregando}
+            InputProps={adornos}
+          />
+
+          <TextField
+            label="Confirmar nova senha"
+            type={mostrar ? "text" : "password"}
+            fullWidth
+            required
+            margin="normal"
+            value={confirmar}
+            onChange={(e) => setConfirmar(e.target.value)}
+            autoComplete="new-password"
+            disabled={carregando}
+            InputProps={adornos}
+          />
+
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            size="large"
+            disableElevation
+            disabled={carregando || !senha || !confirmar}
+            sx={{ mt: 3, borderRadius: 0, py: 1.25, fontWeight: 600 }}
+            startIcon={carregando ? <CircularProgress size={18} color="inherit" /> : null}
+          >
+            {carregando ? "Salvando..." : "Redefinir senha"}
+          </Button>
+
+          <Box sx={{ textAlign: "center", mt: 2 }}>
+            <Link component={RouterLink} to="/login" variant="body2" underline="hover">
+              Voltar ao login
+            </Link>
           </Box>
-        )}
-      </Paper>
-    </Box>
+        </Box>
+      )}
+    </AuthLayout>
   )
 }

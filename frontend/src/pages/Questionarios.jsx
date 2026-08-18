@@ -226,7 +226,7 @@ export default function Questionarios() {
             </Typography>
           </Box>
           {isAdmin && (
-            <Button variant="contained" startIcon={<Add />} onClick={abrirCriacao} disabled={!idTenant}>
+            <Button data-tour="questionarios-novo" variant="contained" startIcon={<Add />} onClick={abrirCriacao} disabled={!idTenant}>
               Novo questionário
             </Button>
           )}
@@ -251,7 +251,7 @@ export default function Questionarios() {
             <CircularProgress />
           </Box>
         ) : (
-          <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
+          <Paper data-tour="questionarios-lista" sx={{ borderRadius: 0, overflow: "hidden" }}>
             {questionarios.length === 0 ? (
               <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
                 <Quiz sx={{ fontSize: 48, opacity: 0.4 }} />
@@ -295,6 +295,7 @@ export default function Questionarios() {
                           {isAdmin ? (
                             <Tooltip title={q.ativo ? "Desativar" : "Ativar"}>
                               <Switch
+                                data-tour="questionarios-ativo"
                                 size="small"
                                 checked={q.ativo}
                                 onChange={() => alternarAtivo(q)}
@@ -310,7 +311,7 @@ export default function Questionarios() {
                         </TableCell>
                         <TableCell align="right">
                           <Tooltip title="Visualizar">
-                            <IconButton size="small" onClick={() => abrirPreview(q.id_questionario)}>
+                            <IconButton data-tour="questionarios-preview" size="small" onClick={() => abrirPreview(q.id_questionario)}>
                               <Visibility fontSize="small" />
                             </IconButton>
                           </Tooltip>

@@ -68,7 +68,7 @@ export default function FalaConosco() {
           Canais de contato da FronteiraTec e da INNE.
         </Typography>
 
-        <Grid container spacing={2}>
+        <Grid container data-tour="fala-conosco-canais" spacing={2}>
           {CANAIS.map((canal) => (
             <CartaoContato key={canal.nome} canal={canal} />
           ))}

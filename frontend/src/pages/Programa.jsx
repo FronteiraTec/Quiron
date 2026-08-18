@@ -1,6 +1,6 @@
 /**
- * Construtor de Programa — experiencia da incubadora (admin) para montar toda a
- * trilha de incubacao numa unica tela, estilo Notion/ClickUp.
+ * Construtor de Programa — experiencia da incubadora (admin) para montar as
+ * trilhas de incubacao numa unica tela, estilo Notion/ClickUp.
  *
  * Duas areas:
  *   - Painel esquerdo (ProgramTree): a arvore Programa -> Fases -> Modulos ->
@@ -8,8 +8,13 @@
  *   - Painel direito (InspectorPanel): edicao das propriedades do no
  *     selecionado, sem modal e sem trocar de pagina.
  *
- * Extras: Toolbar (expandir/recolher todos, "Visualizar como incubada"),
- * ConfirmDialog e responsividade (arvore vira Drawer no mobile/tablet).
+ * A incubadora pode ter VARIAS trilhas. A troca acontece no seletor da
+ * Toolbar, e a tela mostra uma por vez — editar duas arvores lado a lado nao
+ * ajuda ninguem, e o material da Biblioteca ja e compartilhado entre elas sem
+ * precisar disso.
+ *
+ * Extras: ConfirmDialog, dialogo de matricula (StartupsDaTrilha) e
+ * responsividade (arvore vira Drawer no mobile/tablet).
  *
  * A arvore vem da API (/trilha) via usePrograma.
  */
@@ -22,6 +27,11 @@ import {
   Alert,
   Button,
   Typography,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   CircularProgress,
   useTheme,
   useMediaQuery,
@@ -36,6 +46,7 @@ import InspectorPanel from "../components/programa/InspectorPanel"
 import ContextMenu from "../components/programa/ContextMenu"
 import ConfirmDialog from "../components/programa/ConfirmDialog"
 import PreviewIncubada from "../components/programa/PreviewIncubada"
+import StartupsDaTrilha from "../components/programa/StartupsDaTrilha"
 import { TIPO_META } from "../data/trilhaMeta"
 
 const LARGURA_ARVORE = 380
@@ -48,6 +59,12 @@ export default function Programa() {
   const [termo, setTermo] = useState("")
   const [arvoreMobile, setArvoreMobile] = useState(false)
   const [preview, setPreview] = useState(false)
+
+  // Dialogo de matricula (quais startups fazem a trilha aberta).
+  const [startupsAberto, setStartupsAberto] = useState(false)
+  // Dialogo "Nova trilha": { nome } enquanto aberto, null quando fechado.
+  const [novaTrilha, setNovaTrilha] = useState(null)
+  const [salvandoTrilha, setSalvandoTrilha] = useState(false)
 
   // Menu de contexto: { ancora, no }.
   const [menu, setMenu] = useState({ ancora: null, no: null })
@@ -80,6 +97,38 @@ export default function Programa() {
 
   const feedbackSalvo = () =>
     setToast({ texto: "Alterações salvas.", severidade: "success" })
+
+  const trilhaAtiva = prog.programas.find(
+    (p) => Number(p.id_no) === Number(prog.programaAtivoId)
+  )
+
+  /** Cria a trilha e ja a abre no Construtor. */
+  const criarTrilha = async () => {
+    const nome = (novaTrilha?.nome || "").trim()
+    if (!nome) return
+    setSalvandoTrilha(true)
+    try {
+      await prog.criarPrograma(nome)
+      setNovaTrilha(null)
+      setToast({ texto: `Trilha "${nome}" criada.`, severidade: "success" })
+    } catch (err) {
+      setToast({
+        texto: err.response?.data?.erro || "Erro ao criar a trilha.",
+        severidade: "error",
+      })
+    } finally {
+      setSalvandoTrilha(false)
+    }
+  }
+
+  const definirPadrao = async (id) => {
+    const r = await prog.definirPadrao(id)
+    setToast(
+      r.ok
+        ? { texto: "Trilha padrão atualizada.", severidade: "success" }
+        : { texto: r.erro, severidade: "error" }
+    )
+  }
 
   /**
    * Fluxo de exclusao: confirmacao -> exclui no servidor.
@@ -130,8 +179,8 @@ export default function Programa() {
     )
   }
 
-  // Tenant ainda sem trilha: a arvore precisa de uma raiz antes de aceitar
-  // fases, entao o primeiro passo e criar o programa.
+  // Tenant ainda sem trilha nenhuma: a arvore precisa de uma raiz antes de
+  // aceitar fases, entao o primeiro passo e criar a trilha.
   if (!arvore) {
     return (
       <AppLayout>
@@ -139,11 +188,12 @@ export default function Programa() {
           <Box sx={{ textAlign: "center", maxWidth: 460 }}>
             <AutoStories sx={{ fontSize: 48, color: "primary.main", opacity: 0.7, mb: 1 }} />
             <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
-              Comece sua trilha
+              Comece sua primeira trilha
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 3 }}>
-              Sua incubadora ainda não tem um programa. Crie a trilha para
-              começar a montar fases, módulos e passos.
+              Sua incubadora ainda não tem nenhuma trilha. Crie uma para
+              começar a montar fases, módulos e passos — depois é possível ter
+              quantas quiser, reaproveitando o mesmo material da Biblioteca.
             </Typography>
             {prog.erro && (
               <Alert severity="error" sx={{ mb: 2, borderRadius: "6px" }}>
@@ -151,15 +201,39 @@ export default function Programa() {
               </Alert>
             )}
             <Button
+              data-tour="programa-criar-trilha"
               variant="contained"
               startIcon={<Add />}
-              onClick={() => prog.criarPrograma()}
+              onClick={() => setNovaTrilha({ nome: "Trilha de Incubação" })}
               sx={{ textTransform: "none" }}
             >
-              Criar trilha de incubação
+              Criar trilha
             </Button>
           </Box>
         </Box>
+
+        <DialogNovaTrilha
+          estado={novaTrilha}
+          salvando={salvandoTrilha}
+          onChange={(nome) => setNovaTrilha({ nome })}
+          onCriar={criarTrilha}
+          onFechar={() => setNovaTrilha(null)}
+        />
+
+        <Snackbar
+          open={Boolean(toast)}
+          autoHideDuration={toast?.severidade === "error" ? 6000 : 3000}
+          onClose={() => setToast(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        >
+          {toast ? (
+            <Alert severity={toast.severidade} variant="filled" onClose={() => setToast(null)}>
+              {toast.texto}
+            </Alert>
+          ) : (
+            <span />
+          )}
+        </Snackbar>
       </AppLayout>
     )
   }
@@ -181,6 +255,12 @@ export default function Programa() {
           }}
         >
           <Toolbar
+            programas={prog.programas}
+            programaAtivoId={prog.programaAtivoId}
+            onSelecionarPrograma={prog.selecionarPrograma}
+            onNovaTrilha={() => setNovaTrilha({ nome: "" })}
+            onDefinirPadrao={definirPadrao}
+            onGerenciarStartups={() => setStartupsAberto(true)}
             onExpandirTodos={prog.expandirTodos}
             onRecolherTodos={prog.recolherTodos}
             onPreview={() => setPreview(true)}
@@ -192,6 +272,7 @@ export default function Programa() {
             {/* Painel esquerdo (arvore) — fixo no desktop */}
             {mdUp && (
               <Box
+                data-tour="programa-arvore"
                 sx={{
                   width: LARGURA_ARVORE,
                   flexShrink: 0,
@@ -205,7 +286,7 @@ export default function Programa() {
             )}
 
             {/* Painel direito (inspector) */}
-            <Box sx={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+            <Box data-tour="programa-inspector" sx={{ flex: 1, minWidth: 0, minHeight: 0 }}>
               <InspectorPanel
                 programa={prog.programa}
                 no={prog.selecionado}
@@ -273,6 +354,25 @@ export default function Programa() {
         )}
       </Snackbar>
 
+      {/* Quais startups fazem esta trilha */}
+      <StartupsDaTrilha
+        aberto={startupsAberto}
+        trilha={trilhaAtiva}
+        onFechar={() => setStartupsAberto(false)}
+        // A contagem de startups fica no rotulo da Toolbar, entao a lista de
+        // trilhas precisa ser refeita quando a turma muda.
+        onMudou={prog.recarregarProgramas}
+      />
+
+      {/* Nova trilha */}
+      <DialogNovaTrilha
+        estado={novaTrilha}
+        salvando={salvandoTrilha}
+        onChange={(nome) => setNovaTrilha({ nome })}
+        onCriar={criarTrilha}
+        onFechar={() => setNovaTrilha(null)}
+      />
+
       {/* Modo "Visualizar como incubada" */}
       <AnimatePresence>
         {preview && (
@@ -280,5 +380,52 @@ export default function Programa() {
         )}
       </AnimatePresence>
     </AppLayout>
+  )
+}
+
+/**
+ * Dialogo de criacao de trilha. Fica aqui (e nao em components/) porque so
+ * esta tela cria trilha, e o formulario e um campo so.
+ */
+function DialogNovaTrilha({ estado, salvando, onChange, onCriar, onFechar }) {
+  const nome = estado?.nome ?? ""
+  const vazio = !nome.trim()
+
+  return (
+    <Dialog open={Boolean(estado)} onClose={onFechar} maxWidth="xs" fullWidth>
+      <DialogTitle>Nova trilha</DialogTitle>
+      <DialogContent dividers>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Uma trilha nova nasce vazia. O material da Biblioteca continua o
+          mesmo — os passos desta trilha podem apontar para os conteúdos que
+          você já tem.
+        </Typography>
+        <TextField
+          autoFocus
+          fullWidth
+          label="Nome da trilha"
+          placeholder="ex.: Pré-incubação 2026"
+          value={nome}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !vazio && !salvando) onCriar()
+          }}
+        />
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button onClick={onFechar} sx={{ textTransform: "none" }}>
+          Cancelar
+        </Button>
+        <Button
+          variant="contained"
+          onClick={onCriar}
+          disabled={vazio || salvando}
+          startIcon={salvando ? <CircularProgress size={16} /> : <Add />}
+          sx={{ textTransform: "none" }}
+        >
+          Criar trilha
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }

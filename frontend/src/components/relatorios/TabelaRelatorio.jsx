@@ -89,7 +89,7 @@ export default function TabelaRelatorio({
   }
 
   return (
-    <Paper sx={{ borderRadius: 0 }}>
+    <Paper data-tour="relatorio-tabela" sx={{ borderRadius: 0 }}>
       <TableContainer>
         <Table size="small">
           <TableHead>

@@ -4,4 +4,6 @@
 - [telas do mentor: entregas e feedback](telas-do-mentor-entregas-e-feedback.md) — recorte do mentor vem de mentor_startup, não de startup_membros; e as 3 telas de avaliação que se confundem
 - [upload de arquivos: dois regimes](upload-de-arquivos-dois-regimes.md) — PUBLICO vs PRIVADO; `<img src>` não manda token, e o nginx corta em 1MB por padrão
 - [RBAC: papel é baseline, permissão estende](rbac-papel-e-baseline-permissao-estende.md) — a maquinaria sempre existiu mas era quase sem uso; permissão só concede, não revoga
+- [schema.sql não é fonte única](schema-sql-nao-e-fonte-unica.md) — falta a tabela `arquivo`; `down -v` recria o banco defasado e quebra uploads
+- [preview visual do frontend](preview-visual-do-frontend.md) — screenshot com Chrome headless; porta 5173 é de outro projeto e o viewport mínimo é 512px
 - [presença vs confirmação em eventos](presenca-vs-confirmacao-em-eventos.md) — RSVP e check-in são tabelas diferentes; a regra do "público" é duplicada em dois SQLs que precisam concordar

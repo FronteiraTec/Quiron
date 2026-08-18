@@ -151,6 +151,83 @@ function paraServico(body = {}) {
   return saida
 }
 
+/** GET /trilha/programas?id_tenant= — as trilhas do tenant, com contagens. */
+async function listarProgramas(req, res, next) {
+  try {
+    const programas = await trilhaService.listarProgramas(req.query.id_tenant, req.usuario)
+    res.json({ programas })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** GET /trilha/programas/:id — uma trilha inteira, ja aninhada. */
+async function arvoreDoPrograma(req, res, next) {
+  try {
+    res.json({ trilha: await trilhaService.arvoreDoPrograma(req.params.id, req.usuario) })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** PATCH /trilha/:id/padrao — marca como a trilha sugerida no cadastro. */
+async function definirPadrao(req, res, next) {
+  try {
+    res.json({ no: await trilhaService.definirPadrao(req.params.id, req.usuario) })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** GET /trilha/:id/startups */
+async function listarStartupsDoPrograma(req, res, next) {
+  try {
+    const startups = await trilhaService.listarStartupsDoPrograma(req.params.id, req.usuario)
+    res.json({ startups })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** POST /trilha/:id/startups — body: { id_startup } */
+async function matricular(req, res, next) {
+  try {
+    const matricula = await trilhaService.matricular(
+      req.params.id,
+      req.body.id_startup,
+      req.usuario
+    )
+    res.status(201).json({ matricula })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** DELETE /trilha/:id/startups/:idStartup */
+async function desmatricular(req, res, next) {
+  try {
+    await trilhaService.desmatricular(req.params.id, req.params.idStartup, req.usuario)
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** PATCH /trilha/:id/startups/:idStartup — body: { status } */
+async function definirStatusMatricula(req, res, next) {
+  try {
+    const matricula = await trilhaService.definirStatusMatricula(
+      req.params.id,
+      req.params.idStartup,
+      req.body.status,
+      req.usuario
+    )
+    res.json({ matricula })
+  } catch (err) {
+    next(err)
+  }
+}
+
 module.exports = {
   arvore,
   buscar,
@@ -163,4 +240,11 @@ module.exports = {
   listarConteudos,
   vincularConteudo,
   desvincularConteudo,
+  listarProgramas,
+  arvoreDoPrograma,
+  definirPadrao,
+  listarStartupsDoPrograma,
+  matricular,
+  desmatricular,
+  definirStatusMatricula,
 }

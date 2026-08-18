@@ -130,13 +130,17 @@ export default function Dashboard() {
           </Paper>
 
           {/* Agenda: eventos de hoje ate o fim da semana (visibilidade por papel) */}
-          <Box sx={{ mb: 3 }}>
+          <Box data-tour="dashboard-agenda" sx={{ mb: 3 }}>
             <AgendaSemana idTenant={usuario?.id_tenant} />
           </Box>
 
           {/* Numeros de destaque. Sem nenhum relatorio liberado a linha inteira
               some — um usuario ve a agenda dele e nada de cards vazios. */}
-          {itens.length > 0 && <KpiRow itens={itens} />}
+          {itens.length > 0 && (
+            <Box data-tour="dashboard-kpis">
+              <KpiRow itens={itens} />
+            </Box>
+          )}
         </Box>
       )}
     </AppLayout>

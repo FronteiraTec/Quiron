@@ -9,17 +9,17 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Box,
-  Paper,
   TextField,
   Button,
-  Typography,
   Alert,
+  Collapse,
   CircularProgress,
   InputAdornment,
   IconButton,
 } from "@mui/material"
-import { Visibility, VisibilityOff, LockReset } from "@mui/icons-material"
+import { Visibility, VisibilityOff, LockOutlined } from "@mui/icons-material"
 import { useAuthStore } from "../store/authStore"
+import AuthLayout from "../components/AuthLayout"
 
 export default function DefinirSenha() {
   const navigate = useNavigate()
@@ -55,93 +55,77 @@ export default function DefinirSenha() {
     }
   }
 
+  // Adorno compartilhado pelos dois campos: cadeado + olho de mostrar/ocultar.
+  const adornos = {
+    startAdornment: (
+      <InputAdornment position="start">
+        <LockOutlined fontSize="small" color="action" />
+      </InputAdornment>
+    ),
+    endAdornment: (
+      <InputAdornment position="end">
+        <IconButton
+          onClick={() => setMostrar((v) => !v)}
+          edge="end"
+          aria-label={mostrar ? "ocultar senha" : "mostrar senha"}
+        >
+          {mostrar ? <VisibilityOff /> : <Visibility />}
+        </IconButton>
+      </InputAdornment>
+    ),
+  }
+
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        bgcolor: "#f5f7fb",
-        p: 2,
-      }}
+    <AuthLayout
+      titulo="Defina sua senha"
+      subtitulo="Este é seu primeiro acesso. Crie uma nova senha para continuar."
     >
-      <Paper elevation={0} sx={{ p: 4, width: "100%", maxWidth: 400, borderRadius: 0, border: "1px solid", borderColor: "divider" }}>
-        <Box sx={{ textAlign: "center", mb: 3 }}>
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              bgcolor: "primary.main",
-              color: "#fff",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              mb: 1,
-            }}
-          >
-            <LockReset />
-          </Box>
-          <Typography variant="h5" fontWeight={700}>
-            Defina sua senha
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Este é seu primeiro acesso. Crie uma nova senha para continuar.
-          </Typography>
-        </Box>
+      <Collapse in={Boolean(erro)}>
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 0 }}>
+          {erro}
+        </Alert>
+      </Collapse>
 
-        {erro && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {erro}
-          </Alert>
-        )}
+      <Box component="form" onSubmit={handleSubmit} noValidate>
+        <TextField
+          label="Nova senha"
+          type={mostrar ? "text" : "password"}
+          fullWidth
+          required
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          autoComplete="new-password"
+          autoFocus
+          disabled={carregando}
+          InputProps={adornos}
+        />
 
-        <Box component="form" onSubmit={handleSubmit} noValidate>
-          <TextField
-            label="Nova senha"
-            type={mostrar ? "text" : "password"}
-            fullWidth
-            required
-            margin="normal"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            autoComplete="new-password"
-            autoFocus
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton onClick={() => setMostrar((v) => !v)} edge="end" aria-label="mostrar senha">
-                    {mostrar ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
+        <TextField
+          label="Confirmar nova senha"
+          type={mostrar ? "text" : "password"}
+          fullWidth
+          required
+          margin="normal"
+          value={confirmar}
+          onChange={(e) => setConfirmar(e.target.value)}
+          autoComplete="new-password"
+          disabled={carregando}
+          InputProps={adornos}
+        />
 
-          <TextField
-            label="Confirmar nova senha"
-            type={mostrar ? "text" : "password"}
-            fullWidth
-            required
-            margin="normal"
-            value={confirmar}
-            onChange={(e) => setConfirmar(e.target.value)}
-            autoComplete="new-password"
-          />
-
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-            size="large"
-            disabled={carregando}
-            sx={{ mt: 3 }}
-          >
-            {carregando ? <CircularProgress size={24} color="inherit" /> : "Definir senha e entrar"}
-          </Button>
-        </Box>
-      </Paper>
-    </Box>
+        <Button
+          type="submit"
+          variant="contained"
+          fullWidth
+          size="large"
+          disableElevation
+          disabled={carregando || !senha || !confirmar}
+          sx={{ mt: 3, borderRadius: 0, py: 1.25, fontWeight: 600 }}
+          startIcon={carregando ? <CircularProgress size={18} color="inherit" /> : null}
+        >
+          {carregando ? "Salvando..." : "Definir senha e entrar"}
+        </Button>
+      </Box>
+    </AuthLayout>
   )
 }

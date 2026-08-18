@@ -103,6 +103,17 @@ import PermissionsAccordion from "../components/permissoes/PermissionsAccordion"
 import RoleActions from "../components/permissoes/RoleActions"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
+import {
+  MAX_CELULAR,
+  MAX_CNPJ,
+  celularValido,
+  cnpjValido,
+  formatarCelular,
+  formatarCnpj,
+  mascararCelular,
+  mascararCnpj,
+  somenteDigitos,
+} from "../utils/mascaras"
 
 const PAPEL_ROTULO = { admin: "Administrador", mentor: "Mentor", usuario: "Usuário" }
 const PAPEL_COR = { admin: "warning", mentor: "info", usuario: "default" }
@@ -133,11 +144,11 @@ export default function Usuarios() {
 
         <Paper sx={{ borderRadius: 0, mb: 3 }}>
           <Tabs value={aba} onChange={(_, v) => setAba(v)} variant="scrollable" scrollButtons="auto">
-            <Tab value="usuarios" label="Usuários" sx={{ textTransform: "none" }} />
-            <Tab value="permissoes" label="Permissões" sx={{ textTransform: "none" }} />
-            <Tab value="grupos" label="Grupos" sx={{ textTransform: "none" }} />
-            <Tab value="ativar" label="Ativar usuários" sx={{ textTransform: "none" }} />
-            <Tab value="startups" label="Startups" sx={{ textTransform: "none" }} />
+            <Tab data-tour="usuarios-aba-usuarios" value="usuarios" label="Usuários" sx={{ textTransform: "none" }} />
+            <Tab data-tour="usuarios-aba-permissoes" value="permissoes" label="Permissões" sx={{ textTransform: "none" }} />
+            <Tab data-tour="usuarios-aba-grupos" value="grupos" label="Grupos" sx={{ textTransform: "none" }} />
+            <Tab data-tour="usuarios-aba-ativar" value="ativar" label="Ativar usuários" sx={{ textTransform: "none" }} />
+            <Tab data-tour="usuarios-aba-startups" value="startups" label="Startups" sx={{ textTransform: "none" }} />
           </Tabs>
         </Paper>
 
@@ -266,7 +277,7 @@ function AbaUsuarios({ idTenant }) {
               <MenuItem value="todos">Todos os usuários ({usuarios.length})</MenuItem>
             </Select>
             <Box sx={{ flex: 1 }} />
-            <ButtonGroup variant="contained" size="small">
+            <ButtonGroup data-tour="usuarios-novo" variant="contained" size="small">
               <Button startIcon={<Add />} sx={{ textTransform: "none" }} onClick={() => setDialogNovo(true)}>
                 Novo usuário
               </Button>
@@ -280,6 +291,7 @@ function AbaUsuarios({ idTenant }) {
           </Box>
 
           <TextField
+            data-tour="usuarios-busca"
             fullWidth
             size="small"
             placeholder="Buscar usuário..."
@@ -295,7 +307,7 @@ function AbaUsuarios({ idTenant }) {
             }}
           />
 
-          <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
+          <Paper data-tour="usuarios-lista" sx={{ borderRadius: 0, overflow: "hidden" }}>
             {carregando ? (
               <Box sx={{ textAlign: "center", py: 6 }}>
                 <CircularProgress size={28} />
@@ -358,7 +370,7 @@ function AbaUsuarios({ idTenant }) {
         </Box>
 
         {/* --------------------------- Coluna direita --------------------------- */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box data-tour="usuarios-detalhe" sx={{ flex: 1, minWidth: 0 }}>
           {!selecionado ? (
             <Paper sx={{ borderRadius: 0, p: { xs: 3, sm: 6 }, textAlign: "center", color: "text.secondary" }}>
               <People sx={{ fontSize: 48, opacity: 0.4 }} />
@@ -430,7 +442,7 @@ function DetalheUsuario({ usuario, onEditar, onAlterarStatus, podeRedefinirSenha
             {usuario.celular && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "text.secondary" }}>
                 <Phone fontSize="small" />
-                <Typography variant="body2">{usuario.celular}</Typography>
+                <Typography variant="body2">{formatarCelular(usuario.celular)}</Typography>
               </Box>
             )}
           </Box>
@@ -508,10 +520,18 @@ function DialogNovoUsuario({ aberto, onFechar, idTenant, onCriado }) {
 
   const salvar = async (e) => {
     e.preventDefault()
+    if (!celularValido(form.celular)) {
+      setErro("Informe um celular válido, com DDD.")
+      return
+    }
     setSalvando(true)
     setErro(null)
     try {
-      const { data } = await api.post(`/tenants/${idTenant}/usuarios`, form)
+      // O banco guarda o celular sem mascara (VARCHAR(15)).
+      const { data } = await api.post(`/tenants/${idTenant}/usuarios`, {
+        ...form,
+        celular: somenteDigitos(form.celular),
+      })
       onCriado(data.usuario.id_usuario)
     } catch (err) {
       setErro(err.response?.data?.erro || "Erro ao criar o usuário.")
@@ -539,7 +559,13 @@ function DialogNovoUsuario({ aberto, onFechar, idTenant, onCriado }) {
               fullWidth
               required
               value={form.celular}
-              onChange={(e) => alterarCampo("celular", e.target.value)}
+              onChange={(e) => alterarCampo("celular", mascararCelular(e.target.value))}
+              placeholder="(11) 98765-4321"
+              inputProps={{ maxLength: MAX_CELULAR, inputMode: "numeric" }}
+              error={Boolean(form.celular) && !celularValido(form.celular)}
+              helperText={
+                form.celular && !celularValido(form.celular) ? "Informe o DDD e o número completo." : undefined
+              }
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -599,7 +625,7 @@ function DialogEditarUsuario({ aberto, onFechar, idTenant, usuario, onSalvo }) {
 
   useEffect(() => {
     if (aberto && usuario) {
-      setForm({ nome: usuario.nome, celular: usuario.celular || "", papel: usuario.papel })
+      setForm({ nome: usuario.nome, celular: mascararCelular(usuario.celular || ""), papel: usuario.papel })
       setErro(null)
     }
   }, [aberto, usuario])
@@ -608,10 +634,17 @@ function DialogEditarUsuario({ aberto, onFechar, idTenant, usuario, onSalvo }) {
 
   const salvar = async (e) => {
     e.preventDefault()
+    if (!celularValido(form.celular)) {
+      setErro("Informe um celular válido, com DDD.")
+      return
+    }
     setSalvando(true)
     setErro(null)
     try {
-      await api.put(`/tenants/${idTenant}/usuarios/${usuario.id_usuario}`, form)
+      await api.put(`/tenants/${idTenant}/usuarios/${usuario.id_usuario}`, {
+        ...form,
+        celular: somenteDigitos(form.celular),
+      })
       onSalvo()
     } catch (err) {
       setErro(err.response?.data?.erro || "Erro ao salvar o usuário.")
@@ -639,7 +672,13 @@ function DialogEditarUsuario({ aberto, onFechar, idTenant, usuario, onSalvo }) {
               fullWidth
               required
               value={form.celular}
-              onChange={(e) => alterarCampo("celular", e.target.value)}
+              onChange={(e) => alterarCampo("celular", mascararCelular(e.target.value))}
+              placeholder="(11) 98765-4321"
+              inputProps={{ maxLength: MAX_CELULAR, inputMode: "numeric" }}
+              error={Boolean(form.celular) && !celularValido(form.celular)}
+              helperText={
+                form.celular && !celularValido(form.celular) ? "Informe o DDD e o número completo." : undefined
+              }
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -1437,7 +1476,7 @@ function AbaStartups({ idTenant }) {
               </Box>
               {selecionada.cnpj && (
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  CNPJ: {selecionada.cnpj}
+                  CNPJ: {formatarCnpj(selecionada.cnpj)}
                 </Typography>
               )}
 
@@ -1544,10 +1583,19 @@ function DialogNovaStartup({ aberto, onFechar, idTenant, onCriada }) {
 
   const salvar = async (e) => {
     e.preventDefault()
+    if (form.cnpj && !cnpjValido(form.cnpj)) {
+      setErro("CNPJ inválido — confira os números digitados.")
+      return
+    }
     setSalvando(true)
     setErro(null)
     try {
-      const { data } = await api.post("/startups", { id_tenant: idTenant, ...form })
+      // CNPJ e opcional; quando vem, vai sem mascara (a coluna e CHAR(14)).
+      const { data } = await api.post("/startups", {
+        id_tenant: idTenant,
+        ...form,
+        cnpj: somenteDigitos(form.cnpj) || null,
+      })
       onCriada(data.startup.id_startup)
     } catch (err) {
       setErro(err.response?.data?.erro || "Erro ao criar a startup.")
@@ -1574,8 +1622,11 @@ function DialogNovaStartup({ aberto, onFechar, idTenant, onCriada }) {
               label="CNPJ"
               fullWidth
               value={form.cnpj}
-              onChange={(e) => alterarCampo("cnpj", e.target.value)}
-              helperText="Opcional."
+              onChange={(e) => alterarCampo("cnpj", mascararCnpj(e.target.value))}
+              placeholder="12.345.678/0001-95"
+              inputProps={{ maxLength: MAX_CNPJ, inputMode: "numeric" }}
+              error={Boolean(form.cnpj) && !cnpjValido(form.cnpj)}
+              helperText={form.cnpj && !cnpjValido(form.cnpj) ? "CNPJ inválido." : "Opcional."}
             />
           </Grid>
         </Grid>

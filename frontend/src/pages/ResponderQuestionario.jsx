@@ -186,6 +186,7 @@ export default function ResponderQuestionario() {
               )}
 
               <TextField
+                data-tour="responder-startup"
                 select
                 label="Startup responsável"
                 required
@@ -203,7 +204,7 @@ export default function ResponderQuestionario() {
             </Paper>
 
             {/* Perguntas */}
-            <Stack spacing={2}>
+            <Stack data-tour="responder-perguntas" spacing={2}>
               {questionario.perguntas.map((p, i) => (
                 <Paper key={p.id_pergunta} sx={{ p: 3, borderRadius: 0 }}>
                   <FormControl component="fieldset" fullWidth required={p.obrigatoria}>
@@ -280,7 +281,7 @@ export default function ResponderQuestionario() {
             </Stack>
 
             <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
-              <Button type="submit" variant="contained" size="large" disabled={enviando}>
+              <Button data-tour="responder-enviar" type="submit" variant="contained" size="large" disabled={enviando}>
                 {enviando ? <CircularProgress size={24} color="inherit" /> : "Enviar respostas"}
               </Button>
             </Box>

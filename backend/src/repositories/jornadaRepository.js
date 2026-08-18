@@ -10,18 +10,37 @@
 const { query, withTransaction } = require("../config/db")
 
 /**
- * Carrega a trilha ativa do tenant com o estado de cada passo para a startup.
+ * Sub-arvore de UMA trilha, a partir da raiz. Reaproveitada pelas tres
+ * consultas abaixo.
+ *
+ * Ate a 009 o recorte era `id_tenant`, o que funcionava porque cada
+ * incubadora tinha uma trilha so. Com varias, filtrar por tenant devolveria
+ * as duas fundidas numa arvore so — e a startup veria fases de um programa em
+ * que nem esta matriculada.
+ */
+const SUBARVORE = `
+  WITH RECURSIVE arv AS (
+    SELECT id_no FROM trilha_no WHERE id_no = $1 AND ativo
+    UNION ALL
+    SELECT n.id_no FROM trilha_no n JOIN arv a ON a.id_no = n.id_pai
+     WHERE n.ativo
+  )
+`
+
+/**
+ * Carrega uma trilha com o estado de cada passo para a startup.
  *
  * Uma query so, com LEFT JOINs: a entrega daquela startup naquele passo e a
  * avaliacao mais recente daquela entrega. Buscar passo a passo seria N+1 num
  * lugar que a startup abre a todo momento.
  *
- * @param {number} idTenant
+ * @param {number} idPrograma - a raiz (PROGRAMA) da trilha escolhida.
  * @param {number} idStartup
  */
-async function carregar(idTenant, idStartup) {
+async function carregar(idPrograma, idStartup) {
   const { rows } = await query(
-    `SELECT n.id_no, n.id_pai, n.tipo, n.nome, n.descricao, n.ordem,
+    `${SUBARVORE}
+     SELECT n.id_no, n.id_pai, n.tipo, n.nome, n.descricao, n.ordem,
             n.tipo_passo, n.permite_entrega, n.obrigatoria, n.id_questionario,
             n.prazo, n.carga_horaria, n.entregavel,
             n.objetivo, n.porque, n.competencias, n.area,
@@ -50,41 +69,49 @@ async function carregar(idTenant, idStartup) {
 
        LEFT JOIN usuarios av ON av.id_usuario = a.id_avaliador
 
-      WHERE n.id_tenant = $1 AND n.ativo = TRUE
+      WHERE n.id_no IN (SELECT id_no FROM arv)
       ORDER BY n.ordem, n.id_no`,
-    [idTenant, idStartup]
+    [idPrograma, idStartup]
   )
   return rows
 }
 
-/** Conteudos da Biblioteca ensinados por cada passo da trilha do tenant. */
-async function conteudosPorPasso(idTenant) {
+/**
+ * Conteudos da Biblioteca ensinados pelos passos DESTA trilha.
+ *
+ * O mesmo conteudo pode aparecer em varias trilhas — e o ponto do acervo
+ * reutilizavel. O recorte por trilha aqui e so para nao trazer o material das
+ * outras, que a tela descartaria.
+ */
+async function conteudosPorPasso(idPrograma) {
   const { rows } = await query(
-    `SELECT tc.id_no,
+    `${SUBARVORE}
+     SELECT tc.id_no,
             c.id_conteudo, c.tipo, c.titulo, c.resumo, c.tags,
             c.url, c.nome_arquivo, c.duracao
        FROM trilha_conteudo tc
-       JOIN trilha_no n ON n.id_no = tc.id_no AND n.id_tenant = $1
-       JOIN conteudo c  ON c.id_conteudo = tc.id_conteudo
+       JOIN conteudo c ON c.id_conteudo = tc.id_conteudo
+      WHERE tc.id_no IN (SELECT id_no FROM arv)
       ORDER BY tc.id_no, tc.ordem, c.titulo`,
-    [idTenant]
+    [idPrograma]
   )
   return rows
 }
 
 /** Blocos das aulas referenciadas — para o incubado ler sem outra chamada. */
-async function blocosDosConteudos(idTenant) {
+async function blocosDosConteudos(idPrograma) {
   const { rows } = await query(
-    `SELECT b.id_conteudo, b.id_bloco, b.tipo, b.ordem, b.texto, b.url,
+    `${SUBARVORE}
+     SELECT b.id_conteudo, b.id_bloco, b.tipo, b.ordem, b.texto, b.url,
             b.nome, b.variante
        FROM conteudo_bloco b
       WHERE b.id_conteudo IN (
         SELECT DISTINCT tc.id_conteudo
           FROM trilha_conteudo tc
-          JOIN trilha_no n ON n.id_no = tc.id_no AND n.id_tenant = $1
+         WHERE tc.id_no IN (SELECT id_no FROM arv)
       )
       ORDER BY b.id_conteudo, b.ordem`,
-    [idTenant]
+    [idPrograma]
   )
   return rows
 }

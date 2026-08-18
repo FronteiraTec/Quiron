@@ -138,7 +138,7 @@ export default function Avaliacoes() {
         ) : (
           <>
             {/* ---- Indicadores ---- */}
-            <Paper sx={{ borderRadius: 0, display: "flex", flexWrap: "wrap", mb: 2 }}>
+            <Paper data-tour="avaliacoes-indicadores" sx={{ borderRadius: 0, display: "flex", flexWrap: "wrap", mb: 2 }}>
               <Indicador valor={visiveis.length} rotulo="devolutivas" />
               <Indicador
                 valor={tempoMedio == null ? "—" : `${tempoMedio.toFixed(1)}d`}
@@ -159,8 +159,9 @@ export default function Avaliacoes() {
             </Paper>
 
             {/* ---- Filtros ---- */}
-            <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+            <Box data-tour="avaliacoes-filtros" sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
               <TextField
+                data-tour="avaliacoes-busca"
                 placeholder="Buscar startup, passo, mentor ou comentário..."
                 size="small"
                 value={busca}
@@ -205,7 +206,7 @@ export default function Avaliacoes() {
             </Box>
 
             {/* ---- A lista ---- */}
-            <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
+            <Paper data-tour="avaliacoes-lista" sx={{ borderRadius: 0, overflow: "hidden" }}>
               {visiveis.length === 0 ? (
                 <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
                   <Grading sx={{ fontSize: 48, opacity: 0.4 }} />

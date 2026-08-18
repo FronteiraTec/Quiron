@@ -28,6 +28,7 @@ import { SupervisorAccount, LinkOff, Add, RocketLaunch } from "@mui/icons-materi
 
 import ConfirmDialog from "../programa/ConfirmDialog"
 import { STATUS_ROTULO, STATUS_COR } from "../../data/startupMeta"
+import { formatarCelular } from "../../utils/mascaras"
 
 function inicial(nome) {
   return (nome || "?").trim().charAt(0).toUpperCase()
@@ -153,7 +154,7 @@ export default function MentorPainel({ mentor, detalhe, carregando, onVincular, 
           </Typography>
           <Typography variant="body2" color="text.secondary" noWrap>
             {mentor.email}
-            {mentor.celular ? ` · ${mentor.celular}` : ""}
+            {mentor.celular ? ` · ${formatarCelular(mentor.celular)}` : ""}
           </Typography>
           {mentor.desde && (
             <Typography variant="caption" color="text.secondary">

@@ -141,7 +141,7 @@ export default function CentralAjuda() {
           Respostas rápidas para as dúvidas mais comuns sobre a plataforma.
         </Typography>
 
-        <Stack spacing={3}>
+        <Stack data-tour="ajuda-secoes" spacing={3}>
           {SECOES.map((secao) => (
             <Paper key={secao.titulo} sx={{ borderRadius: 0 }}>
               <Typography
@@ -160,7 +160,7 @@ export default function CentralAjuda() {
           ))}
         </Stack>
 
-        <Paper sx={{ p: 3, mt: 3, borderRadius: 0, textAlign: "center" }}>
+        <Paper data-tour="ajuda-contato" sx={{ p: 3, mt: 3, borderRadius: 0, textAlign: "center" }}>
           <Typography fontWeight={600} gutterBottom>
             Não encontrou o que precisava?
           </Typography>

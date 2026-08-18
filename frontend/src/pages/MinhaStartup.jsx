@@ -68,7 +68,7 @@ export default function MinhaStartup() {
           </Alert>
         ) : (
           <>
-            <Paper sx={{ borderRadius: 0, p: 2, mb: 3, display: "flex", alignItems: "center", gap: 2 }}>
+            <Paper data-tour="minha-startup-cabecalho" sx={{ borderRadius: 0, p: 2, mb: 3, display: "flex", alignItems: "center", gap: 2 }}>
               <Typography variant="h6" fontWeight={700} sx={{ flex: 1 }}>
                 {startup.nome}
               </Typography>
@@ -86,12 +86,12 @@ export default function MinhaStartup() {
                 onChange={(_, v) => setAba(v)}
                 sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}
               >
-                <Tab value="membros" label="Membros" icon={<Groups />} iconPosition="start" />
-                <Tab value="modelos" label="Modelos" icon={<ViewModule />} iconPosition="start" />
-                <Tab value="fases" label="Fases concluídas" icon={<CheckCircle />} iconPosition="start" />
-                <Tab value="evolucao" label="Evolução" icon={<AutoAwesome />} iconPosition="start" />
+                <Tab data-tour="minha-startup-aba-membros" value="membros" label="Membros" icon={<Groups />} iconPosition="start" />
+                <Tab data-tour="minha-startup-aba-modelos" value="modelos" label="Modelos" icon={<ViewModule />} iconPosition="start" />
+                <Tab data-tour="minha-startup-aba-fases" value="fases" label="Fases concluídas" icon={<CheckCircle />} iconPosition="start" />
+                <Tab data-tour="minha-startup-aba-evolucao" value="evolucao" label="Evolução" icon={<AutoAwesome />} iconPosition="start" />
               </Tabs>
-              <Box sx={{ p: 3 }}>
+              <Box data-tour="minha-startup-conteudo" sx={{ p: 3 }}>
                 {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={idTenant} />}
                 {aba === "modelos" && <AbaModelos idStartup={startup.id_startup} />}
                 {aba === "fases" && <AbaFasesConcluidas idStartup={startup.id_startup} />}

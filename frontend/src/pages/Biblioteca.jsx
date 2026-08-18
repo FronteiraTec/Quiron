@@ -144,6 +144,7 @@ export default function Biblioteca() {
             </Typography>
           </Box>
           <Button
+            data-tour="biblioteca-novo"
             variant="contained"
             startIcon={<Add />}
             onClick={(e) => setNovoMenu(e.currentTarget)}
@@ -159,6 +160,7 @@ export default function Biblioteca() {
 
         {/* Busca */}
         <TextField
+          data-tour="biblioteca-busca"
           fullWidth
           size="small"
           placeholder="Buscar por título, resumo ou tag…"
@@ -175,7 +177,7 @@ export default function Biblioteca() {
         />
 
         {/* Filtro por tipo */}
-        <Stack direction="row" spacing={1} sx={{ mb: 1.5, flexWrap: "wrap", gap: 1 }}>
+        <Stack data-tour="biblioteca-tipos" direction="row" spacing={1} sx={{ mb: 1.5, flexWrap: "wrap", gap: 1 }}>
           <FiltroChip
             ativo={bib.tipoFiltro === "TODOS"}
             label={`Todos (${bib.contagem.TODOS || 0})`}
@@ -193,7 +195,7 @@ export default function Biblioteca() {
         </Stack>
 
         {/* Filtro por tag */}
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 3 }}>
+        <Box data-tour="biblioteca-tags" sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 3 }}>
           <Chip
             label="Todas as tags"
             size="small"
@@ -236,6 +238,7 @@ export default function Biblioteca() {
           <Box
             component={motion.div}
             layout
+            data-tour="biblioteca-grade"
             sx={{
               display: "grid",
               gap: 2,

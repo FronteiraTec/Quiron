@@ -92,16 +92,19 @@ export function SidebarConteudo({
       />
 
       {/* Busca rapida */}
-      <SidebarSearch
-        recolhida={recolhida}
-        valor={busca}
-        onChange={setBusca}
-        onExpandir={() => setRecolhida(false)}
-      />
+      <Box data-tour="sidebar-busca">
+        <SidebarSearch
+          recolhida={recolhida}
+          valor={busca}
+          onChange={setBusca}
+          onExpandir={() => setRecolhida(false)}
+        />
+      </Box>
 
       {/* Area rolavel do menu */}
       <Box
         component="nav"
+        data-tour="sidebar-menu"
         aria-label="Navegação principal"
         sx={{
           flex: 1,

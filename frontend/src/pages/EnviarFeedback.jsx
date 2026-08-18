@@ -55,6 +55,7 @@ export default function EnviarFeedback() {
 
         <Paper sx={{ p: 3, borderRadius: 0 }} component="form" onSubmit={enviar}>
           <TextField
+            data-tour="enviar-feedback-mensagem"
             label="Sua mensagem"
             placeholder="Conte o que você gostaria de melhorar, elogiar ou reportar..."
             fullWidth
@@ -68,6 +69,7 @@ export default function EnviarFeedback() {
           />
           <Box sx={{ mt: 2, textAlign: "right" }}>
             <Button
+              data-tour="enviar-feedback-enviar"
               type="submit"
               variant="contained"
               startIcon={enviando ? undefined : <Send />}

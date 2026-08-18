@@ -22,7 +22,7 @@ import { InfoOutlined } from "@mui/icons-material"
  */
 export default function KpiRow({ itens }) {
   return (
-    <Grid container spacing={2} sx={{ mb: 3 }}>
+    <Grid container data-tour="relatorio-kpis" spacing={2} sx={{ mb: 3 }}>
       {itens.map((item) => (
         <Grid item xs={6} sm={4} md key={item.rotulo}>
           <Paper

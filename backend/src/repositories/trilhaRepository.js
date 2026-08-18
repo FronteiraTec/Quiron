@@ -312,8 +312,200 @@ async function desvincularConteudo(idNo, idConteudo) {
   return rows[0]
 }
 
+// ---------------------------------------------------------------------------
+// Trilhas do tenant (as raizes) e matricula de startups
+// ---------------------------------------------------------------------------
+
+/**
+ * Lista as trilhas (nos PROGRAMA) de um tenant, com o tamanho de cada uma e
+ * quantas startups estao matriculadas.
+ *
+ * Alimenta o seletor do Construtor, que precisa dessas contagens para dizer
+ * "3 fases · 12 passos · 5 startups" sem carregar as tres arvores inteiras.
+ */
+async function listarProgramas(idTenant) {
+  const { rows } = await query(
+    `SELECT p.id_no, p.nome, p.descricao, p.ativo, p.padrao,
+            p.criado_ts, p.atualizado_ts,
+            (SELECT COUNT(*) FROM trilha_no f
+              WHERE f.id_pai = p.id_no AND f.tipo = 'FASE')::INT AS fases,
+            -- Passos: netos das fases, ou seja, tres niveis abaixo da raiz.
+            (SELECT COUNT(*)
+               FROM trilha_no f
+               JOIN trilha_no m ON m.id_pai = f.id_no
+               JOIN trilha_no s ON s.id_pai = m.id_no
+              WHERE f.id_pai = p.id_no)::INT AS passos,
+            (SELECT COUNT(*) FROM startup_programa sp
+              WHERE sp.id_no = p.id_no)::INT AS startups
+       FROM trilha_no p
+      WHERE p.id_tenant = $1 AND p.tipo = 'PROGRAMA'
+      ORDER BY p.padrao DESC, p.nome, p.id_no`,
+    [idTenant]
+  )
+  return rows
+}
+
+/**
+ * Carrega UMA trilha inteira a partir da raiz.
+ * Mesma CTE recursiva de `arvorePorTenant`, ancorada num id em vez do tenant.
+ */
+async function arvorePorPrograma(idPrograma) {
+  const { rows } = await query(
+    `WITH RECURSIVE arv AS (
+       SELECT ${COLUNAS}, 0 AS nivel
+         FROM trilha_no
+        WHERE id_no = $1
+       UNION ALL
+       SELECT ${cols("n.")}, a.nivel + 1
+         FROM trilha_no n
+         JOIN arv a ON a.id_no = n.id_pai
+     )
+     SELECT * FROM arv ORDER BY nivel, ordem, id_no`,
+    [idPrograma]
+  )
+  return aninhar(rows)[0] ?? null
+}
+
+/**
+ * Marca uma trilha como padrao do tenant.
+ *
+ * Numa transacao, e desmarcando as outras ANTES: `uk_trilha_no_padrao` e um
+ * indice unico normal (nao deferrable), entao marcar a nova primeiro
+ * colidiria com a antiga no meio do caminho.
+ */
+async function definirPadrao(idTenant, idPrograma) {
+  return withTransaction(async (client) => {
+    await client.query(
+      `UPDATE trilha_no SET padrao = FALSE
+        WHERE id_tenant = $1 AND tipo = 'PROGRAMA' AND padrao`,
+      [idTenant]
+    )
+    const { rows } = await client.query(
+      `UPDATE trilha_no SET padrao = TRUE, atualizado_ts = NOW()
+        WHERE id_no = $1 AND id_tenant = $2 AND tipo = 'PROGRAMA'
+        RETURNING ${COLUNAS}, padrao`,
+      [idPrograma, idTenant]
+    )
+    return rows[0]
+  })
+}
+
+/** A trilha padrao do tenant, ou undefined se nenhuma foi marcada. */
+async function programaPadrao(idTenant) {
+  const { rows } = await query(
+    `SELECT ${COLUNAS}, padrao FROM trilha_no
+      WHERE id_tenant = $1 AND tipo = 'PROGRAMA' AND padrao`,
+    [idTenant]
+  )
+  return rows[0]
+}
+
+/** Startups matriculadas numa trilha. */
+async function listarStartupsDoPrograma(idPrograma) {
+  const { rows } = await query(
+    `SELECT s.id_startup, s.nome, s.status AS status_startup,
+            sp.status, sp.inicio_ts, sp.fim_ts
+       FROM startup_programa sp
+       JOIN startup s ON s.id_startup = sp.id_startup
+      WHERE sp.id_no = $1
+      ORDER BY s.nome`,
+    [idPrograma]
+  )
+  return rows
+}
+
+/**
+ * Trilhas em que uma startup esta matriculada, com o progresso de cada uma.
+ *
+ * O progresso e derivado das entregas aprovadas, pelo mesmo criterio da
+ * Jornada — guardar um percentual aqui abriria espaco para ele discordar do
+ * que a tela mostra passo a passo.
+ */
+async function programasDaStartup(idStartup) {
+  const { rows } = await query(
+    `WITH passos AS (
+       SELECT p.id_no AS id_programa, s.id_no AS id_passo
+         FROM startup_programa sp
+         JOIN trilha_no p ON p.id_no = sp.id_no
+         JOIN trilha_no f ON f.id_pai = p.id_no AND f.ativo
+         JOIN trilha_no m ON m.id_pai = f.id_no AND m.ativo
+         JOIN trilha_no s ON s.id_pai = m.id_no AND s.ativo
+        WHERE sp.id_startup = $1
+     ),
+     concluidos AS (
+       SELECT pa.id_programa, COUNT(*)::INT AS total
+         FROM passos pa
+         JOIN entrega e ON e.id_no = pa.id_passo AND e.id_startup = $1
+         JOIN LATERAL (
+           SELECT status FROM avaliacao
+            WHERE id_entrega = e.id_entrega
+            ORDER BY criado_ts DESC, id_avaliacao DESC
+            LIMIT 1
+         ) a ON a.status = 'APROVADO'
+        GROUP BY pa.id_programa
+     )
+     SELECT p.id_no, p.nome, p.descricao, p.ativo,
+            sp.status, sp.inicio_ts, sp.fim_ts,
+            (SELECT COUNT(*) FROM passos pa WHERE pa.id_programa = p.id_no)::INT AS passos,
+            COALESCE(c.total, 0) AS passos_concluidos
+       FROM startup_programa sp
+       JOIN trilha_no p ON p.id_no = sp.id_no
+       LEFT JOIN concluidos c ON c.id_programa = p.id_no
+      WHERE sp.id_startup = $1
+      ORDER BY sp.status, sp.inicio_ts DESC, p.nome`,
+    [idStartup]
+  )
+  return rows
+}
+
+/** Matricula uma startup numa trilha (idempotente). */
+async function matricular(idPrograma, idStartup) {
+  const { rows } = await query(
+    `INSERT INTO startup_programa (id_startup, id_no)
+     VALUES ($1, $2)
+     ON CONFLICT (id_startup, id_no) DO NOTHING
+     RETURNING id_startup, id_no, status, inicio_ts`,
+    [idStartup, idPrograma]
+  )
+  return rows[0]
+}
+
+/** Remove a matricula. As entregas ja feitas continuam no banco. */
+async function desmatricular(idPrograma, idStartup) {
+  const { rows } = await query(
+    `DELETE FROM startup_programa
+      WHERE id_no = $1 AND id_startup = $2
+      RETURNING id_startup`,
+    [idPrograma, idStartup]
+  )
+  return rows[0]
+}
+
+/** Alterna a matricula entre EM_ANDAMENTO e CONCLUIDA. */
+async function definirStatusMatricula(idPrograma, idStartup, status) {
+  const { rows } = await query(
+    `UPDATE startup_programa
+        SET status = $3,
+            fim_ts = CASE WHEN $3 = 'CONCLUIDA' THEN NOW() ELSE NULL END
+      WHERE id_no = $1 AND id_startup = $2
+      RETURNING id_startup, id_no, status, inicio_ts, fim_ts`,
+    [idPrograma, idStartup, status]
+  )
+  return rows[0]
+}
+
+/** A startup esta matriculada nesta trilha? Guarda de acesso da Jornada. */
+async function startupMatriculada(idStartup, idPrograma) {
+  const { rows } = await query(
+    `SELECT 1 FROM startup_programa WHERE id_startup = $1 AND id_no = $2`,
+    [idStartup, idPrograma]
+  )
+  return rows.length > 0
+}
+
 module.exports = {
   arvorePorTenant,
+  arvorePorPrograma,
   buscarPorId,
   listarFilhos,
   criar,
@@ -324,4 +516,13 @@ module.exports = {
   listarConteudos,
   vincularConteudo,
   desvincularConteudo,
+  listarProgramas,
+  definirPadrao,
+  programaPadrao,
+  listarStartupsDoPrograma,
+  programasDaStartup,
+  matricular,
+  desmatricular,
+  definirStatusMatricula,
+  startupMatriculada,
 }

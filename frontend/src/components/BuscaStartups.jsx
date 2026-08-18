@@ -149,7 +149,7 @@ export default function BuscaStartups() {
         )
       }}
       renderInput={(params) => (
-        <Search ref={params.InputProps.ref}>
+        <Search data-tour="nav-busca" ref={params.InputProps.ref}>
           <SearchIconWrapper>
             <SearchIcon />
           </SearchIconWrapper>

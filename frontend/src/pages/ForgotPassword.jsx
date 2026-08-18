@@ -9,16 +9,17 @@ import { useState } from "react"
 import { Link as RouterLink } from "react-router-dom"
 import {
   Box,
-  Paper,
   TextField,
   Button,
-  Typography,
   Alert,
+  Collapse,
   CircularProgress,
+  InputAdornment,
   Link,
 } from "@mui/material"
-import { EmailOutlined } from "@mui/icons-material"
+import { MailOutlined } from "@mui/icons-material"
 import api from "../services/api"
+import AuthLayout from "../components/AuthLayout"
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("")
@@ -31,7 +32,7 @@ export default function ForgotPassword() {
     setErro("")
     setCarregando(true)
     try {
-      await api.post("/auth/forgot-password", { email })
+      await api.post("/auth/forgot-password", { email: email.trim() })
       setEnviado(true)
     } catch (err) {
       setErro(err.response?.data?.erro || "Não foi possível enviar o email.")
@@ -41,85 +42,74 @@ export default function ForgotPassword() {
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        bgcolor: "#f5f7fb",
-        p: 2,
-      }}
+    <AuthLayout
+      titulo="Recuperar senha"
+      subtitulo="Enviaremos um link de redefinição para o seu email"
     >
-      <Paper elevation={0} sx={{ p: 4, width: "100%", maxWidth: 400, borderRadius: 0, border: "1px solid", borderColor: "divider" }}>
-        <Box sx={{ textAlign: "center", mb: 3 }}>
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              bgcolor: "primary.main",
-              color: "#fff",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              mb: 1,
-            }}
+      {enviado ? (
+        <>
+          <Alert severity="success" sx={{ mb: 2, borderRadius: 0 }}>
+            Se o email estiver cadastrado, você receberá um link para redefinir a senha.
+          </Alert>
+          <Button
+            component={RouterLink}
+            to="/login"
+            variant="contained"
+            fullWidth
+            size="large"
+            disableElevation
+            sx={{ borderRadius: 0, py: 1.25, fontWeight: 600 }}
           >
-            <EmailOutlined />
-          </Box>
-          <Typography variant="h5" fontWeight={700}>
-            Recuperar senha
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Enviaremos um link de redefinição para o seu email
-          </Typography>
-        </Box>
-
-        {enviado ? (
-          <>
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Se o email estiver cadastrado, você receberá um link para redefinir a senha.
+            Voltar ao login
+          </Button>
+        </>
+      ) : (
+        <Box component="form" onSubmit={handleSubmit} noValidate>
+          <Collapse in={Boolean(erro)}>
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 0 }}>
+              {erro}
             </Alert>
-            <Button component={RouterLink} to="/login" fullWidth>
+          </Collapse>
+
+          <TextField
+            label="Email"
+            type="email"
+            fullWidth
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            autoFocus
+            disabled={carregando}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <MailOutlined fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            size="large"
+            disableElevation
+            disabled={carregando || !email.trim()}
+            sx={{ mt: 3, borderRadius: 0, py: 1.25, fontWeight: 600 }}
+            startIcon={carregando ? <CircularProgress size={18} color="inherit" /> : null}
+          >
+            {carregando ? "Enviando..." : "Enviar link"}
+          </Button>
+
+          <Box sx={{ textAlign: "center", mt: 2 }}>
+            <Link component={RouterLink} to="/login" variant="body2" underline="hover">
               Voltar ao login
-            </Button>
-          </>
-        ) : (
-          <Box component="form" onSubmit={handleSubmit} noValidate>
-            {erro && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {erro}
-              </Alert>
-            )}
-            <TextField
-              label="Email"
-              type="email"
-              fullWidth
-              required
-              margin="normal"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoFocus
-            />
-            <Button
-              type="submit"
-              variant="contained"
-              fullWidth
-              size="large"
-              disabled={carregando}
-              sx={{ mt: 3 }}
-            >
-              {carregando ? <CircularProgress size={24} color="inherit" /> : "Enviar link"}
-            </Button>
-            <Box sx={{ textAlign: "center", mt: 2 }}>
-              <Link component={RouterLink} to="/login" variant="body2">
-                Voltar ao login
-              </Link>
-            </Box>
+            </Link>
           </Box>
-        )}
-      </Paper>
-    </Box>
+        </Box>
+      )}
+    </AuthLayout>
   )
 }

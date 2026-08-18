@@ -8,9 +8,13 @@
  * A jornada pertence a STARTUP, nao ao usuario: todos os membros veem e editam
  * o mesmo estado. A startup do usuario logado vem de /startups/minha.
  *
- * Navegacao em telas — 3 niveis, espelhando Fase -> Modulo -> Atividade:
+ * Navegacao em telas — Trilha -> Fase -> Modulo -> Atividade:
+ *   "trilhas"   -> as trilhas da startup: as em andamento e as ja concluidas,
+ *                  com o progresso de cada uma. So e a tela inicial quando ha
+ *                  MAIS DE UMA — com uma so, escolher nao e escolha, e um
+ *                  clique a mais para todo mundo.
  *   "fases"     -> visao geral: cartoes de fase, alguns bloqueados (a fase so
- *                  libera quando a anterior e concluida). Tela inicial.
+ *                  libera quando a anterior e concluida).
  *   "modulos"   -> ao escolher uma fase, mostra os MODULOS dela (passos
  *                  agrupados por `frente`) em cartoes.
  *   "atividade" -> ao escolher um modulo, mostra as ATIVIDADES dele; escolher
@@ -48,11 +52,18 @@ export function useJornada() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState(null)
 
+  // Trilhas em que a startup esta matriculada (em andamento e concluidas).
+  const [trilhas, setTrilhas] = useState([])
+  const [trilhaAtivaId, setTrilhaAtivaId] = useState(null)
+  const [trocandoTrilha, setTrocandoTrilha] = useState(false)
+
   // ---------------------------------------------------------------- carregar
-  const carregar = useCallback(async (startupId) => {
+  const carregar = useCallback(async (startupId, idTrilha) => {
     if (!startupId) return
     try {
-      const { data } = await api.get("/jornada", { params: { id_startup: startupId } })
+      const { data } = await api.get("/jornada", {
+        params: { id_startup: startupId, ...(idTrilha ? { id_trilha: idTrilha } : {}) },
+      })
       setJornada(data.jornada)
       setErro(null)
     } catch (err) {
@@ -60,7 +71,13 @@ export function useJornada() {
     }
   }, [])
 
-  // Resolve a startup do usuario e entao carrega a jornada dela.
+  // ------------------------------------------------- navegacao de telas
+  const [tela, setTela] = useState("fases") // trilhas | fases | modulos | atividade
+  const [faseSelecionadaId, setFaseSelecionadaId] = useState(null)
+  const [moduloSelecionado, setModuloSelecionado] = useState(null) // nome da `frente`
+  const [selecionadoId, setSelecionadoId] = useState(null)
+
+  // Resolve a startup do usuario, suas trilhas e entao a jornada da primeira.
   useEffect(() => {
     if (!idTenant) {
       setCarregando(false)
@@ -76,8 +93,25 @@ export function useJornada() {
         if (cancelado) return
         const id = data.startup?.id_startup ?? null
         setIdStartup(id)
-        if (id) await carregar(id)
-        else setErro("Você ainda não faz parte de uma startup.")
+
+        if (!id) {
+          setErro("Você ainda não faz parte de uma startup.")
+          return
+        }
+
+        const { data: t } = await api.get("/jornada/trilhas", { params: { id_startup: id } })
+        if (cancelado) return
+        setTrilhas(t.trilhas)
+
+        // Em andamento primeiro (o servidor ja ordena assim).
+        const primeira = t.trilhas[0]?.id_no ?? null
+        setTrilhaAtivaId(primeira)
+
+        // Com mais de uma trilha, a escolha e a tela inicial; com uma so, a
+        // startup cai direto nas fases, como antes.
+        setTela(t.trilhas.length > 1 ? "trilhas" : "fases")
+
+        await carregar(id, primeira)
       })
       .catch((err) => {
         if (!cancelado) setErro(err.response?.data?.erro || "Erro ao carregar sua startup.")
@@ -114,12 +148,6 @@ export function useJornada() {
     const alvo = passosFlat.find((p) => p.id === proximoPassoId)
     return alvo ? alvo.estagio.id : null
   }, [passosFlat, proximoPassoId])
-
-  // ------------------------------------------------- navegacao de telas
-  const [tela, setTela] = useState("fases") // "fases" | "modulos" | "atividade"
-  const [faseSelecionadaId, setFaseSelecionadaId] = useState(null)
-  const [moduloSelecionado, setModuloSelecionado] = useState(null) // nome da `frente`
-  const [selecionadoId, setSelecionadoId] = useState(null)
 
   const estagioSelecionado = useMemo(
     () => jornada.estagios.find((e) => e.id === faseSelecionadaId) ?? null,
@@ -163,6 +191,39 @@ export function useJornada() {
     setModuloSelecionado(null)
     setSelecionadoId(null)
   }, [])
+
+  /**
+   * Abre outra trilha. Zera a navegacao junto: as fases e os modulos da tela
+   * pertencem a trilha anterior, e manter a selecao apontaria para ids que a
+   * nova arvore nao tem.
+   */
+  const selecionarTrilha = useCallback(
+    async (id) => {
+      if (!idStartup || !id) return
+      setTrocandoTrilha(true)
+      setTrilhaAtivaId(id)
+      setFaseSelecionadaId(null)
+      setModuloSelecionado(null)
+      setSelecionadoId(null)
+      await carregar(idStartup, id)
+      setTela("fases")
+      setTrocandoTrilha(false)
+    },
+    [idStartup, carregar]
+  )
+
+  const voltarParaTrilhas = useCallback(() => {
+    setTela("trilhas")
+    setFaseSelecionadaId(null)
+    setModuloSelecionado(null)
+    setSelecionadoId(null)
+  }, [])
+
+  // A trilha aberta, com o progresso que a lista ja traz.
+  const trilhaAtiva = useMemo(
+    () => trilhas.find((t) => Number(t.id_no) === Number(trilhaAtivaId)) ?? null,
+    [trilhas, trilhaAtivaId]
+  )
 
   const voltarParaModulos = useCallback(() => {
     setTela("modulos")
@@ -339,8 +400,15 @@ export function useJornada() {
     posicaoNoEstagio,
     salvarRascunho,
     enviarAvaliacao,
-    recarregar: () => carregar(idStartup),
+    recarregar: () => carregar(idStartup, trilhaAtivaId),
     STATUS_INICIADO,
+    // trilhas da startup
+    trilhas,
+    trilhaAtiva,
+    trilhaAtivaId,
+    trocandoTrilha,
+    selecionarTrilha,
+    voltarParaTrilhas,
     // navegacao em telas
     tela,
     faseSelecionadaId,

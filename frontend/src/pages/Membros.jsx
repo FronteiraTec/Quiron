@@ -189,7 +189,7 @@ export default function Membros() {
           <>
             {/* ---- Os que ficaram de fora: o unico estado que pede acao ---- */}
             {semStartup.length > 0 && (
-              <Alert severity="warning" sx={{ mb: 3 }}>
+              <Alert data-tour="membros-sem-startup" severity="warning" sx={{ mb: 3 }}>
                 <AlertTitle>
                   {semStartup.length}{" "}
                   {semStartup.length === 1
@@ -234,6 +234,7 @@ export default function Membros() {
               </Box>
               <Box sx={{ flex: 1 }} />
               <TextField
+                data-tour="membros-busca"
                 placeholder="Buscar pessoa ou startup..."
                 size="small"
                 value={busca}
@@ -248,6 +249,7 @@ export default function Membros() {
                 }}
               />
               <TextField
+                data-tour="membros-filtro-startup"
                 select
                 size="small"
                 value={filtroStartup}
@@ -264,7 +266,7 @@ export default function Membros() {
             </Box>
 
             {/* ---- A tabela ---- */}
-            <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
+            <Paper data-tour="membros-tabela" sx={{ borderRadius: 0, overflow: "hidden" }}>
               {visiveis.length === 0 ? (
                 <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
                   <Groups sx={{ fontSize: 48, opacity: 0.4 }} />

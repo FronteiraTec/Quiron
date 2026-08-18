@@ -44,6 +44,13 @@ import {
 import { Add, Edit, Apartment, Business, People, Key } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import api from "../services/api"
+import {
+  MAX_CELULAR,
+  celularValido,
+  formatarCelular,
+  mascararCelular,
+  somenteDigitos,
+} from "../utils/mascaras"
 
 // Estado inicial em branco do formulario de criacao/edicao.
 const FORM_VAZIO = {
@@ -113,7 +120,7 @@ export default function Tenants() {
     setForm({
       nome: t.nome || "",
       email: t.email || "",
-      celular: t.celular || "",
+      celular: mascararCelular(t.celular || ""),
       pais: t.pais || "",
       estado: t.estado || "",
       cidade: t.cidade || "",
@@ -128,11 +135,17 @@ export default function Tenants() {
 
   const salvar = async (e) => {
     e.preventDefault()
+    if (!celularValido(form.celular)) {
+      setAviso({ tipo: "error", texto: "Informe um celular válido, com DDD." })
+      return
+    }
     setAviso(null)
     setSalvando(true)
     try {
       const payload = {
         ...form,
+        // O banco guarda o celular sem mascara (VARCHAR(15)).
+        celular: somenteDigitos(form.celular),
         qtd_usuarios: Number(form.qtd_usuarios),
         qtd_startups: Number(form.qtd_startups),
       }
@@ -188,10 +201,17 @@ export default function Tenants() {
 
   const criarUsuario = async (e) => {
     e.preventDefault()
+    if (!celularValido(usuarioForm.celular)) {
+      setAvisoUsuario({ tipo: "error", texto: "Informe um celular válido, com DDD." })
+      return
+    }
     setAvisoUsuario(null)
     setSalvandoUsuario(true)
     try {
-      await api.post(`/tenants/${usuariosDialog.id_tenant}/usuarios`, usuarioForm)
+      await api.post(`/tenants/${usuariosDialog.id_tenant}/usuarios`, {
+        ...usuarioForm,
+        celular: somenteDigitos(usuarioForm.celular),
+      })
       setAvisoUsuario({
         tipo: "success",
         texto: "Usuário criado. Ele deverá redefinir a senha no primeiro acesso.",
@@ -216,7 +236,7 @@ export default function Tenants() {
               Incubadoras
             </Typography>
           </Box>
-          <Button variant="contained" startIcon={<Add />} onClick={abrirCriacao}>
+          <Button data-tour="tenants-nova" variant="contained" startIcon={<Add />} onClick={abrirCriacao}>
             Nova incubadora
           </Button>
         </Box>
@@ -230,7 +250,7 @@ export default function Tenants() {
           </Alert>
         )}
 
-        <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
+        <Paper data-tour="tenants-lista" sx={{ borderRadius: 0, overflow: "hidden" }}>
           {carregando ? (
             <Box sx={{ textAlign: "center", py: 6 }}>
               <CircularProgress />
@@ -263,7 +283,7 @@ export default function Tenants() {
                       <TableCell>
                         <Typography variant="body2">{t.email}</Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {t.celular}
+                          {formatarCelular(t.celular)}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -348,7 +368,13 @@ export default function Tenants() {
                   fullWidth
                   required
                   value={form.celular}
-                  onChange={(e) => alterarCampo("celular", e.target.value)}
+                  onChange={(e) => alterarCampo("celular", mascararCelular(e.target.value))}
+                  placeholder="(11) 98765-4321"
+                  inputProps={{ maxLength: MAX_CELULAR, inputMode: "numeric" }}
+                  error={Boolean(form.celular) && !celularValido(form.celular)}
+                  helperText={
+                    form.celular && !celularValido(form.celular) ? "Informe o DDD e o número completo." : undefined
+                  }
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -467,7 +493,15 @@ export default function Tenants() {
                   required
                   size="small"
                   value={usuarioForm.celular}
-                  onChange={(e) => alterarUsuarioCampo("celular", e.target.value)}
+                  onChange={(e) => alterarUsuarioCampo("celular", mascararCelular(e.target.value))}
+                  placeholder="(11) 98765-4321"
+                  inputProps={{ maxLength: MAX_CELULAR, inputMode: "numeric" }}
+                  error={Boolean(usuarioForm.celular) && !celularValido(usuarioForm.celular)}
+                  helperText={
+                    usuarioForm.celular && !celularValido(usuarioForm.celular)
+                      ? "Informe o DDD e o número completo."
+                      : undefined
+                  }
                 />
               </Grid>
               <Grid item xs={12} sm={4}>

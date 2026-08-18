@@ -190,9 +190,12 @@ export default function Entregas() {
               }}
             >
               <Box sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
-                <Resumo pendentes={pendentes.length} atrasadas={atrasadas.length} />
+                <Box data-tour="entregas-resumo">
+                  <Resumo pendentes={pendentes.length} atrasadas={atrasadas.length} />
+                </Box>
 
                 <TextField
+                  data-tour="entregas-busca"
                   placeholder="Buscar startup ou passo..."
                   size="small"
                   fullWidth
@@ -208,7 +211,7 @@ export default function Entregas() {
                   }}
                 />
 
-                <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                <Box data-tour="entregas-filtros" sx={{ display: "flex", gap: 1, mt: 1 }}>
                   <TextField
                     select
                     size="small"
@@ -240,15 +243,17 @@ export default function Entregas() {
                 </Box>
               </Box>
 
-              <FilaLista
-                entregas={filtradas}
-                selecionada={selecionada}
-                onSelecionar={setSelecionada}
-              />
+              <Box data-tour="entregas-fila" sx={{ flex: 1, minHeight: 0, display: "flex" }}>
+                <FilaLista
+                  entregas={filtradas}
+                  selecionada={selecionada}
+                  onSelecionar={setSelecionada}
+                />
+              </Box>
             </Box>
 
             {/* ---- Coluna direita: a entrega aberta ---- */}
-            <Box sx={{ flex: 1, display: "flex", minWidth: 0 }}>
+            <Box data-tour="entregas-painel" sx={{ flex: 1, display: "flex", minWidth: 0 }}>
               <EntregaPainel
                 entrega={detalhe}
                 carregando={carregandoDetalhe}

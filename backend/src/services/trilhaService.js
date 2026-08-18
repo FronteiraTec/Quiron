@@ -268,6 +268,96 @@ function validarCamposDePasso(tipo, dados) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Trilhas do tenant e matricula de startups
+// ---------------------------------------------------------------------------
+
+/** Lista as trilhas (raizes) do tenant, com contagens para o seletor. */
+async function listarProgramas(idTenant, usuario) {
+  if (!idTenant) throw erroNegocio(400, "Informe o id_tenant.")
+  await rbacService.garantirPermissao(idTenant, usuario, "programa.trilha.visualizar")
+  return trilhaRepository.listarProgramas(idTenant)
+}
+
+/** Carrega UMA trilha inteira. Usado pelo Construtor ao trocar de trilha. */
+async function arvoreDoPrograma(idPrograma, usuario) {
+  const raiz = await buscarComPermissao(idPrograma, usuario, "programa.trilha.visualizar")
+  if (raiz.tipo !== "PROGRAMA") {
+    throw erroNegocio(400, "Este id nao e a raiz de uma trilha.")
+  }
+  return trilhaRepository.arvorePorPrograma(idPrograma)
+}
+
+/**
+ * Marca a trilha como padrao do tenant — a que vem pre-selecionada no
+ * cadastro de startup. Trocar de padrao nao mexe em matricula nenhuma: quem
+ * ja entrou continua onde estava.
+ */
+async function definirPadrao(idPrograma, usuario) {
+  const raiz = await buscarComPermissao(idPrograma, usuario, "programa.trilha.editar")
+  if (raiz.tipo !== "PROGRAMA") {
+    throw erroNegocio(400, "So a raiz de uma trilha pode ser a padrao.")
+  }
+  return trilhaRepository.definirPadrao(raiz.id_tenant, idPrograma)
+}
+
+/** Startups matriculadas numa trilha. */
+async function listarStartupsDoPrograma(idPrograma, usuario) {
+  const raiz = await exigirPrograma(idPrograma, usuario, "programa.trilha.visualizar")
+  return trilhaRepository.listarStartupsDoPrograma(raiz.id_no)
+}
+
+/**
+ * Matricula uma startup na trilha.
+ *
+ * A permissao cobrada e a de EDITAR A TRILHA, nao a de editar a startup: quem
+ * decide a composicao de uma turma e quem gere o programa. O trigger
+ * trg_startup_programa_raiz ainda barra startup de outro tenant.
+ */
+async function matricular(idPrograma, idStartup, usuario) {
+  const raiz = await exigirPrograma(idPrograma, usuario, "programa.trilha.editar")
+  if (!idStartup) throw erroNegocio(400, "Informe o id_startup.")
+
+  try {
+    const m = await trilhaRepository.matricular(raiz.id_no, idStartup)
+    // ON CONFLICT DO NOTHING devolve vazio quando ja existia — nao e erro.
+    return m ?? { id_no: Number(raiz.id_no), id_startup: Number(idStartup), ja_matriculada: true }
+  } catch (err) {
+    // Mensagens do trigger: tenant cruzado ou no que nao e raiz.
+    if (err.code === "P0001") throw erroNegocio(400, err.message)
+    throw err
+  }
+}
+
+/** Tira a startup da trilha. As entregas ja feitas continuam no banco. */
+async function desmatricular(idPrograma, idStartup, usuario) {
+  const raiz = await exigirPrograma(idPrograma, usuario, "programa.trilha.editar")
+  const r = await trilhaRepository.desmatricular(raiz.id_no, idStartup)
+  if (!r) throw erroNegocio(404, "Esta startup nao esta matriculada nesta trilha.")
+}
+
+const STATUS_MATRICULA = ["EM_ANDAMENTO", "CONCLUIDA"]
+
+/** Marca a trilha como concluida (ou reabre) para uma startup. */
+async function definirStatusMatricula(idPrograma, idStartup, status, usuario) {
+  const raiz = await exigirPrograma(idPrograma, usuario, "programa.trilha.editar")
+  if (!STATUS_MATRICULA.includes(status)) {
+    throw erroNegocio(400, `Status invalido. Use: ${STATUS_MATRICULA.join(", ")}.`)
+  }
+  const r = await trilhaRepository.definirStatusMatricula(raiz.id_no, idStartup, status)
+  if (!r) throw erroNegocio(404, "Esta startup nao esta matriculada nesta trilha.")
+  return r
+}
+
+/** Carrega o no e exige que ele seja a raiz de uma trilha. */
+async function exigirPrograma(idPrograma, usuario, chave) {
+  const no = await buscarComPermissao(idPrograma, usuario, chave)
+  if (no.tipo !== "PROGRAMA") {
+    throw erroNegocio(400, "Esta operacao exige a raiz de uma trilha (PROGRAMA).")
+  }
+  return no
+}
+
 module.exports = {
   TIPOS,
   TIPO_FILHO,
@@ -282,4 +372,11 @@ module.exports = {
   listarConteudos,
   vincularConteudo,
   desvincularConteudo,
+  listarProgramas,
+  arvoreDoPrograma,
+  definirPadrao,
+  listarStartupsDoPrograma,
+  matricular,
+  desmatricular,
+  definirStatusMatricula,
 }

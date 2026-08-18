@@ -192,10 +192,11 @@ export default function PresencaEventos() {
                 flexDirection: "column",
               }}
             >
-              <Box sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+              <Box data-tour="presenca-resumo" sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
                 <Resumo total={eventos.length} pendentes={semChamada} />
 
                 <TextField
+                  data-tour="presenca-busca"
                   placeholder="Buscar evento..."
                   size="small"
                   fullWidth
@@ -212,15 +213,17 @@ export default function PresencaEventos() {
                 />
               </Box>
 
-              <EventoPresencaLista
-                eventos={filtrados}
-                selecionado={selecionado}
-                onSelecionar={setSelecionado}
-              />
+              <Box data-tour="presenca-eventos" sx={{ flex: 1, minHeight: 0, display: "flex" }}>
+                <EventoPresencaLista
+                  eventos={filtrados}
+                  selecionado={selecionado}
+                  onSelecionar={setSelecionado}
+                />
+              </Box>
             </Box>
 
             {/* ---- Coluna direita: a chamada ---- */}
-            <Box sx={{ flex: 1, display: "flex", minWidth: 0 }}>
+            <Box data-tour="presenca-chamada" sx={{ flex: 1, display: "flex", minWidth: 0 }}>
               <ChamadaPainel
                 chamada={chamada}
                 carregando={carregandoChamada}

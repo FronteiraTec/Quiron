@@ -9,6 +9,7 @@ import { useEffect, useState } from "react"
 import { useOutletContext } from "react-router-dom"
 import { Box, Paper, Typography, Grid, TextField, Chip, Alert, CircularProgress } from "@mui/material"
 import api from "../services/api"
+import { formatarCelular } from "../utils/mascaras"
 
 export default function DadosCadastrais() {
   const { idTenant } = useOutletContext()
@@ -48,7 +49,7 @@ export default function DadosCadastrais() {
       )}
 
       {tenant && (
-        <Paper sx={{ borderRadius: 0, p: { xs: 2, sm: 3 } }}>
+        <Paper data-tour="dados-cadastrais" sx={{ borderRadius: 0, p: { xs: 2, sm: 3 } }}>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
             <Typography variant="h6" fontWeight={600}>
               Dados cadastrais
@@ -67,7 +68,7 @@ export default function DadosCadastrais() {
               <TextField label="E-mail" fullWidth disabled value={tenant.email || ""} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField label="Celular" fullWidth disabled value={tenant.celular || ""} />
+              <TextField label="Celular" fullWidth disabled value={formatarCelular(tenant.celular)} />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -77,10 +78,10 @@ export default function DadosCadastrais() {
                 value={[tenant.cidade, tenant.estado, tenant.pais].filter(Boolean).join(" / ")}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} data-tour="dados-cadastrais-limites">
               <TextField label="Limite de usuários" fullWidth disabled value={tenant.qtd_usuarios ?? ""} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} data-tour="dados-cadastrais-limites">
               <TextField label="Limite de startups" fullWidth disabled value={tenant.qtd_startups ?? ""} />
             </Grid>
           </Grid>

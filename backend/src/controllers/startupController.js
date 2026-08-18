@@ -21,8 +21,11 @@ async function buscar(req, res, next) {
 
 async function criar(req, res, next) {
   try {
-    const { id_tenant, nome, cnpj } = req.body
-    const startup = await startupService.criar({ idTenant: id_tenant, nome, cnpj }, req.usuario)
+    const { id_tenant, nome, cnpj, id_trilha } = req.body
+    const startup = await startupService.criar(
+      { idTenant: id_tenant, nome, cnpj, idTrilha: id_trilha },
+      req.usuario
+    )
     res.status(201).json({ startup })
   } catch (err) {
     next(err)

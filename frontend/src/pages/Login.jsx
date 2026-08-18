@@ -4,23 +4,33 @@
  * Formulario (email + senha) que chama a acao de login do authStore.
  * Em caso de sucesso, redireciona para o dashboard; em caso de erro,
  * exibe a mensagem retornada pelo backend.
+ *
+ * A moldura (marca, logo, cartao) vem do AuthLayout, compartilhado com as
+ * demais telas de autenticacao.
  */
 import { useState } from "react"
 import { useNavigate, Link as RouterLink } from "react-router-dom"
 import {
   Box,
-  Paper,
   TextField,
   Button,
-  Typography,
   Alert,
+  Collapse,
   CircularProgress,
   InputAdornment,
   IconButton,
+  Tooltip,
   Link,
 } from "@mui/material"
-import { Visibility, VisibilityOff, LockOutlined } from "@mui/icons-material"
+import {
+  Visibility,
+  VisibilityOff,
+  MailOutlined,
+  LockOutlined,
+  KeyboardCapslockOutlined,
+} from "@mui/icons-material"
 import { useAuthStore } from "../store/authStore"
+import AuthLayout from "../components/AuthLayout"
 
 export default function Login() {
   const navigate = useNavigate()
@@ -30,6 +40,7 @@ export default function Login() {
   const [email, setEmail] = useState("")
   const [senha, setSenha] = useState("")
   const [mostrarSenha, setMostrarSenha] = useState(false)
+  const [capsLock, setCapsLock] = useState(false)
   const [erro, setErro] = useState("")
   const [carregando, setCarregando] = useState(false)
 
@@ -42,7 +53,9 @@ export default function Login() {
     setCarregando(true)
 
     try {
-      const { usuario } = await login(email, senha)
+      // Email copiado de outro lugar costuma vir com espaco sobrando; o
+      // backend compara a string crua e recusaria um login valido.
+      const { usuario } = await login(email.trim(), senha)
       // Senha provisoria: forca a troca antes de entrar no sistema.
       if (usuario?.deve_redefinir_senha) {
         navigate("/definir-senha")
@@ -57,106 +70,99 @@ export default function Login() {
     }
   }
 
+  /**
+   * Caps Lock ligado e a causa mais comum de "minha senha nao funciona".
+   * O estado da tecla so e legivel a partir de um evento de teclado.
+   */
+  const verificarCapsLock = (e) => setCapsLock(e.getModifierState?.("CapsLock") ?? false)
+
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        bgcolor: "#f5f7fb",
-        p: 2,
-      }}
-    >
-      <Paper elevation={0} sx={{ p: 4, width: "100%", maxWidth: 400, borderRadius: 0, border: "1px solid", borderColor: "divider" }}>
-        {/* Cabecalho */}
-        <Box sx={{ textAlign: "center", mb: 3 }}>
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              bgcolor: "primary.main",
-              color: "#fff",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              mb: 1,
-            }}
-          >
-            <LockOutlined />
-          </Box>
-          <Typography variant="h5" fontWeight={700}>
-            Quiron
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Acesse sua conta
-          </Typography>
+    <AuthLayout titulo="Entrar" subtitulo="Acesse sua conta para continuar">
+      {/* Mensagem de erro */}
+      <Collapse in={Boolean(erro)}>
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 0 }}>
+          {erro}
+        </Alert>
+      </Collapse>
+
+      {/* Formulario */}
+      <Box component="form" onSubmit={handleSubmit} noValidate>
+        <TextField
+          label="Email"
+          type="email"
+          fullWidth
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+          autoFocus
+          disabled={carregando}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <MailOutlined fontSize="small" color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        <TextField
+          label="Senha"
+          type={mostrarSenha ? "text" : "password"}
+          fullWidth
+          required
+          margin="normal"
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          onKeyUp={verificarCapsLock}
+          onKeyDown={verificarCapsLock}
+          onBlur={() => setCapsLock(false)}
+          autoComplete="current-password"
+          disabled={carregando}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <LockOutlined fontSize="small" color="action" />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                {capsLock && (
+                  <Tooltip title="Caps Lock está ligado" arrow>
+                    <KeyboardCapslockOutlined fontSize="small" color="warning" />
+                  </Tooltip>
+                )}
+                <IconButton
+                  onClick={() => setMostrarSenha((v) => !v)}
+                  edge="end"
+                  aria-label={mostrarSenha ? "ocultar senha" : "mostrar senha"}
+                >
+                  {mostrarSenha ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        <Box sx={{ textAlign: "right", mt: 1 }}>
+          <Link component={RouterLink} to="/forgot-password" variant="body2" underline="hover">
+            Esqueci minha senha
+          </Link>
         </Box>
 
-        {/* Mensagem de erro */}
-        {erro && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {erro}
-          </Alert>
-        )}
-
-        {/* Formulario */}
-        <Box component="form" onSubmit={handleSubmit} noValidate>
-          <TextField
-            label="Email"
-            type="email"
-            fullWidth
-            required
-            margin="normal"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            autoFocus
-          />
-
-          <TextField
-            label="Senha"
-            type={mostrarSenha ? "text" : "password"}
-            fullWidth
-            required
-            margin="normal"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            autoComplete="current-password"
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => setMostrarSenha((v) => !v)}
-                    edge="end"
-                    aria-label="mostrar senha"
-                  >
-                    {mostrarSenha ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-            size="large"
-            disabled={carregando}
-            sx={{ mt: 3 }}
-          >
-            {carregando ? <CircularProgress size={24} color="inherit" /> : "Entrar"}
-          </Button>
-
-          <Box sx={{ textAlign: "center", mt: 2 }}>
-            <Link component={RouterLink} to="/forgot-password" variant="body2">
-              Esqueci minha senha
-            </Link>
-          </Box>
-        </Box>
-      </Paper>
-    </Box>
+        <Button
+          type="submit"
+          variant="contained"
+          fullWidth
+          size="large"
+          disableElevation
+          disabled={carregando || !email.trim() || !senha}
+          sx={{ mt: 3, borderRadius: 0, py: 1.25, fontWeight: 600 }}
+          startIcon={carregando ? <CircularProgress size={18} color="inherit" /> : null}
+        >
+          {carregando ? "Entrando..." : "Entrar"}
+        </Button>
+      </Box>
+    </AuthLayout>
   )
 }

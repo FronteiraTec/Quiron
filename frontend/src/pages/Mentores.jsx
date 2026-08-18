@@ -168,10 +168,11 @@ export default function Mentores() {
                 flexDirection: "column",
               }}
             >
-              <Box sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+              <Box data-tour="mentores-resumo" sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
                 <Resumo total={mentores.length} semStartups={semStartups} />
 
                 <TextField
+                  data-tour="mentores-busca"
                   placeholder="Buscar mentor..."
                   size="small"
                   fullWidth
@@ -188,15 +189,17 @@ export default function Mentores() {
                 />
               </Box>
 
-              <MentorLista
-                mentores={filtrados}
-                selecionado={selecionado}
-                onSelecionar={setSelecionado}
-              />
+              <Box data-tour="mentores-lista" sx={{ flex: 1, minHeight: 0, display: "flex" }}>
+                <MentorLista
+                  mentores={filtrados}
+                  selecionado={selecionado}
+                  onSelecionar={setSelecionado}
+                />
+              </Box>
             </Box>
 
             {/* ---- Coluna direita: as startups do mentor ---- */}
-            <Box sx={{ flex: 1, display: "flex", minWidth: 0 }}>
+            <Box data-tour="mentores-painel" sx={{ flex: 1, display: "flex", minWidth: 0 }}>
               <MentorPainel
                 mentor={mentorAberto}
                 detalhe={detalhe}

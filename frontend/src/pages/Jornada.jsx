@@ -24,6 +24,7 @@ import {
   Paper,
   Typography,
   Button,
+  Chip,
   LinearProgress,
   Drawer,
   IconButton,
@@ -47,6 +48,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion"
 import AppLayout from "../components/AppLayout"
 import { useJornada } from "../hooks/useJornada"
+import TrilhasGrid from "../components/jornada/TrilhasGrid"
 import FasesGrid from "../components/jornada/FasesGrid"
 import ModulosGrid from "../components/jornada/ModulosGrid"
 import AtividadesSidebar from "../components/jornada/AtividadesSidebar"
@@ -110,6 +112,23 @@ export default function Jornada() {
     )
   }
 
+  // ------------------------------------------------------------ tela 0: trilhas
+  // Vem antes do tratamento de erro: a startup pode ter uma trilha vazia entre
+  // as suas, e nesse caso a lista continua sendo a tela certa — nao um erro.
+  if (j.tela === "trilhas" && !j.erro) {
+    return (
+      <AppLayout>
+        <Box data-tour="jornada-trilhas">
+          <TrilhasGrid
+            trilhas={j.trilhas}
+            trilhaAtivaId={j.trilhaAtivaId}
+            onAbrir={j.selecionarTrilha}
+          />
+        </Box>
+      </AppLayout>
+    )
+  }
+
   // Sem startup, sem trilha montada, ou falha de rede.
   if (j.erro || !j.jornada.programa) {
     return (
@@ -120,10 +139,19 @@ export default function Jornada() {
             <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
               {j.erro ? "Não foi possível abrir sua jornada" : "Sua trilha ainda não começou"}
             </Typography>
-            <Typography color="text.secondary">
+            <Typography color="text.secondary" sx={{ mb: 3 }}>
               {j.erro ||
                 "A incubadora ainda não publicou o programa. Assim que a trilha estiver pronta, ela aparece aqui."}
             </Typography>
+            {j.trilhas.length > 1 && (
+              <Button
+                startIcon={<ArrowBack />}
+                onClick={j.voltarParaTrilhas}
+                sx={{ textTransform: "none" }}
+              >
+                Ver minhas trilhas
+              </Button>
+            )}
           </Box>
         </Box>
       </AppLayout>
@@ -136,10 +164,20 @@ export default function Jornada() {
     return (
       <AppLayout>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5 }}>
+          {j.trilhas.length > 1 && (
+            <Tooltip title="Minhas trilhas" arrow>
+              <IconButton size="small" onClick={j.voltarParaTrilhas}>
+                <ArrowBack fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           <Rocket sx={{ color: "primary.main" }} />
           <Typography variant="h4" fontWeight={800}>
-            Minha Jornada
+            {j.trilhas.length > 1 ? j.jornada.programa.nome : "Minha Jornada"}
           </Typography>
+          {j.trilhaAtiva?.status === "CONCLUIDA" && (
+            <Chip label="concluída" size="small" color="success" sx={{ fontWeight: 700 }} />
+          )}
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
           A construção da {j.jornada.startup} — escolha uma fase para ver os módulos dela.
@@ -160,7 +198,7 @@ export default function Jornada() {
             flexWrap: "wrap",
           }}
         >
-          <Box sx={{ flex: 1, minWidth: 220 }}>
+          <Box data-tour="jornada-progresso" sx={{ flex: 1, minWidth: 220 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <LinearProgress
                 variant="determinate"
@@ -180,7 +218,7 @@ export default function Jornada() {
             arrow
             title={`Jornada da equipe - todos os membros da ${j.jornada.startup} veem e editam o mesmo progresso`}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            <Box data-tour="jornada-equipe" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
               <Groups sx={{ fontSize: 18, color: "text.disabled" }} />
               <AvatarGroup
                 max={4}
@@ -197,6 +235,7 @@ export default function Jornada() {
 
           {faseSugerida && (
             <Button
+              data-tour="jornada-continuar"
               variant="contained"
               startIcon={<PlayCircle />}
               onClick={j.continuarJornada}
@@ -207,12 +246,14 @@ export default function Jornada() {
           )}
         </Paper>
 
-        <FasesGrid
-          estagios={j.jornada.estagios}
-          progressoEstagio={j.progressoEstagio}
-          faseSugeridaId={j.faseSugeridaId}
-          onSelecionar={j.selecionarFase}
-        />
+        <Box data-tour="jornada-fases">
+          <FasesGrid
+            estagios={j.jornada.estagios}
+            progressoEstagio={j.progressoEstagio}
+            faseSugeridaId={j.faseSugeridaId}
+            onSelecionar={j.selecionarFase}
+          />
+        </Box>
       </AppLayout>
     )
   }
@@ -262,7 +303,9 @@ export default function Jornada() {
           </Typography>
         </Paper>
 
-        <ModulosGrid modulos={j.modulosDaFase} onSelecionar={j.selecionarModulo} />
+        <Box data-tour="jornada-modulos">
+          <ModulosGrid modulos={j.modulosDaFase} onSelecionar={j.selecionarModulo} />
+        </Box>
       </AppLayout>
     )
   }
@@ -389,13 +432,15 @@ export default function Jornada() {
                     overflow: "hidden",
                   }}
                 >
-                  <Box sx={{ width: LARGURA_NAV, height: "100%" }}>{nav}</Box>
+                  <Box data-tour="jornada-atividades" sx={{ width: LARGURA_NAV, height: "100%" }}>
+                    {nav}
+                  </Box>
                 </Box>
               )}
             </AnimatePresence>
 
             {/* Centro: a aula */}
-            <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto" }}>
+            <Box data-tour="jornada-conteudo" sx={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto" }}>
               {j.passo ? (
                 <PassoConteudo
                   passo={j.passo}
@@ -437,7 +482,7 @@ export default function Jornada() {
                     overflow: "hidden",
                   }}
                 >
-                  <Box sx={{ width: LARGURA_IMPACTO, height: "100%" }}>
+                  <Box data-tour="jornada-impacto" sx={{ width: LARGURA_IMPACTO, height: "100%" }}>
                     <PassoImpacto
                       passo={j.passo}
                       mentor={j.jornada.mentor}

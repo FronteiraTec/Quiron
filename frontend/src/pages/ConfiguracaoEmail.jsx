@@ -76,7 +76,7 @@ export default function ConfiguracaoEmail() {
         <Divider sx={{ mb: 2 }} />
         <Box component="form" onSubmit={salvarConfigEmail}>
           <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid item xs={12} data-tour="email-remetente-nome">
               <TextField
                 label="Nome do remetente"
                 fullWidth
@@ -85,7 +85,7 @@ export default function ConfiguracaoEmail() {
                 helperText="Ex.: Incubadora XPTO"
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} data-tour="email-remetente">
               <TextField
                 label="E-mail remetente"
                 type="email"
@@ -94,7 +94,7 @@ export default function ConfiguracaoEmail() {
                 onChange={(e) => alterarConfigEmail("email_remetente", e.target.value)}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} data-tour="email-reply-to">
               <TextField
                 label="E-mail de resposta (reply-to)"
                 type="email"
@@ -105,7 +105,7 @@ export default function ConfiguracaoEmail() {
             </Grid>
           </Grid>
           <Box sx={{ mt: 3, textAlign: "right" }}>
-            <Button type="submit" variant="contained" disabled={salvando}>
+            <Button data-tour="email-salvar" type="submit" variant="contained" disabled={salvando}>
               {salvando ? <CircularProgress size={22} color="inherit" /> : "Salvar"}
             </Button>
           </Box>

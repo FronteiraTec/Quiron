@@ -143,7 +143,7 @@ function Conteudo({ idTenant, dias }) {
             ]}
           />
 
-          <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid container data-tour="relatorio-graficos" spacing={3} sx={{ mb: 3 }}>
             {/* Funil: etapas ordenadas, uma cor so em tons crescentes. A cor
                 acompanha o avanco no funil; o rotulo e o numero estao sempre
                 visiveis, entao nada depende de distinguir os tons. */}

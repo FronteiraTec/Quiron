@@ -22,6 +22,7 @@ import {
 import { Person, PhotoCamera } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import { useAuthStore } from "../store/authStore"
+import { MAX_CELULAR, celularValido, mascararCelular, somenteDigitos } from "../utils/mascaras"
 
 // Tamanho maximo aceito para a foto (precisa bater com o limite do backend).
 const FOTO_MAX_BYTES = 2 * 1024 * 1024 // 2MB
@@ -47,16 +48,21 @@ export default function Perfil() {
   useEffect(() => {
     if (usuario) {
       setNome(usuario.nome || "")
-      setCelular(usuario.celular || "")
+      setCelular(mascararCelular(usuario.celular || ""))
     }
   }, [usuario])
 
   const salvarDadosPerfil = async (e) => {
     e.preventDefault()
+    if (!celularValido(celular)) {
+      setAviso({ tipo: "error", texto: "Informe um celular válido, com DDD." })
+      return
+    }
     setAviso(null)
     setSalvandoPerfil(true)
     try {
-      await atualizarPerfil({ nome, celular })
+      // O banco guarda o celular sem mascara (VARCHAR(15)).
+      await atualizarPerfil({ nome, celular: somenteDigitos(celular) })
       setAviso({ tipo: "success", texto: "Perfil atualizado com sucesso." })
     } catch (err) {
       setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao salvar o perfil." })
@@ -119,7 +125,7 @@ export default function Perfil() {
           <Paper sx={{ p: 3, borderRadius: 0 }} component="form" onSubmit={salvarDadosPerfil}>
             <SecaoTitulo icone={<Person />} titulo="Perfil" />
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-              <Box sx={{ position: "relative", width: 56, height: 56 }}>
+              <Box data-tour="perfil-foto" sx={{ position: "relative", width: 56, height: 56 }}>
                 <Avatar src={usuario.foto_url || undefined} sx={{ bgcolor: "primary.main", width: 56, height: 56 }}>
                   {(usuario.nome || "?").charAt(0).toUpperCase()}
                 </Avatar>
@@ -158,7 +164,7 @@ export default function Perfil() {
               </Box>
             </Box>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={6} data-tour="perfil-dados">
                 <TextField
                   label="Nome"
                   fullWidth
@@ -167,21 +173,25 @@ export default function Perfil() {
                   onChange={(e) => setNome(e.target.value)}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={6} data-tour="perfil-dados">
                 <TextField
                   label="Celular"
                   fullWidth
                   required
                   value={celular}
-                  onChange={(e) => setCelular(e.target.value)}
+                  onChange={(e) => setCelular(mascararCelular(e.target.value))}
+                  placeholder="(11) 98765-4321"
+                  inputProps={{ maxLength: MAX_CELULAR, inputMode: "numeric" }}
+                  error={Boolean(celular) && !celularValido(celular)}
+                  helperText={celular && !celularValido(celular) ? "Informe o DDD e o número completo." : undefined}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={6} data-tour="perfil-email">
                 <TextField label="Email" fullWidth value={usuario.email} disabled />
               </Grid>
             </Grid>
             <Box sx={{ mt: 2, textAlign: "right" }}>
-              <Button type="submit" variant="contained" disabled={salvandoPerfil}>
+              <Button data-tour="perfil-salvar" type="submit" variant="contained" disabled={salvandoPerfil}>
                 {salvandoPerfil ? <CircularProgress size={22} color="inherit" /> : "Salvar perfil"}
               </Button>
             </Box>

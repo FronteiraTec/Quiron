@@ -182,6 +182,7 @@ export default function Feedback() {
 
         <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: "wrap" }}>
           <TextField
+            data-tour="feedback-busca"
             placeholder="Buscar startup, passo ou comentário..."
             size="small"
             value={busca}
@@ -196,6 +197,7 @@ export default function Feedback() {
             }}
           />
           <TextField
+            data-tour="feedback-decisao"
             select
             size="small"
             label="Decisão"
@@ -213,14 +215,14 @@ export default function Feedback() {
         </Stack>
 
         {aguardandoStartup > 0 && filtroStatus === "todos" && (
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert data-tour="feedback-pendentes" severity="info" sx={{ mb: 2 }}>
             {aguardandoStartup === 1
               ? "1 ajuste pedido ainda não foi reenviado pela startup."
               : `${aguardandoStartup} ajustes pedidos ainda não foram reenviados pelas startups.`}
           </Alert>
         )}
 
-        <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
+        <Paper data-tour="feedback-lista" sx={{ borderRadius: 0, overflow: "hidden" }}>
           {carregando ? (
             <Box sx={{ textAlign: "center", py: 8 }}>
               <CircularProgress />

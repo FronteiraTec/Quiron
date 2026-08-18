@@ -98,6 +98,7 @@ export default function Auditoria() {
 
       <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
         <TextField
+          data-tour="auditoria-busca"
           placeholder="Buscar por ação, entidade ou descrição..."
           size="small"
           value={busca}
@@ -112,6 +113,7 @@ export default function Auditoria() {
           }}
         />
         <TextField
+          data-tour="auditoria-entidade"
           select
           size="small"
           label="Entidade"
@@ -128,7 +130,7 @@ export default function Auditoria() {
         </TextField>
       </Box>
 
-      <Paper sx={{ borderRadius: 0 }}>
+      <Paper data-tour="auditoria-tabela" sx={{ borderRadius: 0 }}>
         {filtrados.length === 0 ? (
           <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
             <Policy sx={{ fontSize: 48, opacity: 0.4 }} />

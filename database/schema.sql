@@ -220,6 +220,11 @@ CREATE TABLE IF NOT EXISTS trilha_no (
     competencias    TEXT[] NOT NULL DEFAULT '{}',
     area            VARCHAR(40),
 
+    -- A incubadora pode ter varias trilhas (varios PROGRAMA). Esta e a
+    -- sugerida no cadastro de startup — uma por tenant, ver o indice parcial
+    -- uk_trilha_no_padrao abaixo.
+    padrao          BOOLEAN NOT NULL DEFAULT FALSE,
+
     criado_ts     TIMESTAMP NOT NULL DEFAULT NOW(),
     atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
 
@@ -254,6 +259,11 @@ CREATE TABLE IF NOT EXISTS trilha_no (
         area IS NULL OR tipo = 'PASSO'
     ),
 
+    -- Marcar uma FASE como padrao nao significa nada.
+    CONSTRAINT ck_trilha_no_padrao CHECK (
+        padrao = FALSE OR tipo = 'PROGRAMA'
+    ),
+
     -- DEFERRABLE: o Construtor reindexa ordem 1..n a cada drag-and-drop; sem
     -- isso o UPDATE em lote colide consigo mesmo no meio do caminho.
     CONSTRAINT uk_trilha_no_ordem
@@ -263,6 +273,12 @@ CREATE TABLE IF NOT EXISTS trilha_no (
 
 CREATE INDEX IF NOT EXISTS ix_trilha_no_pai    ON trilha_no (id_pai, ordem);
 CREATE INDEX IF NOT EXISTS ix_trilha_no_tenant ON trilha_no (id_tenant, tipo);
+
+-- Uma trilha padrao por incubadora. PARCIAL: as N trilhas nao-padrao do mesmo
+-- tenant nao colidem entre si, so a marcada colide com outra marcada.
+CREATE UNIQUE INDEX IF NOT EXISTS uk_trilha_no_padrao
+    ON trilha_no (id_tenant)
+    WHERE padrao AND tipo = 'PROGRAMA';
 
 
 -- Garante PROGRAMA > FASE > MODULO > PASSO. Um CHECK nao alcanca a linha do
@@ -411,6 +427,79 @@ CREATE TABLE IF NOT EXISTS trilha_conteudo (
 );
 
 CREATE INDEX IF NOT EXISTS ix_tc_conteudo ON trilha_conteudo (id_conteudo);
+
+
+-- Matricula: quais startups fazem qual trilha.
+--
+-- N:N de proposito. Uma startup pode estar em duas trilhas ao mesmo tempo e
+-- mantem as concluidas na lista, que e o historico exibido em "Minha Jornada".
+--
+-- E diferente de `startup_trilha` (logo abaixo): la fica o PROGRESSO dentro de
+-- uma trilha; aqui fica o PERTENCIMENTO a ela, que existe antes de qualquer
+-- progresso e continua depois que a trilha acaba.
+CREATE TABLE IF NOT EXISTS startup_programa (
+    id_startup INTEGER NOT NULL,
+    id_no      INTEGER NOT NULL,   -- sempre um PROGRAMA (ver o trigger)
+
+    status     VARCHAR(20) NOT NULL DEFAULT 'EM_ANDAMENTO',
+    inicio_ts  TIMESTAMP NOT NULL DEFAULT NOW(),
+    fim_ts     TIMESTAMP,
+
+    CONSTRAINT pk_startup_programa PRIMARY KEY (id_startup, id_no),
+
+    CONSTRAINT fk_sp_startup
+        FOREIGN KEY (id_startup)
+        REFERENCES startup (id_startup)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_sp_no
+        FOREIGN KEY (id_no)
+        REFERENCES trilha_no (id_no)
+        ON DELETE CASCADE,
+
+    CONSTRAINT ck_sp_status
+        CHECK (status IN ('EM_ANDAMENTO', 'CONCLUIDA')),
+
+    CONSTRAINT ck_sp_fim
+        CHECK (status <> 'CONCLUIDA' OR fim_ts IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS ix_sp_no ON startup_programa (id_no);
+
+
+-- A matricula so aceita a RAIZ de uma trilha, e do mesmo tenant da startup.
+-- Um CHECK nao alcanca a linha referenciada, entao a regra vive num trigger.
+CREATE OR REPLACE FUNCTION fn_startup_programa_raiz()
+RETURNS TRIGGER AS $$
+DECLARE
+    tipo_no      trilhaNoTipo;
+    tenant_no    INTEGER;
+    tenant_start INTEGER;
+BEGIN
+    SELECT tipo, id_tenant INTO tipo_no, tenant_no
+      FROM trilha_no WHERE id_no = NEW.id_no;
+
+    IF tipo_no IS DISTINCT FROM 'PROGRAMA' THEN
+        RAISE EXCEPTION
+            'Matricula exige a raiz da trilha (PROGRAMA), recebido % (no %)',
+            COALESCE(tipo_no::TEXT, 'inexistente'), NEW.id_no;
+    END IF;
+
+    SELECT id_tenant INTO tenant_start
+      FROM startup WHERE id_startup = NEW.id_startup;
+
+    IF tenant_start <> tenant_no THEN
+        RAISE EXCEPTION 'Startup e trilha pertencem a incubadoras diferentes';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_startup_programa_raiz ON startup_programa;
+CREATE TRIGGER trg_startup_programa_raiz
+    BEFORE INSERT OR UPDATE OF id_no, id_startup ON startup_programa
+    FOR EACH ROW EXECUTE FUNCTION fn_startup_programa_raiz();
 
 
 -- Progresso de uma startup em um no da trilha. Antes so rastreava fases

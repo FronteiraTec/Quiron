@@ -49,6 +49,7 @@ import AbaMembros from "../components/startup/AbaMembros"
 import AbaModelos from "../components/startup/AbaModelos"
 import AbaFasesConcluidas from "../components/startup/AbaFasesConcluidas"
 import { STATUS_ROTULO, STATUS_COR } from "../data/startupMeta"
+import { MAX_CNPJ, cnpjValido, mascararCnpj, somenteDigitos } from "../utils/mascaras"
 
 export default function StartupDetail() {
   const { id } = useParams()
@@ -83,16 +84,21 @@ export default function StartupDetail() {
   }, [id])
 
   const abrirEdicao = () => {
-    setForm({ nome: startup.nome || "", cnpj: startup.cnpj || "" })
+    setForm({ nome: startup.nome || "", cnpj: mascararCnpj(startup.cnpj || "") })
     setDialogAberto(true)
   }
 
   const salvar = async (e) => {
     e.preventDefault()
+    if (form.cnpj && !cnpjValido(form.cnpj)) {
+      setAviso({ tipo: "error", texto: "CNPJ inválido — confira os números digitados." })
+      return
+    }
     setSalvando(true)
     setAviso(null)
     try {
-      await api.put(`/startups/${id}`, form)
+      // Sem mascara: a coluna e CHAR(14).
+      await api.put(`/startups/${id}`, { ...form, cnpj: somenteDigitos(form.cnpj) || null })
       setDialogAberto(false)
       await carregar()
     } catch (err) {
@@ -159,10 +165,10 @@ export default function StartupDetail() {
               </Box>
             </Box>
             <Box sx={{ display: "flex", gap: 1 }}>
-              <Button variant="outlined" startIcon={<Edit />} onClick={abrirEdicao}>
+              <Button data-tour="startup-editar" variant="outlined" startIcon={<Edit />} onClick={abrirEdicao}>
                 Editar
               </Button>
-              <IconButton onClick={(e) => setMenuAncora(e.currentTarget)}>
+              <IconButton data-tour="startup-status" onClick={(e) => setMenuAncora(e.currentTarget)}>
                 <MoreVert />
               </IconButton>
               <Menu anchorEl={menuAncora} open={Boolean(menuAncora)} onClose={() => setMenuAncora(null)}>
@@ -179,7 +185,7 @@ export default function StartupDetail() {
             </Box>
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 3 }}>
+          <Box data-tour="startup-progresso" sx={{ display: "flex", alignItems: "center", gap: 2, mt: 3 }}>
             <Chip label={startup.fase_atual || "Graduada"} variant="outlined" />
             <Chip
               label={STATUS_ROTULO[startup.status] || startup.status}
@@ -204,11 +210,11 @@ export default function StartupDetail() {
             onChange={(_, v) => setAba(v)}
             sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}
           >
-            <Tab value="membros" label="Membros" icon={<Groups />} iconPosition="start" />
-            <Tab value="modelos" label="Modelos" icon={<ViewModule />} iconPosition="start" />
-            <Tab value="fases" label="Fases concluídas" icon={<CheckCircle />} iconPosition="start" />
+            <Tab data-tour="startup-aba-membros" value="membros" label="Membros" icon={<Groups />} iconPosition="start" />
+            <Tab data-tour="startup-aba-modelos" value="modelos" label="Modelos" icon={<ViewModule />} iconPosition="start" />
+            <Tab data-tour="startup-aba-fases" value="fases" label="Fases concluídas" icon={<CheckCircle />} iconPosition="start" />
           </Tabs>
-          <Box sx={{ p: 3 }}>
+          <Box data-tour="startup-conteudo" sx={{ p: 3 }}>
             {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={startup.id_tenant} />}
             {aba === "modelos" && <AbaModelos idStartup={startup.id_startup} />}
             {aba === "fases" && <AbaFasesConcluidas idStartup={startup.id_startup} />}
@@ -235,7 +241,11 @@ export default function StartupDetail() {
                   label="CNPJ"
                   fullWidth
                   value={form.cnpj}
-                  onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))}
+                  onChange={(e) => setForm((f) => ({ ...f, cnpj: mascararCnpj(e.target.value) }))}
+                  placeholder="12.345.678/0001-95"
+                  inputProps={{ maxLength: MAX_CNPJ, inputMode: "numeric" }}
+                  error={Boolean(form.cnpj) && !cnpjValido(form.cnpj)}
+                  helperText={form.cnpj && !cnpjValido(form.cnpj) ? "CNPJ inválido." : "Opcional."}
                 />
               </Grid>
             </Grid>

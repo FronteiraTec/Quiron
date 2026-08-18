@@ -286,7 +286,7 @@ export default function ConfiguracaoAgenda() {
       )}
 
       {/* ------------------------------------------------------ CATEGORIAS */}
-      <Paper sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mb: 3 }}>
+      <Paper data-tour="agenda-categorias" sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mb: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
           <Box>
             <Typography variant="h6" fontWeight={700}>
@@ -411,7 +411,7 @@ export default function ConfiguracaoAgenda() {
       </Paper>
 
       {/* ---------------------------------------------------------- LOCAIS */}
-      <Paper sx={{ borderRadius: 0, p: { xs: 2, sm: 3 } }}>
+      <Paper data-tour="agenda-locais" sx={{ borderRadius: 0, p: { xs: 2, sm: 3 } }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
           <Box>
             <Typography variant="h6" fontWeight={700}>

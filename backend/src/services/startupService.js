@@ -3,6 +3,7 @@
  */
 const startupRepository = require("../repositories/startupRepository")
 const tenantRepository = require("../repositories/tenantRepository")
+const trilhaRepository = require("../repositories/trilhaRepository")
 const rbacService = require("./rbacService")
 const { erroNegocio } = require("../utils/erros")
 
@@ -48,13 +49,40 @@ async function buscar(id, usuario) {
 }
 
 /** Cria uma startup. */
+/**
+ * Cria a startup e ja a matricula numa trilha.
+ *
+ * `idTrilha` e opcional: sem ele vale a trilha marcada como padrao no
+ * Construtor. Quem cadastra ainda pode escolher outra — a padrao e sugestao,
+ * nao imposicao. Se o tenant nao tem trilha nenhuma, a startup e criada
+ * mesmo assim e fica sem matricula, para o cadastro nao ficar refem da ordem
+ * em que a incubadora monta as coisas.
+ */
 async function criar(dados, usuario) {
-  const { idTenant, nome } = dados
+  const { idTenant, nome, idTrilha } = dados
   if (!idTenant || !nome) {
     throw erroNegocio(400, "Informe id_tenant e nome da startup.")
   }
   await rbacService.garantirPermissao(idTenant, usuario, "startups.startups.criar")
-  return startupRepository.criar(dados)
+
+  const startup = await startupRepository.criar(dados)
+
+  const alvo = idTrilha
+    ? await trilhaRepository.buscarPorId(idTrilha)
+    : await trilhaRepository.programaPadrao(idTenant)
+
+  if (alvo) {
+    // A trilha escolhida precisa ser deste tenant e ser a raiz. O trigger do
+    // banco tambem barra, mas aqui a mensagem sai no idioma do cadastro.
+    if (Number(alvo.id_tenant) !== Number(idTenant) || alvo.tipo !== "PROGRAMA") {
+      throw erroNegocio(400, "Trilha invalida para esta incubadora.")
+    }
+    await trilhaRepository.matricular(alvo.id_no, startup.id_startup)
+    startup.id_trilha = alvo.id_no
+    startup.trilha = alvo.nome
+  }
+
+  return startup
 }
 
 /** Atualiza os dados cadastrais (nome/cnpj) de uma startup. */

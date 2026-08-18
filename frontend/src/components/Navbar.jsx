@@ -61,6 +61,7 @@ export default function Navbar({ onToggleSidebar, sidebarWidth }) {
 
         {/* Atalho para a Agenda: botao com rotulo no desktop, so o icone no mobile. */}
         <Button
+          data-tour="nav-agenda"
           color="inherit"
           onClick={irParaAgenda}
           startIcon={<CalendarMonth />}
@@ -87,10 +88,12 @@ export default function Navbar({ onToggleSidebar, sidebarWidth }) {
         </Tooltip>
 
         {/* Sino: eventos criados recentemente (ver useNotificacoesEventos) */}
-        <NotificacoesEventos />
+        <Box data-tour="nav-notificacoes" sx={{ display: "flex" }}>
+          <NotificacoesEventos />
+        </Box>
 
         {/* Avatar/conta - sempre visivel, abre o UserPanel */}
-        <Box sx={{ display: "flex", ml: 1 }}>
+        <Box data-tour="nav-conta" sx={{ display: "flex", ml: 1 }}>
           <UserPanel />
         </Box>
       </Toolbar>

@@ -64,8 +64,10 @@ const MENU_ADMIN = [
     id: "incubadora",
     texto: "Incubadora",
     icone: <Business />,
+    // Sem "Tenants" aqui: a lista de incubadoras e do usuario root (/tenants e
+    // uma RootRoute). Para o admin era um item que so levaria a bloqueio — a
+    // incubadora dele se administra em Configuracoes.
     filhos: [
-      { id: "tenants", texto: "Tenants", icone: <Apartment />, rota: "/tenants" },
       { id: "usuarios", texto: "Usuários", icone: <People />, rota: "/usuarios", permissao: "usuarios.usuarios.visualizar" },
       { id: "config", texto: "Configurações", icone: <Settings />, rota: "/configuracoes" },
     ],

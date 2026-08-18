@@ -13,7 +13,11 @@ const { autenticar } = require("../middlewares/auth")
 
 router.use(autenticar)
 
-router.get("/", ctrl.carregar) // ?id_startup=
+// Antes de "/": nao ha conflito de rota aqui, mas manter as listagens juntas
+// deixa claro que a Jornada agora tem duas entradas — a lista de trilhas e
+// uma trilha especifica.
+router.get("/trilhas", ctrl.listarTrilhas) // ?id_startup=
+router.get("/", ctrl.carregar) // ?id_startup=&id_trilha=
 
 // Entregas do incubado. Rascunho e envio sao o mesmo upsert com status
 // diferente; reenviar tambem limpa as avaliacoes anteriores.

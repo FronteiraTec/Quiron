@@ -55,19 +55,66 @@ function montarEntrega(row, historico) {
  * `frente` preenchido com o nome do MODULO — a Jornada agrupa por `frente`
  * para montar suas telas, e o modulo e exatamente esse agrupamento.
  */
-async function carregar(idStartup) {
+/**
+ * Lista as trilhas da startup — as em andamento e as ja concluidas.
+ *
+ * E o que a tela "Minha Jornada" mostra antes de entrar numa delas. O
+ * progresso vem calculado das entregas aprovadas, no repositorio.
+ */
+async function listarTrilhas(idStartup) {
   if (!idStartup) throw erroNegocio(400, "Informe o id_startup.")
 
   const startup = await startupRepository.buscarPorId(idStartup)
   if (!startup) throw erroNegocio(404, "Startup nao encontrada.")
 
-  const idTenant = startup.id_tenant
+  return trilhaRepository.programasDaStartup(idStartup)
+}
+
+/**
+ * Resolve em qual trilha a Jornada vai abrir.
+ *
+ * Sem `idPrograma`, escolhe a primeira em andamento — `programasDaStartup` ja
+ * ordena EM_ANDAMENTO antes de CONCLUIDA. Com ele, exige que a startup esteja
+ * matriculada: sem essa checagem, trocar o id na URL daria acesso a trilha de
+ * outra turma.
+ */
+async function resolverPrograma(idStartup, idPrograma) {
+  const matriculas = await trilhaRepository.programasDaStartup(idStartup)
+  if (matriculas.length === 0) return null
+
+  if (!idPrograma) return matriculas[0].id_no
+
+  const escolhida = matriculas.find((m) => Number(m.id_no) === Number(idPrograma))
+  if (!escolhida) {
+    throw erroNegocio(403, "Esta startup nao esta matriculada nesta trilha.")
+  }
+  return escolhida.id_no
+}
+
+async function carregar(idStartup, idPrograma) {
+  if (!idStartup) throw erroNegocio(400, "Informe o id_startup.")
+
+  const startup = await startupRepository.buscarPorId(idStartup)
+  if (!startup) throw erroNegocio(404, "Startup nao encontrada.")
+
+  const idTrilha = await resolverPrograma(idStartup, idPrograma)
+
+  // Startup sem matricula nenhuma: a tela mostra o vazio, nao um erro.
+  if (!idTrilha) {
+    return {
+      programa: null,
+      startup: startup.nome,
+      equipe: [],
+      mentor: null,
+      estagios: [],
+    }
+  }
 
   const [linhas, conteudos, blocos, avaliacoes, progresso, membros, mentores] =
     await Promise.all([
-      jornadaRepository.carregar(idTenant, idStartup),
-      jornadaRepository.conteudosPorPasso(idTenant),
-      jornadaRepository.blocosDosConteudos(idTenant),
+      jornadaRepository.carregar(idTrilha, idStartup),
+      jornadaRepository.conteudosPorPasso(idTrilha),
+      jornadaRepository.blocosDosConteudos(idTrilha),
       jornadaRepository.historicoPorStartup(idStartup),
       jornadaRepository.progressoPorFase(idStartup),
       jornadaRepository.equipe(idStartup),
@@ -281,4 +328,11 @@ async function validarEntrega({ idNo, idStartup }) {
   }
 }
 
-module.exports = { carregar, salvarRascunho, enviar, reenviar, derivarStatus }
+module.exports = {
+  carregar,
+  listarTrilhas,
+  salvarRascunho,
+  enviar,
+  reenviar,
+  derivarStatus,
+}

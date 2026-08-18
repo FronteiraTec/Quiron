@@ -125,7 +125,7 @@ function Conteudo({ idTenant }) {
           />
 
           {ranking.length > 0 && (
-            <Paper sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mb: 3 }}>
+            <Paper data-tour="relatorio-graficos" sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mb: 3 }}>
               <Typography variant="h6" fontWeight={700}>
                 Os passos que mais travam
               </Typography>

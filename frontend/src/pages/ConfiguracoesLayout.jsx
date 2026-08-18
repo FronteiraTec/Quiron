@@ -61,7 +61,7 @@ export default function ConfiguracoesLayout() {
         </Typography>
 
         {ehRoot && (
-          <Paper sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mb: 3 }}>
+          <Paper data-tour="config-tenant" sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mb: 3 }}>
             <TextField
               select
               label="Incubadora"
@@ -79,7 +79,7 @@ export default function ConfiguracoesLayout() {
           </Paper>
         )}
 
-        <Paper sx={{ borderRadius: 0, mb: 3 }}>
+        <Paper data-tour="config-abas" sx={{ borderRadius: 0, mb: 3 }}>
           <Tabs
             value={abaAtual}
             onChange={(_, valor) => navigate(valor ? `/configuracoes/${valor}` : "/configuracoes")}

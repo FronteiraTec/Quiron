@@ -13,12 +13,27 @@ const { autenticar } = require("../middlewares/auth")
 
 router.use(autenticar)
 
+// Trilhas do tenant (os nos PROGRAMA). ANTES de "/:id": o Express casa na
+// ordem de registro, e depois de "/:id" a palavra "programas" seria lida como
+// um id de no.
+router.get("/programas", ctrl.listarProgramas) // ?id_tenant=
+router.get("/programas/:id", ctrl.arvoreDoPrograma)
+
 // Arvore e nos
-router.get("/", ctrl.arvore) // ?id_tenant=
+router.get("/", ctrl.arvore) // ?id_tenant= — todas as trilhas do tenant
 router.post("/", ctrl.criar)
 router.get("/:id", ctrl.buscar)
 router.patch("/:id", ctrl.atualizar)
 router.delete("/:id", ctrl.excluir)
+
+// Trilha padrao (a sugerida no cadastro de startup)
+router.patch("/:id/padrao", ctrl.definirPadrao)
+
+// Matricula: quais startups fazem esta trilha
+router.get("/:id/startups", ctrl.listarStartupsDoPrograma)
+router.post("/:id/startups", ctrl.matricular) // body: { id_startup }
+router.patch("/:id/startups/:idStartup", ctrl.definirStatusMatricula) // { status }
+router.delete("/:id/startups/:idStartup", ctrl.desmatricular)
 
 // Estrutura
 router.get("/:id/filhos", ctrl.listarFilhos)
