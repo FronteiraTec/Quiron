@@ -10,6 +10,7 @@ import api, { TOKEN_KEY } from "../services/api"
 import { usePreferenciaStore } from "./preferenciaStore"
 import { usePermissaoStore } from "./permissaoStore"
 import { useAgendaConfigStore } from "./agendaConfigStore"
+import { useStartupConfigStore } from "./startupConfigStore"
 
 export const useAuthStore = create((set) => ({
   // Estado inicial: recupera o token salvo (se houver).
@@ -45,6 +46,8 @@ export const useAuthStore = create((set) => ({
     // Idem para as categorias/locais: sao de uma incubadora especifica, e o
     // proximo login pode ser em outra.
     useAgendaConfigStore.getState().limpar()
+    // Idem para o vocabulario do cadastro de startup (tipos, situacoes, campos).
+    useStartupConfigStore.getState().limpar()
     // Volta as preferencias visuais ao padrao para o proximo usuario.
     usePreferenciaStore.getState().resetar()
   },

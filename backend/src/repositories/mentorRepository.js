@@ -63,9 +63,15 @@ async function listarPorTenant(idTenant) {
 async function listarStartupsDoMentor(idTenant, idUsuario) {
   const { rows } = await query(
     `SELECT s.id_startup, s.nome, s.status,
+            -- O status que a incubadora cadastrou (startup_situacao): sem ele o
+            -- painel do mentor mostraria "Ativa" onde a tela de startups mostra
+            -- "Em tracao".
+            sit.rotulo AS situacao_rotulo, sit.cor AS situacao_cor,
             ${PENDENTES_DA_STARTUP}::int AS pendentes
        FROM mentor_startup ms
        JOIN startup s ON s.id_startup = ms.id_startup
+       LEFT JOIN startup_situacao sit
+              ON sit.id_tenant = s.id_tenant AND sit.chave = s.situacao
       WHERE ms.id_usuario_mentor = $2 AND s.id_tenant = $1
       ORDER BY s.nome`,
     [idTenant, idUsuario]

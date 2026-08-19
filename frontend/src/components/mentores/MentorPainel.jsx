@@ -27,7 +27,7 @@ import {
 import { SupervisorAccount, LinkOff, Add, RocketLaunch } from "@mui/icons-material"
 
 import ConfirmDialog from "../programa/ConfirmDialog"
-import { STATUS_ROTULO, STATUS_COR } from "../../data/startupMeta"
+import ChipSituacao from "../startup/ChipSituacao"
 import { formatarCelular } from "../../utils/mascaras"
 
 function inicial(nome) {
@@ -63,12 +63,7 @@ function LinhaStartup({ startup, onRemover }) {
         )}
       </Box>
 
-      <Chip
-        size="small"
-        label={STATUS_ROTULO[startup.status] || startup.status}
-        color={STATUS_COR[startup.status] || "default"}
-        sx={{ flexShrink: 0 }}
-      />
+      <ChipSituacao startup={startup} sx={{ flexShrink: 0 }} />
 
       <Tooltip title="Desvincular desta startup" arrow>
         <IconButton

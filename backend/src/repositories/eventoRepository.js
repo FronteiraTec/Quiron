@@ -84,6 +84,102 @@ async function buscarPorId(id) {
   return rows[0]
 }
 
+/**
+ * Predicado SQL de "esta pessoa enxerga este evento".
+ *
+ * E a mesma regra que listar() aplica em duas etapas (permissao + papel),
+ * escrita de uma vez em SQL — necessaria porque a integracao com o Google
+ * Agenda precisa perguntar isso nas DUAS direcoes:
+ *
+ *   "quais eventos vao para a agenda desta pessoa?"  (o usuario e fixo)
+ *   "para quem mando este evento que acabou de ser criado?" (o evento e fixo)
+ *
+ * A segunda pergunta nao cabe em listar(), que parte do tenant e do usuario
+ * logado. Repetir a regra num terceiro lugar seria pedir para ela divergir —
+ * a mesma armadilha ja anotada entre listarPublico e SQL_PUBLICO_EVENTOS do
+ * relatorioRepository. Aqui ela vira um trecho so, montado com o alias e a
+ * expressao de usuario que cada consulta tem em maos.
+ *
+ * As tres formas de enxergar um evento, na ordem em que aparecem abaixo:
+ *   1. criou o evento (mesmo sem vinculo com startup nenhuma);
+ *   2. e admin do tenant do evento (a agenda inteira e dele);
+ *   3. e membro ou mentor de alguma startup do publico do evento.
+ *
+ * @param {string} alias - Alias da tabela `evento` na consulta (ex.: "e").
+ * @param {string} usuario - Expressao SQL do id do usuario: um placeholder
+ *   ("$1") quando a pessoa e fixa, ou uma coluna ("gc.id_usuario") quando a
+ *   consulta varre varias.
+ */
+function sqlUsuarioVeEvento(alias, usuario) {
+  return `(
+    ${alias}.criado_por = ${usuario}
+    OR EXISTS (
+      SELECT 1 FROM tenant_usuarios tu
+       WHERE tu.id_tenant = ${alias}.id_tenant
+         AND tu.id_usuario = ${usuario}
+         AND tu.ativo = TRUE
+         AND tu.papel = 'admin'
+    )
+    OR EXISTS (
+      SELECT 1
+        FROM startup s
+       WHERE s.id_tenant = ${alias}.id_tenant
+         AND s.status <> 'ENCERRADA'
+         -- Direcionamento: sem linhas em evento_startups o evento e GERAL.
+         AND (
+           NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = ${alias}.id_evento)
+           OR EXISTS (
+             SELECT 1 FROM evento_startups es
+              WHERE es.id_evento = ${alias}.id_evento AND es.id_startup = s.id_startup
+           )
+         )
+         AND (
+           EXISTS (
+             SELECT 1 FROM startup_membros sm
+              WHERE sm.id_startup = s.id_startup
+                AND sm.id_usuario = ${usuario}
+                AND sm.ativo = TRUE
+           )
+           OR EXISTS (
+             SELECT 1 FROM mentor_startup ms
+              WHERE ms.id_startup = s.id_startup
+                AND ms.id_usuario_mentor = ${usuario}
+           )
+         )
+    )
+  )`
+}
+
+/**
+ * Eventos futuros que uma pessoa enxerga, em TODOS os tenants dela.
+ *
+ * Sem id_tenant de proposito, ao contrario de listarPorTenant: quem participa
+ * de duas incubadoras tem uma agenda no Google so, e separar por tenant aqui
+ * obrigaria a chamar isto uma vez por vinculo e juntar em memoria.
+ *
+ * @param {number} idUsuario
+ * @param {{desde?: string, ate?: string}} periodo
+ */
+async function listarVisiveisParaUsuario(idUsuario, { desde, ate } = {}) {
+  const condicoes = ["e.ativo = TRUE", sqlUsuarioVeEvento("e", "$1")]
+  const params = [idUsuario]
+
+  if (desde) {
+    params.push(desde)
+    condicoes.push(`e.inicio_ts >= $${params.length}`)
+  }
+  if (ate) {
+    params.push(ate)
+    condicoes.push(`e.inicio_ts <= $${params.length}`)
+  }
+
+  const { rows } = await query(
+    `${SELECT_EVENTO} WHERE ${condicoes.join(" AND ")} ORDER BY e.inicio_ts`,
+    params
+  )
+  return rows
+}
+
 /** Substitui as startups direcionadas de um evento (lista vazia = geral). */
 async function definirStartups(idEvento, idsStartups, client) {
   const executor = client || { query }
@@ -317,6 +413,10 @@ async function listarParticipantes(idEvento) {
 module.exports = {
   listarPorTenant,
   buscarPorId,
+  // Exportado para o googleAgendaRepository montar a pergunta inversa ("quem
+  // recebe este evento?") com a MESMA regra de visibilidade.
+  sqlUsuarioVeEvento,
+  listarVisiveisParaUsuario,
   criar,
   atualizar,
   excluir,

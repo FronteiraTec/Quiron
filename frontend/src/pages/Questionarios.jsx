@@ -21,12 +21,6 @@ import {
   Typography,
   Button,
   IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Chip,
   Dialog,
   DialogTitle,
@@ -56,6 +50,10 @@ import {
 import AppLayout from "../components/AppLayout"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
+import TabelaDados from "../components/tabela/TabelaDados"
+import ToolbarTabela from "../components/tabela/ToolbarTabela"
+import PainelFiltros, { contarFiltros } from "../components/tabela/PainelFiltros"
+import { exportarTabelaCsv } from "../components/tabela/exportarTabela"
 
 // Tipos de pergunta: valor no backend (enum) + rotulo e icone.
 const TIPOS_PERGUNTA = [
@@ -85,6 +83,12 @@ export default function Questionarios() {
   const [questionarios, setQuestionarios] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [aviso, setAviso] = useState(null) // { tipo, texto }
+
+  // Busca, filtros e colunas da listagem (ver TabelaDados).
+  const [busca, setBusca] = useState("")
+  const [filtros, setFiltros] = useState({})
+  const [painelAberto, setPainelAberto] = useState(false)
+  const [colunasVisiveis, setColunasVisiveis] = useState([])
 
   // Dialog de criacao (construtor).
   const [dialogAberto, setDialogAberto] = useState(false)
@@ -215,6 +219,92 @@ export default function Questionarios() {
     }
   }
 
+  const colunas = useMemo(
+    () => [
+      {
+        chave: "titulo",
+        rotulo: "Título",
+        obrigatoria: true,
+        largura: 420,
+        valorTexto: (q) => q.titulo,
+        render: (q) => (
+          <>
+            <Typography variant="body2" fontWeight={600}>
+              {q.titulo}
+            </Typography>
+            {q.descricao && (
+              <Typography variant="body2" color="text.secondary">
+                {q.descricao}
+              </Typography>
+            )}
+          </>
+        ),
+      },
+      { chave: "descricao", rotulo: "Descrição", visivelPadrao: false, largura: 320 },
+      {
+        chave: "total_perguntas",
+        rotulo: "Perguntas",
+        alinhamento: "center",
+        largura: 120,
+        valorOrdenacao: (q) => Number(q.total_perguntas),
+        valorTexto: (q) => String(q.total_perguntas),
+        render: (q) => <Chip size="small" label={q.total_perguntas} />,
+      },
+      {
+        chave: "ativo",
+        rotulo: "Status",
+        alinhamento: "center",
+        largura: 120,
+        valorOrdenacao: (q) => (q.ativo ? 0 : 1),
+        valorTexto: (q) => (q.ativo ? "Ativo" : "Inativo"),
+        // O interruptor mora na COLUNA de status, e nao na area de acoes: e o
+        // proprio valor da coluna que ele muda. Quem nao e admin le o mesmo
+        // estado como chip.
+        render: (q) =>
+          isAdmin ? (
+            <Tooltip title={q.ativo ? "Desativar" : "Ativar"}>
+              <Switch
+                data-tour="questionarios-ativo"
+                size="small"
+                checked={q.ativo}
+                onChange={() => alternarAtivo(q)}
+              />
+            </Tooltip>
+          ) : (
+            <Chip
+              size="small"
+              label={q.ativo ? "Ativo" : "Inativo"}
+              color={q.ativo ? "success" : "default"}
+            />
+          ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isAdmin]
+  )
+
+  const filtrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+    return questionarios.filter((q) => {
+      const status = filtros.ativo || []
+      if (status.length && !status.includes(q.ativo ? "sim" : "nao")) return false
+      if (!termo) return true
+      return `${q.titulo} ${q.descricao || ""}`.toLowerCase().includes(termo)
+    })
+  }, [questionarios, busca, filtros])
+
+  const grupos = [
+    {
+      id: "ativo",
+      rotulo: "Status",
+      tipo: "checkbox",
+      itens: [
+        { id: "sim", rotulo: "Ativo" },
+        { id: "nao", rotulo: "Inativo" },
+      ],
+    },
+  ]
+
   return (
     <AppLayout>
       <Box>
@@ -246,85 +336,56 @@ export default function Questionarios() {
           <Alert severity="info">
             Seu usuário não está vinculado a nenhuma incubadora, então não há questionários para gerenciar.
           </Alert>
-        ) : carregando ? (
-          <Box sx={{ textAlign: "center", py: 6 }}>
-            <CircularProgress />
-          </Box>
         ) : (
-          <Paper data-tour="questionarios-lista" sx={{ borderRadius: 0, overflow: "hidden" }}>
-            {questionarios.length === 0 ? (
-              <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
-                <Quiz sx={{ fontSize: 48, opacity: 0.4 }} />
-                <Typography sx={{ mt: 1 }}>Nenhum questionário cadastrado ainda.</Typography>
-                {isAdmin && (
-                  <Typography variant="body2">Clique em "Novo questionário" para começar.</Typography>
-                )}
-              </Box>
-            ) : (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Título</TableCell>
-                      <TableCell align="center" width={120}>
-                        Perguntas
-                      </TableCell>
-                      <TableCell align="center" width={120}>
-                        Status
-                      </TableCell>
-                      <TableCell align="right" width={120}>
-                        Ações
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {questionarios.map((q) => (
-                      <TableRow key={q.id_questionario} hover>
-                        <TableCell>
-                          <Typography fontWeight={600}>{q.titulo}</Typography>
-                          {q.descricao && (
-                            <Typography variant="body2" color="text.secondary">
-                              {q.descricao}
-                            </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip size="small" label={q.total_perguntas} />
-                        </TableCell>
-                        <TableCell align="center">
-                          {isAdmin ? (
-                            <Tooltip title={q.ativo ? "Desativar" : "Ativar"}>
-                              <Switch
-                                data-tour="questionarios-ativo"
-                                size="small"
-                                checked={q.ativo}
-                                onChange={() => alternarAtivo(q)}
-                              />
-                            </Tooltip>
-                          ) : (
-                            <Chip
-                              size="small"
-                              label={q.ativo ? "Ativo" : "Inativo"}
-                              color={q.ativo ? "success" : "default"}
-                            />
-                          )}
-                        </TableCell>
-                        <TableCell align="right">
-                          <Tooltip title="Visualizar">
-                            <IconButton data-tour="questionarios-preview" size="small" onClick={() => abrirPreview(q.id_questionario)}>
-                              <Visibility fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
+          <Paper data-tour="questionarios-lista" sx={{ borderRadius: 0 }}>
+            <ToolbarTabela
+              busca={busca}
+              onBuscaChange={setBusca}
+              placeholderBusca="Buscar por título ou descrição..."
+              totalFiltros={contarFiltros(filtros)}
+              onAbrirFiltros={() => setPainelAberto(true)}
+              onExportar={() =>
+                exportarTabelaCsv("questionarios", colunas, colunasVisiveis, filtrados)
+              }
+            />
+
+            <TabelaDados
+              dados={filtrados}
+              colunas={colunas}
+              chaveId="id_questionario"
+              chaveStorage="questionarios"
+              ordemInicial="titulo"
+              carregando={carregando}
+              larguraMinima={720}
+              mensagemVazio={
+                questionarios.length === 0
+                  ? "Nenhum questionário cadastrado ainda."
+                  : "Nenhum questionário corresponde ao filtro."
+              }
+              onColunasVisiveisChange={setColunasVisiveis}
+              larguraAcoes={56}
+              acoes={[
+                {
+                  rotulo: "Visualizar",
+                  icone: <Visibility fontSize="small" />,
+                  atributos: { "data-tour": "questionarios-preview" },
+                  onClick: (q) => abrirPreview(q.id_questionario),
+                },
+              ]}
+            />
           </Paper>
         )}
       </Box>
+
+      <PainelFiltros
+        aberto={painelAberto}
+        onFechar={() => setPainelAberto(false)}
+        titulo="Filtrar questionários"
+        grupos={grupos}
+        selecionados={filtros}
+        onAplicar={setFiltros}
+        onLimpar={() => setFiltros({})}
+      />
 
       {/* ---------------- Construtor (dialog de criacao) ---------------- */}
       <Dialog open={dialogAberto} onClose={() => setDialogAberto(false)} maxWidth="md" fullWidth>

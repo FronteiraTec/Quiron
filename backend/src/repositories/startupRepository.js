@@ -1,8 +1,46 @@
 /**
  * Repositorio de Startups (camada de acesso a dados).
- * Tabelas relacionadas: startup, startup_membros, mentor_startup, startup_trilha.
+ * Tabelas relacionadas: startup, startup_membros, mentor_startup, startup_trilha,
+ * startup_contato, startup_tipo, startup_situacao (migracao 010).
  */
-const { query } = require("../config/db")
+const { query, withTransaction } = require("../config/db")
+
+/**
+ * Traz o rotulo e a cor do tipo e da situacao junto da startup.
+ *
+ * LEFT JOIN nos dois: tipo e opcional no cadastro, e uma startup criada antes
+ * da migracao pode nao ter situacao. A tela precisa desenhar essas linhas
+ * mesmo assim.
+ */
+const JOIN_VOCABULARIO = `
+  LEFT JOIN startup_tipo st_tipo
+         ON st_tipo.id_tenant = s.id_tenant AND st_tipo.chave = s.tipo
+  LEFT JOIN startup_situacao st_sit
+         ON st_sit.id_tenant = s.id_tenant AND st_sit.chave = s.situacao
+`
+
+const CAMPOS_VOCABULARIO = `
+  st_tipo.rotulo AS tipo_rotulo, st_tipo.cor AS tipo_cor,
+  st_sit.rotulo AS situacao_rotulo, st_sit.cor AS situacao_cor, st_sit.ciclo AS situacao_ciclo
+`
+
+/**
+ * O `status` (enum do ciclo) e DERIVADO da situacao escolhida, nunca digitado.
+ *
+ * Quem cadastra escolhe "Graduada"; que isso significa ENCERRADA — e portanto
+ * fora das contagens do programa em todo relatorio — e o que esta subconsulta
+ * resolve. Deixar o cliente mandar o status abriria a porta para a startup
+ * marcada como "Ativa" na tela e ENCERRADA no banco.
+ *
+ * COALESCE para 'ATIVA' cobre o cadastro sem situacao: a coluna tem default e o
+ * programa precisa de um estado.
+ *
+ * @param {number} iTenant - posicao do id_tenant entre os parametros ($n).
+ * @param {number} iSituacao - posicao da chave da situacao.
+ */
+const statusDaSituacao = (iTenant, iSituacao) =>
+  `COALESCE((SELECT ciclo FROM startup_situacao
+              WHERE id_tenant = $${iTenant} AND chave = $${iSituacao}), 'ATIVA')`
 
 /**
  * Junta a fase atual (primeira fase ativa da trilha ainda nao aprovada) e a
@@ -71,12 +109,15 @@ async function listarPorTenant(idTenant, idsPermitidos = null) {
   }
 
   const { rows } = await query(
-    `SELECT s.id_startup, s.nome, s.cnpj, s.status, s.criado_ts,
+    `SELECT s.id_startup, s.nome, s.cnpj, s.email, s.status, s.tipo, s.situacao,
+            s.cidade, s.uf, s.campos_extras, s.criado_ts,
+            ${CAMPOS_VOCABULARIO},
             COALESCE(tf.total_fases, 0) AS total_fases,
             COALESCE(sfok.fases_aprovadas, 0) AS fases_aprovadas,
             prox.nome AS fase_atual_nome
        FROM startup s
        ${JOIN_PROGRESSO}
+       ${JOIN_VOCABULARIO}
       WHERE ${condicoes.join(" AND ")}
       ORDER BY s.nome`,
     params
@@ -87,45 +128,177 @@ async function listarPorTenant(idTenant, idsPermitidos = null) {
 /** Busca uma startup pelo id, com fase atual e progresso na trilha. */
 async function buscarPorId(id) {
   const { rows } = await query(
-    `SELECT s.*,
+    `SELECT s.*, ${CAMPOS_VOCABULARIO},
             COALESCE(tf.total_fases, 0) AS total_fases,
             COALESCE(sfok.fases_aprovadas, 0) AS fases_aprovadas,
             prox.nome AS fase_atual_nome
        FROM startup s
        ${JOIN_PROGRESSO}
+       ${JOIN_VOCABULARIO}
       WHERE s.id_startup = $1`,
     [id]
   )
   return rows[0] && comProgresso(rows[0])
 }
 
-/** Atualiza os dados cadastrais (nome/cnpj) de uma startup. */
-async function atualizar(id, { nome, cnpj }) {
+/**
+ * As colunas do cadastro, na ordem em que os parametros entram. Uma lista so
+ * porque INSERT e UPDATE gravam exatamente o mesmo conjunto — manter duas
+ * copias garantiria que um campo novo entrasse em um e faltasse no outro.
+ *
+ * O id_tenant e o nome ficam de fora: o primeiro nunca muda depois de criada,
+ * e o segundo abre a lista nas duas queries.
+ */
+const COLUNAS_CADASTRO = [
+  "cnpj",
+  "inscricao_estadual",
+  "email",
+  "tipo",
+  "situacao",
+  "observacoes",
+  "cep",
+  "uf",
+  "cidade",
+  "bairro",
+  "rua",
+  "numero",
+  "complemento",
+]
+
+/** Os valores de COLUNAS_CADASTRO, na mesma ordem, a partir do objeto do service. */
+function valoresCadastro(dados) {
+  return COLUNAS_CADASTRO.map((coluna) => dados[coluna] ?? null)
+}
+
+/**
+ * Atualiza os dados cadastrais de uma startup.
+ *
+ * O `status` sai da situacao (ver statusDaSituacao) e o `campos_extras` chega
+ * ja normalizado pelo service — aqui ele so e gravado.
+ */
+async function atualizar(id, dados) {
+  // $1 = id, $2 = nome, $3..$n = COLUNAS_CADASTRO, depois id_tenant, situacao
+  // (de novo) e extras.
+  const params = [id, dados.nome, ...valoresCadastro(dados)]
+  const sets = COLUNAS_CADASTRO.map((coluna, i) => `${coluna} = $${i + 3}`)
+
+  params.push(dados.idTenant)
+  const iTenant = params.length
+  // A SITUACAO VAI DUAS VEZES, de proposito. Reaproveitar a posicao dela na
+  // lista de colunas faria o Postgres deduzir dois tipos para o mesmo
+  // parametro — varchar no SET, text na comparacao dentro da subconsulta —, e
+  // ele recusa a query com "inconsistent types deduced for parameter".
+  params.push(dados.situacao ?? null)
+  const iSituacao = params.length
+  params.push(JSON.stringify(dados.camposExtras ?? {}))
+  const iExtras = params.length
+
   const { rows } = await query(
-    `UPDATE startup SET nome = $2, cnpj = $3 WHERE id_startup = $1 RETURNING *`,
-    [id, nome, cnpj]
+    `UPDATE startup
+        SET nome = $2,
+            ${sets.join(", ")},
+            status = ${statusDaSituacao(iTenant, iSituacao)},
+            campos_extras = $${iExtras}::jsonb,
+            atualizado_ts = NOW()
+      WHERE id_startup = $1
+      RETURNING *`,
+    params
   )
   return rows[0]
 }
 
-/** Altera o status (ATIVA/PAUSADA/ENCERRADA) de uma startup. */
-async function atualizarStatus(id, status) {
+/**
+ * Troca a SITUACAO de uma startup (o "status" que a incubadora ve), e com ela
+ * o estado de ciclo derivado.
+ */
+async function atualizarSituacao(id, idTenant, situacao) {
   const { rows } = await query(
-    `UPDATE startup SET status = $2 WHERE id_startup = $1 RETURNING *`,
-    [id, status]
+    `UPDATE startup
+        SET situacao = $3,
+            status = ${statusDaSituacao(2, 4)},
+            atualizado_ts = NOW()
+      WHERE id_startup = $1 AND id_tenant = $2
+      RETURNING *`,
+    // $3 e $4 sao a mesma situacao: ver o comentario em atualizar sobre a
+    // deducao de tipo do Postgres.
+    [id, idTenant, situacao, situacao]
   )
   return rows[0]
 }
 
 /** Cria uma nova startup dentro de um tenant. */
-async function criar({ idTenant, nome, cnpj }) {
+async function criar(dados) {
+  // $1 = id_tenant, $2 = nome, $3..$n = COLUNAS_CADASTRO, depois situacao (de
+  // novo) e extras.
+  const params = [dados.idTenant, dados.nome, ...valoresCadastro(dados)]
+  const placeholders = COLUNAS_CADASTRO.map((_, i) => `$${i + 3}`)
+
+  // Duas vezes, como em atualizar — ver o comentario la.
+  params.push(dados.situacao ?? null)
+  const iSituacao = params.length
+  params.push(JSON.stringify(dados.camposExtras ?? {}))
+  const iExtras = params.length
+
   const { rows } = await query(
-    `INSERT INTO startup (id_tenant, nome, cnpj)
-     VALUES ($1, $2, $3)
-     RETURNING id_startup, nome, cnpj, status, criado_ts`,
-    [idTenant, nome, cnpj]
+    `INSERT INTO startup (id_tenant, nome, ${COLUNAS_CADASTRO.join(", ")}, status, campos_extras)
+     VALUES ($1, $2, ${placeholders.join(", ")}, ${statusDaSituacao(1, iSituacao)}, $${iExtras}::jsonb)
+     RETURNING *`,
+    params
   )
   return rows[0]
+}
+
+// ---------------------------------------------------------------------------
+// CONTATOS
+// ---------------------------------------------------------------------------
+
+/** Contatos de uma startup, o principal primeiro. */
+async function listarContatos(idStartup) {
+  const { rows } = await query(
+    `SELECT id_contato, id_startup, nome, cargo, email, telefone, principal, ordem
+       FROM startup_contato
+      WHERE id_startup = $1
+      ORDER BY principal DESC, ordem, nome`,
+    [idStartup]
+  )
+  return rows
+}
+
+/**
+ * Substitui a lista inteira de contatos de uma startup.
+ *
+ * REESCREVE TUDO, em vez de um CRUD por contato, porque e assim que o
+ * formulario funciona: a lista e editada como um bloco (adiciona linha, apaga
+ * linha, salva) e mandar tres requisicoes para o que o usuario percebeu como
+ * um "Salvar" abriria a janela de o telefone gravar e a exclusao falhar.
+ *
+ * DELETE + INSERT dentro de uma transacao, e nao diff linha a linha: os
+ * contatos nao sao referenciados por nada (nenhuma FK aponta para
+ * startup_contato), entao o id nao precisa sobreviver, e o diff so
+ * acrescentaria caminhos para errar.
+ */
+async function substituirContatos(idStartup, contatos) {
+  return withTransaction(async (client) => {
+    await client.query(`DELETE FROM startup_contato WHERE id_startup = $1`, [idStartup])
+
+    if (contatos.length === 0) return []
+
+    const valores = []
+    const params = [idStartup]
+    contatos.forEach((c, indice) => {
+      const i = params.length
+      valores.push(`($1, $${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5}, $${i + 6})`)
+      params.push(c.nome, c.cargo, c.email, c.telefone, c.principal, indice)
+    })
+
+    const { rows } = await client.query(
+      `INSERT INTO startup_contato (id_startup, nome, cargo, email, telefone, principal, ordem)
+       VALUES ${valores.join(", ")}
+       RETURNING id_contato, id_startup, nome, cargo, email, telefone, principal, ordem`,
+      params
+    )
+    return rows
+  })
 }
 
 /** Adiciona um membro (usuario) a uma startup. */
@@ -163,10 +336,13 @@ async function listarMembrosPorTenant(idTenant) {
   const { rows } = await query(
     `SELECT u.id_usuario, u.nome, u.email, u.foto_url,
             s.id_startup, s.nome AS startup, s.status AS startup_status,
+            st_sit.rotulo AS startup_situacao_rotulo, st_sit.cor AS startup_situacao_cor,
             sm.lider, sm.entrada_dt
        FROM startup s
        JOIN startup_membros sm ON sm.id_startup = s.id_startup AND sm.ativo = TRUE
        JOIN usuarios u ON u.id_usuario = sm.id_usuario
+       LEFT JOIN startup_situacao st_sit
+              ON st_sit.id_tenant = s.id_tenant AND st_sit.chave = s.situacao
       WHERE s.id_tenant = $1
       ORDER BY s.nome, sm.lider DESC, u.nome`,
     [idTenant]
@@ -287,9 +463,10 @@ async function ehMentorDe(idStartup, idUsuario) {
  */
 async function buscarStartupDoUsuario(idTenant, idUsuario) {
   const { rows } = await query(
-    `SELECT s.id_startup, s.nome, s.cnpj, s.status, s.criado_ts, sm.lider
+    `SELECT s.*, ${CAMPOS_VOCABULARIO}, sm.lider
        FROM startup s
        JOIN startup_membros sm ON sm.id_startup = s.id_startup
+       ${JOIN_VOCABULARIO}
       WHERE s.id_tenant = $1 AND sm.id_usuario = $2 AND sm.ativo = TRUE
       LIMIT 1`,
     [idTenant, idUsuario]
@@ -329,7 +506,9 @@ module.exports = {
   buscarPorId,
   criar,
   atualizar,
-  atualizarStatus,
+  atualizarSituacao,
+  listarContatos,
+  substituirContatos,
   adicionarMembro,
   listarMembros,
   listarMembrosPorTenant,

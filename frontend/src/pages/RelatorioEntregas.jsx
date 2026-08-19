@@ -284,6 +284,7 @@ function Conteudo({ idTenant, dias }) {
           <Box sx={{ mb: 4 }}>
             <TabelaRelatorio
               chaveId="id_entrega"
+              chaveStorage="relatorio-entregas-fila"
               linhas={dados.fila}
               ordemInicial="dias_parada"
               onClickLinha={(l) => navigate(`/startups/${l.id_startup}`)}
@@ -350,6 +351,7 @@ function Conteudo({ idTenant, dias }) {
 
           <TabelaRelatorio
             chaveId="id_usuario"
+            chaveStorage="relatorio-entregas-mentores"
             linhas={dados.mentores}
             ordemInicial="avaliacoes"
             mensagemVazio="Nenhuma avaliação registrada no período."

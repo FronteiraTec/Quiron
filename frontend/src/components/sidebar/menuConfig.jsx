@@ -28,6 +28,7 @@
  */
 import {
   Dashboard,
+  Forum,
   Business,
   Apartment,
   People,
@@ -49,6 +50,7 @@ import {
   Feedback,
   Assessment,
   TrendingUp,
+  HourglassBottom,
 } from "@mui/icons-material"
 
 // Larguras do menu (compartilhadas com a Navbar e o conteudo).
@@ -60,6 +62,10 @@ export const SIDEBAR_MINI_WIDTH = 80
 // ---------------------------------------------------------------------------
 const MENU_ADMIN = [
   { id: "dashboard", texto: "Dashboard", icone: <Dashboard />, rota: "/" },
+  // Mensagens nao leva `permissao`: a caixa de entrada e do proprio usuario
+  // (receber nao passa por RBAC — ver o catalogo). Quem pode ESCREVER ganha o
+  // botao "Nova mensagem" dentro da tela, nao um item de menu diferente.
+  { id: "mensagens", texto: "Mensagens", icone: <Forum />, rota: "/mensagens", novo: true },
   {
     id: "incubadora",
     texto: "Incubadora",
@@ -121,6 +127,7 @@ const MENU_ADMIN = [
       { id: "rel-progresso", texto: "Progresso das startups", icone: <TrendingUp />, rota: "/relatorios/progresso", permissao: "relatorios.progresso.visualizar" },
       { id: "rel-entregas", texto: "Entregas e avaliações", icone: <Inbox />, rota: "/relatorios/entregas", permissao: "relatorios.entregas.visualizar" },
       { id: "rel-gargalos", texto: "Gargalos do programa", icone: <Timeline />, rota: "/relatorios/gargalos", permissao: "relatorios.gargalos.visualizar" },
+      { id: "rel-tempo", texto: "Tempo por etapa", icone: <HourglassBottom />, rota: "/relatorios/tempo", permissao: "relatorios.tempo.visualizar", novo: true },
       { id: "rel-engajamento", texto: "Engajamento e eventos", icone: <Groups />, rota: "/relatorios/engajamento", permissao: "relatorios.engajamento.visualizar" },
     ],
   },
@@ -131,6 +138,10 @@ const MENU_ADMIN = [
 // ---------------------------------------------------------------------------
 const MENU_MENTOR = [
   { id: "dashboard", texto: "Dashboard", icone: <Dashboard />, rota: "/" },
+  // Mensagens nao leva `permissao`: a caixa de entrada e do proprio usuario
+  // (receber nao passa por RBAC — ver o catalogo). Quem pode ESCREVER ganha o
+  // botao "Nova mensagem" dentro da tela, nao um item de menu diferente.
+  { id: "mensagens", texto: "Mensagens", icone: <Forum />, rota: "/mensagens", novo: true },
   {
     id: "startups",
     texto: "Startups",
@@ -165,6 +176,10 @@ const MENU_MENTOR = [
 // ---------------------------------------------------------------------------
 const MENU_USUARIO = [
   { id: "dashboard", texto: "Dashboard", icone: <Dashboard />, rota: "/" },
+  // Mensagens nao leva `permissao`: a caixa de entrada e do proprio usuario
+  // (receber nao passa por RBAC — ver o catalogo). Quem pode ESCREVER ganha o
+  // botao "Nova mensagem" dentro da tela, nao um item de menu diferente.
+  { id: "mensagens", texto: "Mensagens", icone: <Forum />, rota: "/mensagens", novo: true },
   { id: "jornada", texto: "Minha Jornada", icone: <Timeline />, rota: "/jornada", novo: true },
   // O Blueprint/maturidade que era a tela "Minha Empresa" virou a aba
   // "Evolucao" aqui dentro — eram duas telas concorrentes sobre a startup.

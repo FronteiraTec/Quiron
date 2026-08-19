@@ -333,6 +333,100 @@ SELECT 1, n.id_no, 'EM_ANDAMENTO'
 FROM trilha_no n
 WHERE n.id_tenant = 1 AND n.tipo = 'FASE' AND n.nome = 'Ideacao';
 
+
+-- ---------------------------------------------------------------------------
+-- 6. MATRICULA E LINHA DO TEMPO — sem isto a demo nao exercita o sistema.
+--
+-- Duas lacunas que este seed carregava:
+--
+--   a) A MATRICULA (startup_programa) nao existia ate a migracao 009, e este
+--      arquivo e anterior a ela. Sem a linha, `trilhaRepository.programasDaStartup`
+--      devolve vazio e a Jornada abre SEM TRILHA: a FlipTech tinha entregas
+--      soltas nos passos, mas nao pertencia a trilha em que os passos estao.
+--
+--   b) DATAS. Todo INSERT acima grava NOW(), entao a demo nascia com a trilha
+--      inteira acontecendo no mesmo instante — fila de avaliacao com zero dia
+--      de espera, SLA de mentor zerado, tempo por etapa zerado. Os relatorios
+--      de TEMPO existiam mas nao tinham o que mostrar.
+--
+-- A historia montada abaixo (dia 0 = matricula, 60 dias atras):
+--
+--   dia  5  Descoberta do problema enviada  ->  dia  8  aprovada
+--   dia 12  Persona do cliente enviada      ->  dia 14  aprovada
+--   dia 18  Business Model Canvas enviado   ->  dia 41  devolvido para ajuste
+--   dia 22  Proposta de valor enviada       ->  sem resposta ate hoje
+--
+-- Dois passos correram normal; um ficou 23 dias na fila antes de voltar para
+-- ajuste; outro esta parado ha ~38 dias esperando alguem olhar. E o retrato
+-- que o relatorio de tempo por etapa existe para expor — e que nenhum
+-- relatorio de ESTADO consegue mostrar, porque em estado os dois ultimos sao
+-- so "em ajuste" e "aguardando".
+-- ---------------------------------------------------------------------------
+
+INSERT INTO startup_programa (id_startup, id_no, status, inicio_ts)
+SELECT 1, n.id_no, 'EM_ANDAMENTO', NOW() - INTERVAL '60 days'
+  FROM trilha_no n
+ WHERE n.id_tenant = 1 AND n.tipo = 'PROGRAMA'
+ON CONFLICT (id_startup, id_no) DO UPDATE SET inicio_ts = EXCLUDED.inicio_ts;
+
+-- Recua as entregas. `atualizado_ts` e o marco de "quando foi enviada" que a
+-- fila de avaliacao e o SLA dos mentores leem.
+--
+-- O trigger de envio fica DESLIGADO durante este UPDATE, e nao por comodidade:
+-- para ele, uma entrega que continua ENVIADA depois de um UPDATE e um reenvio
+-- — e essa leitura esta certa, porque na aplicacao todo UPDATE que deixa a
+-- entrega em ENVIADA veio de `enviar` ou de `reenviar` (jornadaRepository).
+-- So que ESTE update nao e envio nenhum: e manutencao de data. Sem desligar, o
+-- seed grava um segundo ENVIADA em cada passo ja avaliado, e a linha do tempo
+-- da demo nasce com um envio que nunca houve.
+ALTER TABLE entrega DISABLE TRIGGER trg_passo_evento_entrega;
+
+UPDATE entrega e
+   SET criado_ts     = NOW() - INTERVAL '60 days' + (d.dia || ' days')::INTERVAL,
+       atualizado_ts = NOW() - INTERVAL '60 days' + (d.dia || ' days')::INTERVAL
+  FROM trilha_no n, (VALUES
+    ('Descoberta do problema',  5),
+    ('Persona do cliente',     12),
+    ('Business Model Canvas',  18),
+    ('Proposta de valor',      22),
+    ('Hipoteses de receita',   30)   -- rascunho: salvo, nunca enviado
+  ) AS d(passo, dia)
+ WHERE n.id_no = e.id_no AND n.id_tenant = 1 AND n.nome = d.passo;
+
+ALTER TABLE entrega ENABLE TRIGGER trg_passo_evento_entrega;
+
+UPDATE avaliacao a
+   SET criado_ts = NOW() - INTERVAL '60 days' + (d.dia || ' days')::INTERVAL
+  FROM entrega e, trilha_no n, (VALUES
+    ('Descoberta do problema',  8),
+    ('Persona do cliente',     14),
+    ('Business Model Canvas',  41)
+  ) AS d(passo, dia)
+ WHERE a.id_entrega = e.id_entrega AND n.id_no = e.id_no
+   AND n.id_tenant = 1 AND n.nome = d.passo;
+
+-- O livro-caixa do tempo (passo_evento, migracao 011) ja foi preenchido pelos
+-- triggers durante os INSERTs acima — com a data de HOJE, porque e quando o
+-- INSERT rodou. Recua cada evento para a data do fato que ele registra.
+--
+-- Sem este bloco o relatorio de tempo por etapa mostraria a trilha inteira
+-- acontecendo nos ultimos segundos, e as duas tabelas (entrega e passo_evento)
+-- contariam historias diferentes da mesma coisa.
+UPDATE passo_evento pe
+   SET ts = NOW() - INTERVAL '60 days' + (d.dia || ' days')::INTERVAL
+  FROM trilha_no n, (VALUES
+    ('Descoberta do problema', 'ENVIADA',   5),
+    ('Descoberta do problema', 'APROVADO',  8),
+    ('Persona do cliente',     'ENVIADA',  12),
+    ('Persona do cliente',     'APROVADO', 14),
+    ('Business Model Canvas',  'ENVIADA',  18),
+    ('Business Model Canvas',  'AJUSTE',   41),
+    ('Proposta de valor',      'ENVIADA',  22)
+  ) AS d(passo, tipo, dia)
+ WHERE n.id_no = pe.id_no AND n.id_tenant = 1
+   AND n.nome = d.passo AND pe.tipo::TEXT = d.tipo
+   AND pe.id_startup = 1;
+
 COMMIT;
 
 -- ===========================================================================

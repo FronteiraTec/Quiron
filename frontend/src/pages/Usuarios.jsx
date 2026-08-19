@@ -102,6 +102,8 @@ import SearchPermissions from "../components/permissoes/SearchPermissions"
 import PermissionsAccordion from "../components/permissoes/PermissionsAccordion"
 import RoleActions from "../components/permissoes/RoleActions"
 import api from "../services/api"
+import TabelaDados from "../components/tabela/TabelaDados"
+import ToolbarTabela from "../components/tabela/ToolbarTabela"
 import { useAuthStore } from "../store/authStore"
 import {
   MAX_CELULAR,
@@ -148,7 +150,7 @@ export default function Usuarios() {
             <Tab data-tour="usuarios-aba-permissoes" value="permissoes" label="Permissões" sx={{ textTransform: "none" }} />
             <Tab data-tour="usuarios-aba-grupos" value="grupos" label="Grupos" sx={{ textTransform: "none" }} />
             <Tab data-tour="usuarios-aba-ativar" value="ativar" label="Ativar usuários" sx={{ textTransform: "none" }} />
-            <Tab data-tour="usuarios-aba-startups" value="startups" label="Startups" sx={{ textTransform: "none" }} />
+            {/* <Tab data-tour="usuarios-aba-startups" value="startups" label="Startups" sx={{ textTransform: "none" }} /> */}
           </Tabs>
         </Paper>
 
@@ -1202,6 +1204,7 @@ function AbaAtivarUsuarios({ idTenant }) {
   const [carregando, setCarregando] = useState(true)
   const [aviso, setAviso] = useState(null)
   const [ativando, setAtivando] = useState(null)
+  const [busca, setBusca] = useState("")
 
   const carregar = async () => {
     setCarregando(true)
@@ -1234,6 +1237,38 @@ function AbaAtivarUsuarios({ idTenant }) {
     }
   }
 
+  const filtrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+    if (!termo) return usuarios
+    return usuarios.filter((u) => `${u.nome} ${u.email}`.toLowerCase().includes(termo))
+  }, [usuarios, busca])
+
+  const colunas = useMemo(
+    () => [
+      {
+        chave: "nome",
+        rotulo: "Nome",
+        obrigatoria: true,
+        largura: 260,
+        valorTexto: (u) => u.nome,
+        render: (u) => (
+          <Typography variant="body2" fontWeight={600}>
+            {u.nome}
+          </Typography>
+        ),
+      },
+      { chave: "email", rotulo: "E-mail", largura: 280 },
+      {
+        chave: "papel",
+        rotulo: "Papel",
+        largura: 140,
+        valorTexto: (u) => PAPEL_ROTULO[u.papel] || u.papel,
+        render: (u) => PAPEL_ROTULO[u.papel] || u.papel,
+      },
+    ],
+    []
+  )
+
   return (
     <>
       {aviso && (
@@ -1242,53 +1277,42 @@ function AbaAtivarUsuarios({ idTenant }) {
         </Alert>
       )}
 
-      <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>
-        {carregando ? (
-          <Box sx={{ textAlign: "center", py: 6 }}>
-            <CircularProgress />
-          </Box>
-        ) : usuarios.length === 0 ? (
-          <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
-            <HowToReg sx={{ fontSize: 48, opacity: 0.4 }} />
-            <Typography sx={{ mt: 1 }}>Nenhum usuário inativo no momento.</Typography>
-          </Box>
-        ) : (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Nome</TableCell>
-                  <TableCell>E-mail</TableCell>
-                  <TableCell>Papel</TableCell>
-                  <TableCell align="right">Ação</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {usuarios.map((u) => (
-                  <TableRow key={u.id_usuario} hover>
-                    <TableCell>
-                      <Typography fontWeight={600}>{u.nome}</Typography>
-                    </TableCell>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>{PAPEL_ROTULO[u.papel] || u.papel}</TableCell>
-                    <TableCell align="right">
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<HowToReg />}
-                        disabled={ativando === u.id_usuario}
-                        onClick={() => ativar(u.id_usuario)}
-                        sx={{ textTransform: "none" }}
-                      >
-                        Ativar
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+      <Paper sx={{ borderRadius: 0 }}>
+        <ToolbarTabela
+          busca={busca}
+          onBuscaChange={setBusca}
+          placeholderBusca="Buscar por nome ou e-mail..."
+        />
+
+        <TabelaDados
+          dados={filtrados}
+          colunas={colunas}
+          chaveId="id_usuario"
+          chaveStorage="usuarios-ativar"
+          ordemInicial="nome"
+          carregando={carregando}
+          larguraMinima={640}
+          mensagemVazio={
+            usuarios.length === 0
+              ? "Nenhum usuário inativo no momento."
+              : "Nenhum usuário corresponde à busca."
+          }
+          larguraAcoes={120}
+          // Botao com texto, e nao icone: reativar alguem e a unica coisa que
+          // se faz nesta aba, e o rotulo evita a duvida do icone.
+          acoes={(u) => (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<HowToReg />}
+              disabled={ativando === u.id_usuario}
+              onClick={() => ativar(u.id_usuario)}
+              sx={{ textTransform: "none" }}
+            >
+              Ativar
+            </Button>
+          )}
+        />
       </Paper>
     </>
   )

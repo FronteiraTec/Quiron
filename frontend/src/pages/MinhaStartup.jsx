@@ -19,6 +19,7 @@ import AppLayout from "../components/AppLayout"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
 import AbaMembros from "../components/startup/AbaMembros"
+import ChipSituacao from "../components/startup/ChipSituacao"
 import AbaModelos from "../components/startup/AbaModelos"
 import AbaFasesConcluidas from "../components/startup/AbaFasesConcluidas"
 import AbaEvolucao from "../components/startup/AbaEvolucao"
@@ -73,11 +74,10 @@ export default function MinhaStartup() {
                 {startup.nome}
               </Typography>
               {startup.lider && <Chip size="small" label="Você e o líder" color="primary" />}
-              <Chip
-                size="small"
-                label={startup.status}
-                color={startup.status === "ATIVA" ? "success" : "default"}
-              />
+              {/* O status vem com o rotulo e a cor que a incubadora cadastrou
+                  (startup_situacao); o ChipSituacao cai no ciclo padrao quando
+                  a startup ainda nao tem situacao. */}
+              <ChipSituacao startup={startup} />
             </Paper>
 
             <Paper sx={{ borderRadius: 0, overflow: "hidden" }}>

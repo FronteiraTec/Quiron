@@ -1,11 +1,15 @@
 /**
  * Tela de Perfil.
  *
- * Reune os dados basicos do usuario (nome e celular, via PUT /auth/me).
+ * Reune os dados basicos do usuario (nome e celular, via PUT /auth/me) e a
+ * conexao com o Google Agenda — que e ajuste PESSOAL, como estes, e nao
+ * configuracao da incubadora.
+ *
  * As preferencias de aparencia (tema, cor principal) ficam no UserPanel,
  * acessivel pelo avatar da Navbar.
  */
 import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import {
   Box,
   Paper,
@@ -21,6 +25,7 @@ import {
 } from "@mui/material"
 import { Person, PhotoCamera } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
+import GoogleAgendaCard from "../components/perfil/GoogleAgendaCard"
 import { useAuthStore } from "../store/authStore"
 import { MAX_CELULAR, celularValido, mascararCelular, somenteDigitos } from "../utils/mascaras"
 
@@ -51,6 +56,30 @@ export default function Perfil() {
       setCelular(mascararCelular(usuario.celular || ""))
     }
   }, [usuario])
+
+  // Volta do consentimento do Google. O backend nao tem como responder JSON
+  // nesse salto (quem chega e o navegador, redirecionado pelo Google), entao
+  // ele manda o resultado na query e a mensagem e montada aqui.
+  const [parametros, setParametros] = useSearchParams()
+  useEffect(() => {
+    const resultado = parametros.get("google")
+    if (!resultado) return
+
+    const mensagens = {
+      ok: {
+        tipo: "success",
+        texto: "Google Agenda conectado. Seus eventos estao sendo enviados.",
+      },
+      cancelado: { tipo: "info", texto: "Conexao com o Google cancelada." },
+      erro: {
+        tipo: "error",
+        texto: parametros.get("motivo") || "Nao foi possivel conectar ao Google.",
+      },
+    }
+    setAviso(mensagens[resultado] || mensagens.erro)
+    // Limpa a query para o aviso nao reaparecer a cada recarga da tela.
+    setParametros({}, { replace: true })
+  }, [parametros, setParametros])
 
   const salvarDadosPerfil = async (e) => {
     e.preventDefault()
@@ -197,6 +226,10 @@ export default function Perfil() {
             </Box>
           </Paper>
         )}
+
+        {/* Fora do <form> acima de proposito: sao acoes proprias, e um clique
+            em "Sincronizar agora" dentro do formulario o submeteria junto. */}
+        <GoogleAgendaCard onAviso={setAviso} />
       </Box>
     </AppLayout>
   )

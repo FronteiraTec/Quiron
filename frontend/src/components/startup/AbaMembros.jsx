@@ -7,13 +7,6 @@ import { useEffect, useMemo, useState } from "react"
 import {
   Box,
   Button,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Chip,
   Dialog,
   DialogTitle,
@@ -23,11 +16,11 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
-  Tooltip,
   Typography,
 } from "@mui/material"
-import { Add, Delete, Groups } from "@mui/icons-material"
+import { Add, Delete } from "@mui/icons-material"
 import api from "../../services/api"
+import TabelaDados from "../tabela/TabelaDados"
 
 export default function AbaMembros({ idStartup, idTenant }) {
   const [membros, setMembros] = useState([])
@@ -70,6 +63,39 @@ export default function AbaMembros({ idStartup, idTenant }) {
     }
   }
 
+  const colunas = useMemo(
+    () => [
+      { chave: "nome", rotulo: "Nome", obrigatoria: true, largura: 220 },
+      { chave: "email", rotulo: "E-mail", largura: 240 },
+      {
+        chave: "lider",
+        rotulo: "Papel",
+        alinhamento: "center",
+        largura: 110,
+        valorOrdenacao: (m) => (m.lider ? 0 : 1),
+        valorTexto: (m) => (m.lider ? "Lider" : "Membro"),
+        render: (m) =>
+          m.lider ? (
+            <Chip size="small" label="Líder" color="primary" />
+          ) : (
+            <Typography variant="caption" color="text.secondary">
+              Membro
+            </Typography>
+          ),
+      },
+      {
+        chave: "entrada_dt",
+        rotulo: "Entrada",
+        alinhamento: "center",
+        largura: 130,
+        valorOrdenacao: (m) => m.entrada_dt,
+        valorTexto: (m) => (m.entrada_dt ? new Date(m.entrada_dt).toLocaleDateString("pt-BR") : ""),
+        render: (m) => (m.entrada_dt ? new Date(m.entrada_dt).toLocaleDateString("pt-BR") : "—"),
+      },
+    ],
+    []
+  )
+
   return (
     <>
       {aviso && (
@@ -83,53 +109,25 @@ export default function AbaMembros({ idStartup, idTenant }) {
         </Button>
       </Box>
 
-      {carregando ? (
-        <Box sx={{ textAlign: "center", py: 6 }}>
-          <CircularProgress />
-        </Box>
-      ) : membros.length === 0 ? (
-        <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
-          <Groups sx={{ fontSize: 48, opacity: 0.4 }} />
-          <Typography sx={{ mt: 1 }}>Nenhum membro cadastrado ainda.</Typography>
-        </Box>
-      ) : (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Nome</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell align="center">Líder</TableCell>
-                <TableCell align="center">Entrada</TableCell>
-                <TableCell align="center" width={70}>
-                  Ações
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {membros.map((m) => (
-                <TableRow key={m.id_usuario} hover>
-                  <TableCell>{m.nome}</TableCell>
-                  <TableCell>{m.email}</TableCell>
-                  <TableCell align="center">
-                    {m.lider && <Chip size="small" label="Líder" color="primary" />}
-                  </TableCell>
-                  <TableCell align="center">
-                    {m.entrada_dt ? new Date(m.entrada_dt).toLocaleDateString("pt-BR") : "-"}
-                  </TableCell>
-                  <TableCell align="center">
-                    <Tooltip title="Remover">
-                      <IconButton size="small" color="error" onClick={() => remover(m.id_usuario)}>
-                        <Delete fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+      <TabelaDados
+        dados={membros}
+        colunas={colunas}
+        chaveId="id_usuario"
+        chaveStorage="startup-membros"
+        ordemInicial="nome"
+        carregando={carregando}
+        larguraMinima={680}
+        mensagemVazio="Nenhum membro cadastrado ainda."
+        larguraAcoes={56}
+        acoes={[
+          {
+            rotulo: "Remover",
+            icone: <Delete fontSize="small" />,
+            cor: "error.main",
+            onClick: (m) => remover(m.id_usuario),
+          },
+        ]}
+      />
 
       <DialogAdicionarMembro
         aberto={dialogAberto}

@@ -111,6 +111,7 @@ function Conteudo({ idTenant }) {
 
           <TabelaRelatorio
             chaveId="id_startup"
+            chaveStorage="relatorio-progresso-startups"
             linhas={dados.startups}
             ordemInicial="progresso_pct"
             direcaoInicial="asc"

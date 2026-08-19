@@ -17,7 +17,7 @@ router.get("/membros", ctrl.listarMembrosDoTenant) // ?id_tenant= (todas as star
 router.get("/:id", ctrl.buscar)
 router.post("/", ctrl.criar)
 router.put("/:id", ctrl.atualizar)
-router.patch("/:id/status", ctrl.atualizarStatus)
+router.patch("/:id/situacao", ctrl.atualizarSituacao)
 router.get("/:id/membros", ctrl.listarMembros)
 router.post("/:id/membros", ctrl.adicionarMembro)
 router.delete("/:id/membros/:idUsuario", ctrl.removerMembro)

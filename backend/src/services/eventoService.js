@@ -20,6 +20,7 @@ const startupRepository = require("../repositories/startupRepository")
 const rbacService = require("./rbacService")
 const auditLogService = require("./auditLogService")
 const notificacaoService = require("./notificacaoService")
+const googleAgendaService = require("./googleAgendaService")
 const { CATEGORIA_FALLBACK } = require("../eventos/categoriasPadrao")
 const { erroNegocio } = require("../utils/erros")
 
@@ -139,6 +140,9 @@ async function criar(dados, usuarioAutenticado) {
   // Convite para o publico do evento — geral ou so as startups direcionadas,
   // conforme o que ficou gravado em evento_startups.
   notificacaoService.eventoCriado(evento)
+  // O mesmo publico, na agenda do Google de quem conectou a conta. Como o
+  // email acima, sai em segundo plano e nunca derruba a criacao do evento.
+  googleAgendaService.eventoCriado(evento)
 
   return evento
 }
@@ -177,6 +181,11 @@ async function atualizar(id, dados, usuarioAutenticado) {
     dadosDepois: evento,
   })
 
+  // Nao ha email de "evento editado" — mas na agenda do Google a edicao
+  // importa tanto quanto a criacao: mudou a hora, mudou a sala ou mudaram as
+  // startups direcionadas, o compromisso de quem ja recebeu precisa acompanhar.
+  googleAgendaService.eventoAtualizado(evento)
+
   return evento
 }
 
@@ -190,6 +199,11 @@ async function excluir(id, usuarioAutenticado) {
   if (!antes) throw erroNegocio(404, "Evento nao encontrado.")
   await rbacService.garantirPermissao(antes.id_tenant, usuarioAutenticado, "eventos.agenda.excluir")
 
+  // Levantado ANTES da exclusao. A lista de quem recebeu o evento no Google se
+  // apoia no evento ainda estar visivel; buscando depois, em segundo plano, ela
+  // viria vazia e o compromisso cancelado ficaria na agenda de todo mundo.
+  const espelhosGoogle = await googleAgendaService.espelhosDoEvento(id)
+
   const evento = await eventoRepository.excluir(id)
   if (!evento) throw erroNegocio(404, "Evento nao encontrado.")
 
@@ -202,6 +216,8 @@ async function excluir(id, usuarioAutenticado) {
     descricao: `Excluiu o evento "${antes.titulo}".`,
     dadosAntes: antes,
   })
+
+  googleAgendaService.eventoExcluido(id, espelhosGoogle)
 }
 
 // ---------------------------------------------------------------------------

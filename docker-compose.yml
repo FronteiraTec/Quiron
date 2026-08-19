@@ -48,6 +48,22 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      # Google Agenda (OAuth 2.0). Sem GOOGLE_CLIENT_ID/SECRET a integracao
+      # fica invisivel: o cartao nao aparece no Perfil e nada e enviado.
+      # Ver docs/google-agenda.md para criar as credenciais.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      # Precisa ser IDENTICO ao "URI de redirecionamento autorizado" cadastrado
+      # no Google Cloud. O padrao serve para o Nginx deste projeto.
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost/api/google-agenda/callback}
+      # Fuso declarado ao Google em cada evento. As colunas inicio_ts/fim_ts
+      # guardam hora de parede, sem fuso: alguem precisa dizer "14h onde".
+      TZ_AGENDA: ${TZ_AGENDA:-America/Sao_Paulo}
+      # Chave que cifra os tokens do Google no banco (AES-256-GCM). Separada do
+      # JWT_SECRET de proposito: trocar o JWT_SECRET derruba as sessoes e se faz
+      # sem drama, mas trocar ESTA chave torna ilegivel todo refresh token ja
+      # gravado e obriga todo mundo a reconectar a agenda.
+      SECRET_KEY: ${SECRET_KEY:-}
       # Onde os arquivos enviados ficam DENTRO do container (volume `uploads`).
       UPLOAD_DIR: /app/uploads
     volumes:

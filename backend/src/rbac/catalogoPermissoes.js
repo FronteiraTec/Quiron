@@ -135,6 +135,39 @@ const CATALOGO_PERMISSOES = [
     ],
   },
   {
+    modulo: "comunicacao",
+    rotulo: "Comunicacao",
+    // Mensagens internas (migracao 012). RECEBER nao entra no catalogo, pelo
+    // mesmo motivo da Jornada: a caixa de entrada e do proprio usuario, e uma
+    // chave para ler o que mandaram PARA ELE so criaria um jeito novo de deixar
+    // alguem sem os avisos da incubadora.
+    //
+    // O que se controla e a EMISSAO, e em duas camadas: `enviar` diz se a
+    // pessoa escreve; as chaves `enviar_*` dizem ate onde a voz dela alcanca.
+    // Sao separadas porque o risco cresce com o publico — mandar um recado para
+    // um colega e o caso comum; falar com a incubadora inteira e um megafone, e
+    // nem toda incubadora quer o mesmo numero de pessoas segurando um.
+    recursos: [
+      {
+        recurso: "mensagens",
+        rotulo: "Mensagens",
+        acoes: [
+          // Ver o que OS OUTROS enviaram (o historico do tenant). Quem tem
+          // `enviar` sempre enxerga as proprias, com ou sem esta chave.
+          { acao: "visualizar", rotulo: "Ver mensagens enviadas por todos" },
+          { acao: "enviar", rotulo: "Enviar para pessoas especificas" },
+          { acao: "enviar_startup", rotulo: "Enviar para os membros de uma startup" },
+          { acao: "enviar_mentores", rotulo: "Enviar para os mentores" },
+          { acao: "enviar_role", rotulo: "Enviar para uma role inteira" },
+          { acao: "enviar_tenant", rotulo: "Enviar para toda a incubadora" },
+          // Excluir a mensagem de outra pessoa. O autor sempre pode apagar a
+          // propria (o mesmo desenho de `visualizar`).
+          { acao: "excluir", rotulo: "Excluir mensagens de qualquer pessoa" },
+        ],
+      },
+    ],
+  },
+  {
     modulo: "usuarios",
     rotulo: "Usuarios",
     recursos: [
@@ -188,6 +221,16 @@ const CATALOGO_PERMISSOES = [
         rotulo: "Categorias e locais da agenda",
         acoes: [{ acao: "gerenciar", rotulo: "Gerenciar categorias e locais" }],
       },
+      // Tipos, situacoes e campos personalizaveis do cadastro de startup. Como
+      // na agenda, so a ESCRITA mora aqui: LER exige
+      // `startups.startups.visualizar`, porque tipo, situacao e a definicao dos
+      // campos sao a estrutura e os rotulos da propria tela de startups — sem
+      // eles a lista renderiza a chave crua e os campos extras somem.
+      {
+        recurso: "startups",
+        rotulo: "Cadastro de startups",
+        acoes: [{ acao: "gerenciar", rotulo: "Gerenciar tipos, situacoes e campos" }],
+      },
       // A auditoria (quem fez o que, e quando) e registro de conformidade, nao
       // relatorio de gestao: mora junto das demais configuracoes da incubadora.
       {
@@ -223,6 +266,17 @@ const CATALOGO_PERMISSOES = [
       {
         recurso: "gargalos",
         rotulo: "Gargalos do programa",
+        acoes: [
+          { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "exportar", rotulo: "Exportar" },
+        ],
+      },
+      // Chave separada de "gargalos" porque o publico e outro: este relatorio
+      // mede o tempo de resposta da propria incubadora, e nem toda equipe de
+      // mentoria deve enxergar o quanto a fila dela atrasa as startups.
+      {
+        recurso: "tempo",
+        rotulo: "Tempo por etapa",
         acoes: [
           { acao: "visualizar", rotulo: "Visualizar" },
           { acao: "exportar", rotulo: "Exportar" },

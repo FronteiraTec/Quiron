@@ -139,6 +139,7 @@ function Conteudo({ idTenant, dias }) {
           <Box sx={{ mb: 4 }}>
             <TabelaRelatorio
               chaveId="id_evento"
+              chaveStorage="relatorio-engajamento-eventos"
               linhas={dados.eventos}
               ordemInicial="inicio_ts"
               colunas={[
@@ -200,6 +201,7 @@ function Conteudo({ idTenant, dias }) {
 
           <TabelaRelatorio
             chaveId="id_startup"
+            chaveStorage="relatorio-engajamento-startups"
             linhas={dados.startups}
             ordemInicial="taxa_presenca_pct"
             direcaoInicial="asc"

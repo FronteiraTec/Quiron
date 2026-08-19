@@ -111,3 +111,132 @@ export function formatarCnpj(valor) {
   if (digitos.length !== 14) return String(valor).trim()
   return mascararCnpj(digitos)
 }
+
+// ---------------------------------------------------------------------------
+// CEP
+// ---------------------------------------------------------------------------
+
+/** Tamanho do CEP ja mascarado — vira o `maxLength` do campo. */
+export const MAX_CEP = 9 // 01310-100
+
+/** Mascara de CEP: "01310-100". Descarta digitos alem do 8o. */
+export function mascararCep(valor) {
+  const d = somenteDigitos(valor).slice(0, 8)
+  return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d
+}
+
+/** True quando o CEP tem os 8 digitos — o gatilho da consulta ao ViaCEP. */
+export function cepValido(valor) {
+  return somenteDigitos(valor).length === 8
+}
+
+/** Formata um CEP vindo do banco para leitura (CHAR(8) vem com padding). */
+export function formatarCep(valor) {
+  if (!valor) return ""
+  const d = somenteDigitos(valor)
+  return d.length === 8 ? mascararCep(d) : String(valor).trim()
+}
+
+// ---------------------------------------------------------------------------
+// MASCARA GENERICA — a dos campos personalizaveis do tipo DOCUMENTO
+// ---------------------------------------------------------------------------
+
+/**
+ * Aplica uma mascara escrita pela propria incubadora.
+ *
+ * Vocabulario minimo de proposito: `#` aceita digito, `A` aceita letra ou
+ * digito, e qualquer outro caractere e separador literal. Duas regras cabem na
+ * dica de um campo de texto ("Ex.: ###.###.###-##"); um mini-DSL com quantifi-
+ * cadores nao caberia, e quem cadastra o campo nao e programador.
+ *
+ * Reconstroi a saida a partir dos caracteres uteis a cada tecla, como as demais
+ * mascaras deste arquivo — e o que faz o backspace apagar o digito antes do
+ * separador em vez de prender o cursor nele.
+ */
+export function aplicarMascara(valor, mascara) {
+  const cru = String(valor ?? "").replace(/[^0-9A-Za-z]/g, "")
+  if (!mascara) return cru
+
+  let saida = ""
+  let i = 0
+
+  for (const simbolo of mascara) {
+    if (i >= cru.length) break
+
+    if (simbolo === "#") {
+      // Letra digitada numa posicao de digito e descartada, nao empurrada para
+      // a proxima: em "###.###" o que se espera de "12a3" e "123", nao "12a".
+      while (i < cru.length && !/\d/.test(cru[i])) i += 1
+      if (i >= cru.length) break
+      saida += cru[i]
+      i += 1
+    } else if (simbolo === "A") {
+      saida += cru[i]
+      i += 1
+    } else {
+      saida += simbolo
+    }
+  }
+
+  return saida
+}
+
+/** Quantas posicoes preenchiveis a mascara tem — o `maxLength` sai do total. */
+export function posicoesDaMascara(mascara) {
+  return (String(mascara ?? "").match(/[#A]/g) || []).length
+}
+
+/** Tira a mascara: so o que o banco guarda. */
+export function desmascarar(valor) {
+  return String(valor ?? "").replace(/[^0-9A-Za-z]/g, "")
+}
+
+// ---------------------------------------------------------------------------
+// MONETARIO — os campos personalizaveis do tipo MONETARIO
+// ---------------------------------------------------------------------------
+
+/**
+ * Mascara de digitacao de dinheiro: os digitos entram pela DIREITA, como numa
+ * calculadora ("1" -> 0,01; "12" -> 0,12; "123" -> 1,23).
+ *
+ * E o unico jeito que nao exige do usuario acertar a virgula: com entrada livre
+ * ele digita "1500" querendo mil e quinhentos e grava quinze reais, e o erro so
+ * aparece no relatorio.
+ */
+export function mascararMoeda(valor) {
+  const d = somenteDigitos(valor).slice(0, 15)
+  if (!d) return ""
+  const centavos = Number(d)
+  return (centavos / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+/** O numero por tras do texto mascarado — o que vai para o banco. */
+export function moedaParaNumero(valor) {
+  if (typeof valor === "number") return valor
+  const d = somenteDigitos(valor)
+  return d ? Number(d) / 100 : null
+}
+
+/** O caminho inverso: o numero do banco vira o texto do campo. */
+export function numeroParaMoeda(numero) {
+  if (numero === null || numero === undefined || numero === "") return ""
+  return Number(numero).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+/** Formata para leitura, com o simbolo da moeda configurada no campo. */
+export function formatarMoeda(numero, moeda = "BRL") {
+  if (numero === null || numero === undefined || numero === "") return ""
+  try {
+    return Number(numero).toLocaleString("pt-BR", { style: "currency", currency: moeda })
+  } catch {
+    // Codigo de moeda que o Intl nao conhece: melhor o numero sem simbolo do
+    // que a tela quebrada.
+    return `${moeda} ${numeroParaMoeda(numero)}`
+  }
+}

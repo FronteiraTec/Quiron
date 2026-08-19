@@ -19,11 +19,37 @@ async function buscar(req, res, next) {
   }
 }
 
+/**
+ * Traduz o corpo (snake_case, como o resto da API) para o objeto que o service
+ * espera. Uma funcao so para criar e atualizar: os dois recebem exatamente o
+ * mesmo cadastro, e duas copias garantiriam que um campo novo entrasse em um e
+ * faltasse no outro.
+ */
+function cadastroDoCorpo(corpo) {
+  return {
+    nome: corpo.nome,
+    cnpj: corpo.cnpj,
+    inscricaoEstadual: corpo.inscricao_estadual,
+    email: corpo.email,
+    tipo: corpo.tipo,
+    situacao: corpo.situacao,
+    observacoes: corpo.observacoes,
+    cep: corpo.cep,
+    uf: corpo.uf,
+    cidade: corpo.cidade,
+    bairro: corpo.bairro,
+    rua: corpo.rua,
+    numero: corpo.numero,
+    complemento: corpo.complemento,
+    camposExtras: corpo.campos_extras,
+    contatos: corpo.contatos,
+  }
+}
+
 async function criar(req, res, next) {
   try {
-    const { id_tenant, nome, cnpj, id_trilha } = req.body
     const startup = await startupService.criar(
-      { idTenant: id_tenant, nome, cnpj, idTrilha: id_trilha },
+      { ...cadastroDoCorpo(req.body), idTenant: req.body.id_tenant, idTrilha: req.body.id_trilha },
       req.usuario
     )
     res.status(201).json({ startup })
@@ -34,17 +60,25 @@ async function criar(req, res, next) {
 
 async function atualizar(req, res, next) {
   try {
-    const { nome, cnpj } = req.body
-    const startup = await startupService.atualizar(req.params.id, { nome, cnpj }, req.usuario)
+    const startup = await startupService.atualizar(req.params.id, cadastroDoCorpo(req.body), req.usuario)
     res.json({ startup })
   } catch (err) {
     next(err)
   }
 }
 
-async function atualizarStatus(req, res, next) {
+/**
+ * Troca a situacao (o "status" configuravel da incubadora). O estado de ciclo
+ * — o que diz se a startup ainda esta no programa — e derivado dela no
+ * repositorio, nunca recebido aqui.
+ */
+async function atualizarSituacao(req, res, next) {
   try {
-    const startup = await startupService.atualizarStatus(req.params.id, req.body.status, req.usuario)
+    const startup = await startupService.atualizarSituacao(
+      req.params.id,
+      req.body.situacao,
+      req.usuario
+    )
     res.json({ startup })
   } catch (err) {
     next(err)
@@ -109,7 +143,7 @@ module.exports = {
   buscar,
   criar,
   atualizar,
-  atualizarStatus,
+  atualizarSituacao,
   adicionarMembro,
   listarMembros,
   listarMembrosDoTenant,

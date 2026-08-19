@@ -6,6 +6,7 @@ const tenantRepository = require("../repositories/tenantRepository")
 const usuarioRepository = require("../repositories/usuarioRepository")
 const rbacRepository = require("../repositories/rbacRepository")
 const agendaConfigRepository = require("../repositories/agendaConfigRepository")
+const startupConfigRepository = require("../repositories/startupConfigRepository")
 const { gerarHash } = require("../utils/senha")
 const { withTransaction } = require("../config/db")
 const { erroNegocio } = require("../utils/erros")
@@ -57,6 +58,11 @@ async function criar(dados) {
   // exige que exista ao menos uma categoria antes do primeiro evento, entao uma
   // incubadora sem esta linha nasceria com o calendario travado.
   await agendaConfigRepository.semearCategoriasPadrao(tenant.id_tenant)
+  // Tipos e situacoes padrao de startup, pelo mesmo motivo: as FKs
+  // (id_tenant, tipo) e (id_tenant, situacao) exigem que o vocabulario exista
+  // antes da primeira startup, entao sem esta linha a incubadora nasceria com
+  // o cadastro travado.
+  await startupConfigRepository.semearVocabularioPadrao(tenant.id_tenant)
   return tenant
 }
 

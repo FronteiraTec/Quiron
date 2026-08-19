@@ -15,12 +15,27 @@ CREATE TYPE blocoTipo AS ENUM (
 -- Estagio de uma submissao (entrega.status). Os demais estados do passo
 -- (AGUARDANDO, AJUSTE, APROVADO) sao derivados da tabela avaliacao.
 CREATE TYPE entregaStatus AS ENUM ('RASCUNHO', 'ENVIADA');
+-- Troca de mao de um passo (passo_evento.tipo, migracao 011). Sao os quatro
+-- fatos que mudam de lado o dono do relogio: o incubado enviou, o mentor
+-- respondeu. RASCUNHO nao entra — salvar rascunho nao entrega nada a ninguem.
+CREATE TYPE passoEventoTipo AS ENUM ('ENVIADA', 'APROVADO', 'AJUSTE', 'REPROVADO');
 -- Tipos de pergunta (estilo Google Forms):
 --   TEXTO_CURTO    -> resposta curta de uma linha (sem alternativas)
 --   PARAGRAFO      -> resposta longa / descritiva (sem alternativas)
 --   ESCOLHA_UNICA  -> multipla escolha com UMA resposta (radio, tem alternativas)
 --   CAIXAS_SELECAO -> assinalar VARIAS respostas (checkbox, tem alternativas)
 CREATE TYPE perguntaTipo AS ENUM('TEXTO_CURTO', 'PARAGRAFO', 'ESCOLHA_UNICA', 'CAIXAS_SELECAO');
+-- Tipos de campo personalizavel do cadastro de startup (startup_campo.tipo).
+-- Lista fechada porque cada tipo tem renderizacao propria no front e validacao
+-- propria no back: um tipo desconhecido nao viraria campo nenhum, viraria tela
+-- quebrada. Ver backend/src/startups/padroes.js (migracao 010).
+CREATE TYPE campoTipo AS ENUM ('TEXTO', 'CATEGORIA', 'NUMERICO', 'DOCUMENTO', 'MONETARIO');
+-- Como uma mensagem interna foi enderecada (mensagem_destino.tipo, migracao
+-- 012). Lista fechada porque cada valor tem uma consulta de expansao propria
+-- (mensagemRepository.idsPorDestino) e uma chave de permissao propria no
+-- catalogo RBAC: um tipo desconhecido nao viraria destino nenhum, viraria
+-- mensagem sem destinatario.
+CREATE TYPE mensagemDestinoTipo AS ENUM ('TENANT', 'STARTUP', 'MENTORES', 'ROLE', 'USUARIO');
 -- NOTA: a categoria de evento ERA o enum `eventoCategoria`, com oito valores
 -- fixos. Virou dado por incubadora na tabela `evento_categoria` (migracao 008),
 -- porque enum e tipo de coluna: acrescentar uma categoria para UMA incubadora
@@ -113,13 +128,142 @@ CREATE TABLE  IF NOT EXISTS tenant_usuarios (
 
 );
 
+-- ---------------------------------------------------------------------------
+-- O VOCABULARIO DE CADASTRO DE CADA INCUBADORA (migracao 010)
+--
+-- TIPO e SITUACAO sao dado por tenant, nao enum, pelo mesmo motivo que levou a
+-- categoria de evento a sair do enum na 008: acrescentar um valor para UMA
+-- incubadora exigiria um ALTER TYPE valendo para todas. Cada incubadora tem os
+-- tipos que quiser.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS startup_tipo (
+    id_tenant INTEGER     NOT NULL,
+    -- Identificador estavel, gravado em startup.tipo. Nao muda depois de
+    -- criado; quem muda e o rotulo.
+    chave     VARCHAR(40) NOT NULL,
+    rotulo    VARCHAR(60) NOT NULL,
+    cor       CHAR(7)     NOT NULL DEFAULT '#6366f1',
+    ordem     SMALLINT    NOT NULL DEFAULT 0,
+    ativo     BOOLEAN     NOT NULL DEFAULT TRUE,
+    criado_ts TIMESTAMP   NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_startup_tipo PRIMARY KEY (id_tenant, chave),
+
+    CONSTRAINT fk_startup_tipo_tenant
+        FOREIGN KEY (id_tenant) REFERENCES tenant (id_tenant) ON DELETE CASCADE,
+
+    CONSTRAINT ck_startup_tipo_cor CHECK (cor ~ '^#[0-9a-fA-F]{6}$')
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_startup_tipo_rotulo
+    ON startup_tipo (id_tenant, lower(rotulo));
+
+
+-- A SITUACAO e o "status" que a incubadora ve e edita. O enum statusStartup
+-- continua existindo em startup.status porque HA CODIGO ATRAS DELE (relatorios
+-- e agenda tiram do programa quem esta ENCERRADA); cada situacao declara em
+-- `ciclo` a qual dos tres estados equivale, e o status e derivado dai. Assim a
+-- incubadora inventa "Em tracao" ou "Desligada" sem que nenhuma consulta perca
+-- o sentido.
+CREATE TABLE IF NOT EXISTS startup_situacao (
+    id_tenant INTEGER       NOT NULL,
+    chave     VARCHAR(40)   NOT NULL,
+    rotulo    VARCHAR(60)   NOT NULL,
+    cor       CHAR(7)       NOT NULL DEFAULT '#10b981',
+    ciclo     statusStartup NOT NULL DEFAULT 'ATIVA',
+    ordem     SMALLINT      NOT NULL DEFAULT 0,
+    ativo     BOOLEAN       NOT NULL DEFAULT TRUE,
+    criado_ts TIMESTAMP     NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_startup_situacao PRIMARY KEY (id_tenant, chave),
+
+    CONSTRAINT fk_startup_situacao_tenant
+        FOREIGN KEY (id_tenant) REFERENCES tenant (id_tenant) ON DELETE CASCADE,
+
+    CONSTRAINT ck_startup_situacao_cor CHECK (cor ~ '^#[0-9a-fA-F]{6}$')
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_startup_situacao_rotulo
+    ON startup_situacao (id_tenant, lower(rotulo));
+
+
+-- A DEFINICAO dos campos personalizaveis do cadastro. Os VALORES ficam em
+-- startup.campos_extras (JSONB), um documento por startup.
+--
+-- Definicao relacional + valor em JSONB, e nao EAV (uma linha por valor): ler
+-- uma startup com 12 campos extras viraria 12 JOINs, e esses campos nunca sao
+-- consultados isoladamente — sao lidos junto com a startup, sempre. O que
+-- precisa de integridade e a definicao (tipo, mascara, opcoes, ordem), e ela
+-- continua aqui.
+CREATE TABLE IF NOT EXISTS startup_campo (
+    id_campo    INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_tenant   INTEGER      NOT NULL,
+    -- Nome da propriedade dentro de startup.campos_extras. Imutavel: esta
+    -- gravado no JSONB de cada startup, e troca-la orfanaria os valores.
+    chave       VARCHAR(40)  NOT NULL,
+    rotulo      VARCHAR(80)  NOT NULL,
+    tipo        campoTipo    NOT NULL,
+    descricao   VARCHAR(200),
+    obrigatorio BOOLEAN      NOT NULL DEFAULT FALSE,
+    ordem       SMALLINT     NOT NULL DEFAULT 0,
+    ativo       BOOLEAN      NOT NULL DEFAULT TRUE,
+    -- O que muda de tipo para tipo, e so faz sentido dentro dele:
+    --   CATEGORIA -> { "opcoes": [{ "valor": "A", "rotulo": "Opcao A" }] }
+    --   DOCUMENTO -> { "mascara": "###.###.###-##" }
+    --   NUMERICO  -> { "min": 0, "max": 100, "casas": 2, "sufixo": "%" }
+    --   MONETARIO -> { "moeda": "BRL" }
+    config      JSONB        NOT NULL DEFAULT '{}',
+    criado_ts   TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_startup_campo PRIMARY KEY (id_campo),
+
+    CONSTRAINT fk_startup_campo_tenant
+        FOREIGN KEY (id_tenant) REFERENCES tenant (id_tenant) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_startup_campo_chave
+    ON startup_campo (id_tenant, chave);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_startup_campo_rotulo
+    ON startup_campo (id_tenant, lower(rotulo));
+
+
 CREATE TABLE IF NOT EXISTS startup (
     id_startup INTEGER GENERATED ALWAYS AS IDENTITY,
     id_tenant INTEGER NOT NULL,
     nome VARCHAR(150) NOT NULL,
     cnpj CHAR(14),
+    -- Sem mascara, como o CNPJ: cada UF tem o proprio formato de IE, entao a
+    -- coluna guarda so os digitos e a tela formata.
+    inscricao_estadual VARCHAR(20),
+    -- E-mail institucional da startup (contato@...), distinto dos e-mails
+    -- pessoais dos contatos em startup_contato.
+    email VARCHAR(150),
 	logo VARCHAR(255),
+
+    -- Classificacao no vocabulario da incubadora (startup_tipo/startup_situacao).
+    tipo VARCHAR(40),
+    situacao VARCHAR(40),
+    -- Estado do CICLO, derivado de startup_situacao.ciclo. E o que relatorios e
+    -- agenda leem para saber quem ainda esta no programa.
     status statusStartup DEFAULT 'ATIVA',
+
+    observacoes TEXT,
+
+    -- Endereco. O CEP alimenta cidade/uf/bairro/rua via ViaCEP, no front; sem
+    -- mascara, como o CNPJ. Numero e complemento o ViaCEP nao devolve, e sem
+    -- eles o endereco nao chega em lugar nenhum.
+    cep CHAR(8),
+    uf CHAR(2),
+    cidade VARCHAR(100),
+    bairro VARCHAR(100),
+    rua VARCHAR(150),
+    numero VARCHAR(20),
+    complemento VARCHAR(100),
+
+    -- Os VALORES dos campos personalizaveis, { "chave": valor }. A definicao
+    -- de cada chave esta em startup_campo.
+    campos_extras JSONB NOT NULL DEFAULT '{}',
+
     criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
     atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
 
@@ -128,9 +272,58 @@ CREATE TABLE IF NOT EXISTS startup (
     CONSTRAINT fk_startup_tenant
         FOREIGN KEY (id_tenant)
         REFERENCES tenant (id_tenant)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+
+    -- FKs COMPOSTAS: sem o id_tenant nelas, uma startup poderia apontar para o
+    -- tipo de outra incubadora.
+    CONSTRAINT fk_startup_tipo
+        FOREIGN KEY (id_tenant, tipo)
+        REFERENCES startup_tipo (id_tenant, chave)
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_startup_situacao
+        FOREIGN KEY (id_tenant, situacao)
+        REFERENCES startup_situacao (id_tenant, chave)
+        ON UPDATE CASCADE
 
 );
+
+-- Torna o JSONB pesquisavel ("startups cujo campo 'setor' e 'AgriTech'") sem
+-- varrer a tabela inteira.
+CREATE INDEX IF NOT EXISTS ix_startup_campos_extras
+    ON startup USING GIN (campos_extras);
+
+
+-- A lista de contatos da startup. Tabela, e nao JSONB como campos_extras: a
+-- lista cresce e encolhe por linha, e o contato principal precisa ser
+-- consultavel sem abrir o documento de cada startup.
+CREATE TABLE IF NOT EXISTS startup_contato (
+    id_contato INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_startup INTEGER      NOT NULL,
+    nome       VARCHAR(150) NOT NULL,
+    cargo      VARCHAR(100),
+    email      VARCHAR(150),
+    -- Sem mascara, como usuarios.celular: o front formata na exibicao.
+    telefone   VARCHAR(15),
+    principal  BOOLEAN      NOT NULL DEFAULT FALSE,
+    ordem      SMALLINT     NOT NULL DEFAULT 0,
+    criado_ts  TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_startup_contato PRIMARY KEY (id_contato),
+
+    -- CASCADE de verdade aqui, ao contrario de tipo/situacao: contato nao e
+    -- vocabulario compartilhado, e dado da startup. Sem ela, nao existe.
+    CONSTRAINT fk_startup_contato_startup
+        FOREIGN KEY (id_startup) REFERENCES startup (id_startup) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_startup_contato_startup
+    ON startup_contato (id_startup);
+
+-- Um principal por startup, no maximo. Indice parcial, e nao CHECK: e a unica
+-- forma de dizer "unico entre os que sao TRUE" no Postgres.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_startup_contato_principal
+    ON startup_contato (id_startup) WHERE principal;
 
 
 CREATE TABLE IF NOT EXISTS startup_membros (
@@ -779,6 +972,132 @@ CREATE TABLE IF NOT EXISTS avaliacao (
         CHECK (status IN ('APROVADO', 'REPROVADO', 'AJUSTE'))
 );
 
+
+-- ---------------------------------------------------------------------------
+-- LIVRO-CAIXA DO TEMPO — cada troca de mao de um passo (ver migracao 011).
+--
+-- Existe porque duracao e historia, e o resto do modelo so guarda o presente:
+-- `entrega` e upsert (uma linha por passo, reescrita a cada save) e o reenvio
+-- APAGA as avaliacoes anteriores para o passo voltar a "aguardando". Sem esta
+-- tabela nao ha como responder ha quanto tempo a startup esta numa fase, nem
+-- quanto desse tempo foi ela produzindo e quanto foi fila de correcao parada
+-- na mao do mentor.
+--
+-- Append-only: nenhum caminho do codigo faz UPDATE ou DELETE aqui. A serie de
+-- um passo alterna ENVIADA -> (APROVADO|AJUSTE|REPROVADO) -> ENVIADA..., e o
+-- trecho entre dois eventos tem um dono so — depois de ENVIADA a bola e do
+-- mentor, depois de um ajuste volta a ser do incubado, APROVADO encerra.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS passo_evento (
+    id_evento  BIGINT GENERATED ALWAYS AS IDENTITY,
+
+    id_startup INTEGER NOT NULL,
+    id_no      INTEGER NOT NULL,   -- sempre um PASSO (folha da trilha)
+
+    tipo       passoEventoTipo NOT NULL,
+
+    -- Quem causou: o membro que enviou, ou o mentor que respondeu.
+    id_usuario INTEGER,
+
+    ts         TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_passo_evento PRIMARY KEY (id_evento),
+
+    CONSTRAINT fk_passo_evento_startup
+        FOREIGN KEY (id_startup)
+        REFERENCES startup (id_startup)
+        ON DELETE CASCADE,
+
+    -- CASCADE igual ao de `entrega`: excluir o passo no Construtor leva junto
+    -- as submissoes e, com elas, o historico de tempo daquele passo.
+    CONSTRAINT fk_passo_evento_no
+        FOREIGN KEY (id_no)
+        REFERENCES trilha_no (id_no)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_passo_evento_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuarios (id_usuario)
+);
+
+-- A leitura e sempre "a linha do tempo deste passo desta startup, em ordem":
+-- o indice cobre a particao e a ordenacao do LEAD() do relatorio.
+CREATE INDEX IF NOT EXISTS ix_passo_evento_linha
+    ON passo_evento (id_startup, id_no, ts, id_evento);
+
+CREATE INDEX IF NOT EXISTS ix_passo_evento_no
+    ON passo_evento (id_no, ts);
+
+
+-- Envio: dispara em qualquer escrita de `entrega` que a deixe ENVIADA.
+--
+-- Nao basta olhar a MUDANCA de status — o reenvio apos ajuste vai de ENVIADA
+-- para ENVIADA e escaparia. A guarda e outra: se o ultimo evento do passo JA e
+-- ENVIADA, a bola ja esta com o mentor e um save repetido nao e novo envio.
+-- Isso mantem a serie alternada, que e o que da um dono unico a cada trecho.
+CREATE OR REPLACE FUNCTION fn_passo_evento_entrega()
+RETURNS TRIGGER AS $$
+DECLARE
+    ultimo passoEventoTipo;
+BEGIN
+    IF NEW.status <> 'ENVIADA' THEN
+        RETURN NULL;  -- rascunho: a bola nao saiu da mao do incubado
+    END IF;
+
+    SELECT tipo INTO ultimo
+      FROM passo_evento
+     WHERE id_startup = NEW.id_startup AND id_no = NEW.id_no
+     ORDER BY ts DESC, id_evento DESC
+     LIMIT 1;
+
+    IF ultimo = 'ENVIADA' THEN
+        RETURN NULL;  -- ja esta na fila do mentor
+    END IF;
+
+    -- NOW() e nao NEW.atualizado_ts: o evento e quando aconteceu, e NOW() nunca
+    -- anda para tras — uma serie fora de ordem inverteria a conta de duracao.
+    INSERT INTO passo_evento (id_startup, id_no, tipo, id_usuario)
+    VALUES (NEW.id_startup, NEW.id_no, 'ENVIADA', NEW.id_usuario);
+
+    RETURN NULL;  -- AFTER trigger: o retorno e ignorado
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_passo_evento_entrega ON entrega;
+CREATE TRIGGER trg_passo_evento_entrega
+    AFTER INSERT OR UPDATE ON entrega
+    FOR EACH ROW EXECUTE FUNCTION fn_passo_evento_entrega();
+
+
+-- Devolutiva: registra a resposta do mentor no instante em que ela nasce —
+-- dias antes de o reenvio apagar a linha de `avaliacao`. E dai que sai a
+-- duracao dos ciclos de ajuste, que sem isto desapareceriam sem rastro.
+CREATE OR REPLACE FUNCTION fn_passo_evento_avaliacao()
+RETURNS TRIGGER AS $$
+DECLARE
+    origem RECORD;
+BEGIN
+    SELECT id_startup, id_no INTO origem
+      FROM entrega WHERE id_entrega = NEW.id_entrega;
+
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    INSERT INTO passo_evento (id_startup, id_no, tipo, id_usuario)
+    VALUES (origem.id_startup, origem.id_no,
+            NEW.status::passoEventoTipo, NEW.id_avaliador);
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_passo_evento_avaliacao ON avaliacao;
+CREATE TRIGGER trg_passo_evento_avaliacao
+    AFTER INSERT ON avaliacao
+    FOR EACH ROW EXECUTE FUNCTION fn_passo_evento_avaliacao();
+
+
 -- ---------------------------------------------------------------------------
 -- Vocabulario da agenda de CADA incubadora: as categorias que aparecem no
 -- seletor do calendario, com cor e icone. Substitui o antigo enum
@@ -1059,3 +1378,174 @@ CREATE TABLE IF NOT EXISTS usuario_role (
         REFERENCES role (id_role)
         ON DELETE CASCADE
 );
+
+-- ---------------------------------------------------------------------------
+-- Mensagens internas (migracao 012).
+--
+-- O canal proprio da incubadora: quem tem a permissao RBAC de comunicacao
+-- escreve para uma startup inteira, para os mentores, para uma role ou para
+-- pessoas especificas, e o aviso aparece no sino de quem recebeu.
+--
+-- Tres tabelas porque sao tres coisas distintas: o TEXTO (mensagem), o
+-- CRITERIO escolhido por quem escreveu (mensagem_destino) e a ENTREGA a cada
+-- pessoa, com o estado de leitura dela (mensagem_destinatario).
+--
+-- A lista de pessoas e um INSTANTANEO tirado no envio, nao uma consulta
+-- refeita na leitura: quem entrar na startup amanha nao recebe o aviso de
+-- hoje, e quem sair nao perde o que ja tinha. Ver o cabecalho da migracao 012
+-- para o raciocinio completo.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS mensagem (
+    id_mensagem BIGINT GENERATED ALWAYS AS IDENTITY,
+    id_tenant INTEGER NOT NULL,
+    -- NULL = o autor saiu do sistema. A mensagem sobrevive a ele: apagar o
+    -- usuario nao pode apagar o aviso que trinta pessoas ja leram.
+    id_remetente INTEGER,
+    assunto VARCHAR(150) NOT NULL,
+    corpo TEXT NOT NULL,
+    -- Destaque visual no sino e no email. Nao muda quem recebe.
+    importante BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Rota do front para onde o clique na notificacao leva (ex.: "/entregas").
+    rota VARCHAR(255),
+    criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_mensagem PRIMARY KEY (id_mensagem),
+    CONSTRAINT fk_mensagem_tenant
+        FOREIGN KEY (id_tenant)
+        REFERENCES tenant (id_tenant)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_mensagem_remetente
+        FOREIGN KEY (id_remetente)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_mensagem_tenant ON mensagem (id_tenant, criado_ts DESC);
+
+-- O criterio escolhido, preservado como foi dito ("a startup Acme", "os
+-- mentores", "a role Financeiro"). id_referencia aponta para tabelas
+-- diferentes conforme o tipo, entao NAO tem FK: quem garante o vinculo e o
+-- service, que confere se a referencia pertence ao mesmo tenant da mensagem.
+CREATE TABLE IF NOT EXISTS mensagem_destino (
+    id_destino BIGINT GENERATED ALWAYS AS IDENTITY,
+    id_mensagem BIGINT NOT NULL,
+    tipo mensagemDestinoTipo NOT NULL,
+    id_referencia INTEGER,          -- id_startup, id_role ou id_usuario
+    -- Rotulo congelado no envio: a startup pode ser renomeada e a role
+    -- excluida, e a mensagem antiga continua dizendo para quem foi.
+    rotulo VARCHAR(150),
+
+    CONSTRAINT pk_mensagem_destino PRIMARY KEY (id_destino),
+    CONSTRAINT fk_mensagem_destino_mensagem
+        FOREIGN KEY (id_mensagem)
+        REFERENCES mensagem (id_mensagem)
+        ON DELETE CASCADE,
+    CONSTRAINT ck_mensagem_destino_referencia CHECK (
+        (tipo = 'TENANT'  AND id_referencia IS NULL)
+        -- MENTORES aceita os dois: sem referencia sao os mentores da
+        -- incubadora; com id_startup, so os que acompanham aquela startup.
+        OR tipo = 'MENTORES'
+        OR (tipo IN ('STARTUP', 'ROLE', 'USUARIO') AND id_referencia IS NOT NULL)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS ix_mensagem_destino_mensagem ON mensagem_destino (id_mensagem);
+
+-- A entrega: uma linha por pessoa que recebeu, com o estado de leitura DELA.
+CREATE TABLE IF NOT EXISTS mensagem_destinatario (
+    id_mensagem BIGINT NOT NULL,
+    id_usuario INTEGER NOT NULL,
+    lida_ts TIMESTAMP,
+
+    CONSTRAINT pk_mensagem_destinatario PRIMARY KEY (id_mensagem, id_usuario),
+    CONSTRAINT fk_mensagem_dest_mensagem
+        FOREIGN KEY (id_mensagem)
+        REFERENCES mensagem (id_mensagem)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_mensagem_dest_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE CASCADE
+);
+
+-- O indice que o sino usa: "as nao lidas desta pessoa", a cada carga de tela.
+CREATE INDEX IF NOT EXISTS ix_mensagem_destinatario_caixa
+    ON mensagem_destinatario (id_usuario, lida_ts);
+
+-- ---------------------------------------------------------------------------
+-- GOOGLE AGENDA (migracao 013)
+--
+-- A conexao e por PESSOA, nao por incubadora: a conta Google e dela, e quem
+-- participa de duas incubadoras quer as duas na mesma agenda. Quais eventos
+-- vao continua sendo decidido na hora do envio, pela mesma regra da tela da
+-- agenda (papel no tenant + startups a que a pessoa esta ligada).
+--
+-- Os tokens ficam cifrados (AES-256-GCM, backend/src/utils/cripto.js): o
+-- refresh token nao expira, entao um dump do banco nao pode entrega-lo em
+-- texto puro.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS google_conta (
+    id_usuario INTEGER NOT NULL,
+
+    -- `sub` do Google: identificador estavel da conta (o email pode mudar).
+    google_sub VARCHAR(120) NOT NULL,
+    google_email VARCHAR(255),
+
+    -- Pacotes AES-256-GCM em base64 — nunca em texto puro.
+    refresh_token TEXT NOT NULL,
+    access_token TEXT,
+    access_token_expira_ts TIMESTAMP,
+
+    -- O que a pessoa REALMENTE concedeu (o Google deixa desmarcar escopo).
+    escopos TEXT,
+
+    -- Agenda secundaria "Quiron" criada na conta dela. Separada da principal
+    -- de proposito: liga/desliga a camada inteira num clique, e desconectar
+    -- apaga um calendario nosso em vez de garimpar eventos entre os pessoais.
+    id_calendario VARCHAR(255),
+
+    -- Pausa o envio sem revogar a autorizacao.
+    sincronizar BOOLEAN NOT NULL DEFAULT TRUE,
+
+    conectado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+    ultimo_sync_ts TIMESTAMP,
+    ultimo_erro TEXT,
+
+    CONSTRAINT pk_google_conta PRIMARY KEY (id_usuario),
+
+    CONSTRAINT fk_google_conta_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE CASCADE
+);
+
+-- O espelho: um evento do Quiron vira N eventos no Google, um na agenda de
+-- cada participante conectado. Por isso e tabela, e nao coluna em `evento`:
+-- nao existe "o id do evento no Google", existe um por pessoa.
+CREATE TABLE IF NOT EXISTS google_evento (
+    id_evento INTEGER NOT NULL,
+    id_usuario INTEGER NOT NULL,
+
+    google_event_id VARCHAR(1024) NOT NULL,
+    -- Repetido aqui (e nao so em google_conta) para as linhas antigas ainda
+    -- saberem onde moravam depois de uma reconexao criar outro calendario.
+    id_calendario VARCHAR(255) NOT NULL,
+
+    enviado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_google_evento PRIMARY KEY (id_evento, id_usuario),
+
+    CONSTRAINT fk_google_evento_evento
+        FOREIGN KEY (id_evento)
+        REFERENCES evento (id_evento)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_google_evento_conta
+        FOREIGN KEY (id_usuario)
+        REFERENCES google_conta (id_usuario)
+        ON DELETE CASCADE
+);
+
+-- "O que ja mandei para esta pessoa?" — a varredura da sincronizacao manual.
+CREATE INDEX IF NOT EXISTS ix_google_evento_usuario
+    ON google_evento (id_usuario, enviado_ts);

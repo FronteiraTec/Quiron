@@ -24,6 +24,7 @@ const ABAS = [
   { valor: "", rotulo: "Dados cadastrais" },
   { valor: "email", rotulo: "Configuração de e-mail" },
   { valor: "agenda", rotulo: "Categorias e locais" },
+  { valor: "startups", rotulo: "Cadastro de startups" },
   { valor: "auditoria", rotulo: "Auditoria" },
 ]
 
@@ -57,7 +58,7 @@ export default function ConfiguracoesLayout() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Dados cadastrais, e-mail, categorias e locais da agenda, e auditoria da incubadora.
+          Dados cadastrais, e-mail, agenda, cadastro de startups e auditoria da incubadora.
         </Typography>
 
         {ehRoot && (

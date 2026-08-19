@@ -74,8 +74,9 @@ const TOUR_DASHBOARD = {
     {
       seletor: '[data-tour="nav-notificacoes"]',
       posicao: "baixo",
-      titulo: "Avisos de eventos",
-      texto: "O sino mostra as atividades criadas recentemente que envolvem você.",
+      titulo: "Notificações",
+      texto:
+        "O sino reúne as mensagens que enviaram para você e as atividades criadas recentemente na agenda.",
     },
     {
       seletor: '[data-tour="nav-conta"]',
@@ -415,7 +416,8 @@ const TOUR_QUESTIONARIOS = {
       seletor: '[data-tour="questionarios-lista"]',
       posicao: "auto",
       titulo: "Os que já existem",
-      texto: "Cada linha traz o título, quantas perguntas tem e se está ativo.",
+      texto:
+        "Cada linha traz o título, quantas perguntas tem e se está ativo. A barra acima da tabela tem a busca, o filtro por status e a escolha das colunas.",
     },
     {
       seletor: '[data-tour="questionarios-ativo"]',
@@ -536,30 +538,30 @@ const TOUR_STARTUPS = {
     {
       seletor: '[data-tour="startups-busca"]',
       posicao: "baixo",
-      titulo: "Procurar pelo nome",
-      texto: "Filtra a lista conforme você digita.",
+      titulo: "Procurar",
+      texto: "Filtra por nome, CNPJ ou e-mail conforme você digita.",
       permitirInteracao: true,
     },
     {
       seletor: '[data-tour="startups-filtros"]',
       posicao: "baixo",
-      titulo: "Filtrar por fase e status",
+      titulo: "Filtrar",
       texto:
-        "A fase mostra onde a startup está na trilha; o status diz se ela está ativa, pausada ou já graduada.",
+        "Abre um painel com fase, tipo, status, UF, data de cadastro e um filtro para cada campo personalizado da sua incubadora. Tipo, status e os campos você define em Configurações > Cadastro de startups.",
     },
     {
       seletor: '[data-tour="startups-lista"]',
       posicao: "auto",
       titulo: "Uma linha por startup",
       texto:
-        "A barra é o progresso na trilha. Clique na linha para abrir a página da startup, com membros, modelos e fases concluídas.",
+        "A barra é o progresso na trilha. Clique na linha para abrir a página da startup. Clique no cabeçalho para ordenar, arraste-o para mudar a ordem das colunas, e use o botão de ajustes (à direita do cabeçalho) para escolher quais colunas aparecem — inclusive as dos campos personalizados. Marcando as caixas você altera o status de várias de uma vez.",
     },
     {
       seletor: '[data-tour="startups-nova"]',
       posicao: "esquerda",
       titulo: "Cadastrar uma startup",
       texto:
-        "Nome, CNPJ e a trilha em que ela começa. A trilha padrão já vem escolhida — troque se esta startup entra em outra.",
+        "Abre um painel à direita com o cadastro completo: identificação, contatos, endereço (digite o CEP e o resto se preenche), observações e os campos que a sua incubadora criou.",
       permitirInteracao: true,
     },
     fim("Clique numa linha para ver o detalhe."),
@@ -595,14 +597,16 @@ const TOUR_MEMBROS = {
     {
       seletor: '[data-tour="membros-filtro-startup"]',
       posicao: "baixo",
-      titulo: "Ver uma startup só",
-      texto: "Restringe a tabela aos membros de uma startup específica.",
+      titulo: "Filtrar",
+      texto:
+        "Abre um painel para restringir a tabela a certas startups, ao papel (líder ou membro) ou ao período de entrada.",
     },
     {
       seletor: '[data-tour="membros-tabela"]',
       posicao: "auto",
       titulo: "A tabela",
-      texto: "Cada linha é uma pessoa, com a startup dela e o papel que exerce na equipe.",
+      texto:
+        "Cada linha é uma pessoa numa startup — quem está em duas aparece duas vezes. Clique no cabeçalho para ordenar, arraste-o para reordenar as colunas e use o botão de ajustes para escolher o que aparece.",
     },
     fim("Ninguém deve ficar sem startup."),
   ],
@@ -630,22 +634,22 @@ const TOUR_STARTUP_DETALHE = {
       seletor: '[data-tour="startup-editar"]',
       posicao: "baixo",
       titulo: "Editar o cadastro",
-      texto: "Ajusta nome e CNPJ da startup.",
+      texto: "Abre o mesmo painel do cadastro novo, já preenchido com os dados desta startup.",
     },
     {
       seletor: '[data-tour="startup-status"]',
       posicao: "baixo",
-      titulo: "Mudar a situação",
+      titulo: "Mudar o status",
       texto:
-        "Ativar, pausar ou encerrar (graduar). Pausar e encerrar não apagam nada: o histórico da startup continua aqui.",
+        "A lista é a que a sua incubadora cadastrou em Configurações. Trocar o status não apaga nada: o histórico da startup continua aqui.",
     },
     {
       seletor:
-        '[data-tour="startup-aba-membros"], [data-tour="startup-aba-modelos"], [data-tour="startup-aba-fases"]',
+        '[data-tour="startup-aba-cadastro"], [data-tour="startup-aba-membros"], [data-tour="startup-aba-modelos"], [data-tour="startup-aba-fases"]',
       posicao: "baixo",
       titulo: "As abas",
       texto:
-        "Membros, Modelos de gestão e Fases concluídas — as mesmas abas que a própria startup vê em Minha Startup.",
+        "Cadastro traz os dados da empresa — contatos, endereço, campos complementares. As outras três (Membros, Modelos e Fases concluídas) são as mesmas que a própria startup vê em Minha Startup.",
     },
     {
       seletor: '[data-tour="startup-conteudo"]',
@@ -1026,7 +1030,7 @@ const TOUR_TENANTS = {
       posicao: "auto",
       titulo: "A lista",
       texto:
-        "Clique numa incubadora para ver e editar o cadastro dela, os limites de uso e criar o primeiro administrador.",
+        "Use os ícones da linha para ver os usuários, editar o cadastro e os limites, ou desativar a incubadora. A busca, o filtro e o botão de ajustes (colunas) ficam na barra acima da tabela.",
     },
     {
       seletor: '[data-tour="tenants-nova"]',
@@ -1049,7 +1053,7 @@ const TOUR_CONFIG_DADOS = {
     {
       titulo: "Configurações",
       texto:
-        "O que é da incubadora inteira: cadastro, e-mail de envio, vocabulário da agenda e o registro de auditoria.",
+        "O que é da incubadora inteira: cadastro, e-mail de envio, vocabulário da agenda, o formulário de cadastro das startups e o registro de auditoria.",
     },
     {
       seletor: '[data-tour="config-tenant"]',
@@ -1162,6 +1166,45 @@ const TOUR_CONFIG_AGENDA = {
   ],
 }
 
+const TOUR_CONFIG_STARTUPS = {
+  titulo: "O cadastro de startups",
+  passos: [
+    {
+      titulo: "O cadastro é seu",
+      texto:
+        "Tipos, status e campos personalizáveis. O que você define aqui é o formulário que aparece ao cadastrar qualquer startup da incubadora.",
+    },
+    {
+      seletor: '[data-tour="config-abas"]',
+      posicao: "baixo",
+      titulo: "Você está na aba Cadastro de startups",
+      texto: "As outras configurações da incubadora ficam nas abas ao lado.",
+    },
+    {
+      seletor: '[data-tour="startups-config-tipos"]',
+      posicao: "auto",
+      titulo: "Tipos de startup",
+      texto:
+        "Como você classifica as empresas — incubada, residente, associada, ou o nome que a sua incubadora usa. Vira um filtro na lista de startups.",
+    },
+    {
+      seletor: '[data-tour="startups-config-situacoes"]',
+      posicao: "auto",
+      titulo: "Status",
+      texto:
+        "Cada status tem nome e cor seus, e diz também se a startup nele ainda está no programa. É esse último detalhe que mantém os relatórios certos: um status \"Graduada\" marcado como encerrado sai das contagens, mesmo sendo um nome que você inventou.",
+    },
+    {
+      seletor: '[data-tour="startups-config-campos"]',
+      posicao: "auto",
+      titulo: "Campos personalizáveis",
+      texto:
+        "O que mais você precisa saber de cada startup: texto, categoria, número, documento com máscara sua, ou valor monetário. Cada campo criado aqui aparece no cadastro na hora.",
+    },
+    fim("Desativar nunca apaga: o que já foi preenchido continua guardado."),
+  ],
+}
+
 const TOUR_CONFIG_AUDITORIA = {
   titulo: "O registro de auditoria",
   passos: [
@@ -1180,14 +1223,16 @@ const TOUR_CONFIG_AUDITORIA = {
     {
       seletor: '[data-tour="auditoria-entidade"]',
       posicao: "baixo",
-      titulo: "Filtrar por entidade",
-      texto: "Restringe a lista a um tipo de registro: usuário, startup, evento, trilha...",
+      titulo: "Filtrar",
+      texto:
+        "Abre um painel com as entidades (usuário, startup, evento, trilha...), as ações registradas e o período. Os filtros valem juntos.",
     },
     {
       seletor: '[data-tour="auditoria-tabela"]',
       posicao: "auto",
       titulo: "Os registros",
-      texto: "Quando, qual ação, sobre qual entidade e a descrição do que mudou.",
+      texto:
+        "Quando, qual ação, sobre qual entidade e a descrição do que mudou. Clique no cabeçalho para ordenar e use o botão de ajustes para escolher as colunas; a lista vem paginada, do mais recente para o mais antigo.",
     },
     fim("Nada aqui é editável — é justamente esse o ponto."),
   ],
@@ -1399,6 +1444,7 @@ export const TOURS = {
   "/configuracoes": TOUR_CONFIG_DADOS,
   "/configuracoes/email": TOUR_CONFIG_EMAIL,
   "/configuracoes/agenda": TOUR_CONFIG_AGENDA,
+  "/configuracoes/startups": TOUR_CONFIG_STARTUPS,
   "/configuracoes/auditoria": TOUR_CONFIG_AUDITORIA,
   "/central-ajuda": TOUR_CENTRAL_AJUDA,
   "/fala-conosco": TOUR_FALA_CONOSCO,

@@ -3,7 +3,7 @@
  *
  * Traz a busca de startups (visivel so para admin e mentor - ver
  * BuscaStartups), o atalho para a Agenda (pagina Eventos), o sino de
- * notificacoes dos eventos criados recentemente e o menu de conta (avatar).
+ * notificacoes (mensagens internas e eventos novos) e o menu de conta (avatar).
  * Acompanha a Sidebar retratil: fica fixa e deslocada para a direita, com a
  * largura/margem seguindo `sidebarWidth`. O botao ☰ so aparece no mobile
  * (abre/fecha a gaveta); no desktop o logo (foguete) na propria Sidebar
@@ -14,7 +14,7 @@ import { AppBar, Box, Toolbar, IconButton, Button, Tooltip, Typography } from "@
 import { Menu as MenuIcon, CalendarMonth } from "@mui/icons-material"
 import UserPanel from "./UserPanel"
 import BuscaStartups from "./BuscaStartups"
-import NotificacoesEventos from "./NotificacoesEventos"
+import CentralNotificacoes from "./notificacoes/CentralNotificacoes"
 
 export default function Navbar({ onToggleSidebar, sidebarWidth }) {
   const navigate = useNavigate()
@@ -87,9 +87,9 @@ export default function Navbar({ onToggleSidebar, sidebarWidth }) {
           </IconButton>
         </Tooltip>
 
-        {/* Sino: eventos criados recentemente (ver useNotificacoesEventos) */}
+        {/* Sino: mensagens internas + eventos novos (ver CentralNotificacoes) */}
         <Box data-tour="nav-notificacoes" sx={{ display: "flex" }}>
-          <NotificacoesEventos />
+          <CentralNotificacoes />
         </Box>
 
         {/* Avatar/conta - sempre visivel, abre o UserPanel */}

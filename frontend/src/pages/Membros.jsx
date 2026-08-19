@@ -21,17 +21,10 @@ import {
   Paper,
   Typography,
   TextField,
-  InputAdornment,
   MenuItem,
   Avatar,
   Chip,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Alert,
   AlertTitle,
   Dialog,
@@ -41,12 +34,16 @@ import {
   Tooltip,
   CircularProgress,
 } from "@mui/material"
-import { Search, Groups, PersonAdd, OpenInNew } from "@mui/icons-material"
+import { Groups, PersonAdd, OpenInNew } from "@mui/icons-material"
 
 import AppLayout from "../components/AppLayout"
 import { useMembros } from "../hooks/useMembros"
 import { useAuthStore } from "../store/authStore"
-import { STATUS_ROTULO, STATUS_COR } from "../data/startupMeta"
+import ChipSituacao from "../components/startup/ChipSituacao"
+import TabelaDados from "../components/tabela/TabelaDados"
+import ToolbarTabela from "../components/tabela/ToolbarTabela"
+import PainelFiltros, { contarFiltros } from "../components/tabela/PainelFiltros"
+import { exportarTabelaCsv } from "../components/tabela/exportarTabela"
 
 function inicial(nome) {
   return (nome || "?").trim().charAt(0).toUpperCase()
@@ -135,17 +132,115 @@ export default function Membros() {
   const { membros, semStartup, startups, carregando, erro, vincular } = useMembros(idTenant)
 
   const [busca, setBusca] = useState("")
-  const [filtroStartup, setFiltroStartup] = useState("todas")
+  const [filtros, setFiltros] = useState({})
+  const [painelAberto, setPainelAberto] = useState(false)
+  const [colunasVisiveis, setColunasVisiveis] = useState([])
   const [aVincular, setAVincular] = useState(null)
 
   const visiveis = useMemo(() => {
     const termo = busca.trim().toLowerCase()
     return membros.filter((m) => {
-      if (filtroStartup !== "todas" && String(m.id_startup) !== String(filtroStartup)) return false
+      const startupsSel = filtros.startup || []
+      if (startupsSel.length && !startupsSel.includes(String(m.id_startup))) return false
+
+      const papeis = filtros.papel || []
+      if (papeis.length && !papeis.includes(m.lider ? "lider" : "membro")) return false
+
+      const periodo = filtros.entrada
+      if (periodo?.de || periodo?.ate) {
+        const dia = (m.entrada_dt || "").slice(0, 10)
+        if (!dia) return false
+        if (periodo.de && dia < periodo.de) return false
+        if (periodo.ate && dia > periodo.ate) return false
+      }
+
       if (termo && !`${m.nome} ${m.email} ${m.startup}`.toLowerCase().includes(termo)) return false
       return true
     })
-  }, [membros, busca, filtroStartup])
+  }, [membros, busca, filtros])
+
+  const colunas = useMemo(
+    () => [
+      {
+        chave: "nome",
+        rotulo: "Pessoa",
+        obrigatoria: true,
+        largura: 280,
+        valorTexto: (m) => m.nome,
+        render: (m) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Avatar
+              src={m.foto_url || undefined}
+              sx={{ width: 32, height: 32, fontSize: 14, bgcolor: "primary.main" }}
+            >
+              {inicial(m.nome)}
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={600} noWrap>
+                {m.nome}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {m.email}
+              </Typography>
+            </Box>
+          </Box>
+        ),
+      },
+      { chave: "email", rotulo: "E-mail", visivelPadrao: false, largura: 220 },
+      {
+        chave: "startup",
+        rotulo: "Startup",
+        largura: 240,
+        valorTexto: (m) => m.startup,
+        render: (m) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="body2">{m.startup}</Typography>
+            {/* So quando a startup NAO esta ativa: repetir "Ativa" em toda
+                linha da tabela nao informa nada. O rotulo e o da incubadora. */}
+            {m.startup_status !== "ATIVA" && (
+              <ChipSituacao
+                startup={{
+                  status: m.startup_status,
+                  situacao_rotulo: m.startup_situacao_rotulo,
+                  situacao_cor: m.startup_situacao_cor,
+                }}
+              />
+            )}
+          </Box>
+        ),
+      },
+      {
+        chave: "lider",
+        rotulo: "Papel",
+        largura: 110,
+        alinhamento: "center",
+        valorOrdenacao: (m) => (m.lider ? 0 : 1),
+        valorTexto: (m) => (m.lider ? "Lider" : "Membro"),
+        render: (m) =>
+          m.lider ? (
+            <Chip size="small" label="Líder" color="primary" />
+          ) : (
+            <Typography variant="caption" color="text.secondary">
+              Membro
+            </Typography>
+          ),
+      },
+      {
+        chave: "entrada_dt",
+        rotulo: "Entrada",
+        largura: 120,
+        alinhamento: "center",
+        valorOrdenacao: (m) => m.entrada_dt,
+        valorTexto: (m) => (m.entrada_dt ? new Date(m.entrada_dt).toLocaleDateString("pt-BR") : ""),
+        render: (m) => (
+          <Typography variant="caption" color="text.secondary">
+            {m.entrada_dt ? new Date(m.entrada_dt).toLocaleDateString("pt-BR") : "—"}
+          </Typography>
+        ),
+      },
+    ],
+    []
+  )
 
   // Pessoas distintas: uma pessoa em duas startups e um so incubado, ainda que
   // sejam duas linhas na tabela.
@@ -161,6 +256,28 @@ export default function Membros() {
       .map(([id_startup, nome]) => ({ id_startup, nome }))
       .sort((a, b) => a.nome.localeCompare(b.nome))
   }, [membros])
+
+  const grupos = useMemo(
+    () => [
+      {
+        id: "startup",
+        rotulo: "Startup",
+        tipo: "checkbox",
+        itens: startupsComMembros.map((s) => ({ id: String(s.id_startup), rotulo: s.nome })),
+      },
+      {
+        id: "papel",
+        rotulo: "Papel",
+        tipo: "checkbox",
+        itens: [
+          { id: "lider", rotulo: "Líder" },
+          { id: "membro", rotulo: "Membro" },
+        ],
+      },
+      { id: "entrada", rotulo: "Entrada na startup", tipo: "data" },
+    ],
+    [startupsComMembros]
+  )
 
   return (
     <AppLayout>
@@ -221,142 +338,66 @@ export default function Membros() {
               </Alert>
             )}
 
-            {/* ---- Filtros ---- */}
-            <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
-              <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mr: 1 }}>
-                <Typography variant="h5" fontWeight={700}>
-                  {pessoas}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {pessoas === 1 ? "pessoa" : "pessoas"} em {startupsComMembros.length}{" "}
-                  {startupsComMembros.length === 1 ? "startup" : "startups"}
-                </Typography>
-              </Box>
-              <Box sx={{ flex: 1 }} />
-              <TextField
-                data-tour="membros-busca"
-                placeholder="Buscar pessoa ou startup..."
-                size="small"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                sx={{ minWidth: 240 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <TextField
-                data-tour="membros-filtro-startup"
-                select
-                size="small"
-                value={filtroStartup}
-                onChange={(e) => setFiltroStartup(e.target.value)}
-                sx={{ minWidth: 180 }}
-              >
-                <MenuItem value="todas">Todas as startups</MenuItem>
-                {startupsComMembros.map((s) => (
-                  <MenuItem key={s.id_startup} value={String(s.id_startup)}>
-                    {s.nome}
-                  </MenuItem>
-                ))}
-              </TextField>
+            {/* ---- Contagem + tabela ---- */}
+            <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mb: 1.5 }}>
+              <Typography variant="h5" fontWeight={700}>
+                {pessoas}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {pessoas === 1 ? "pessoa" : "pessoas"} em {startupsComMembros.length}{" "}
+                {startupsComMembros.length === 1 ? "startup" : "startups"}
+              </Typography>
             </Box>
 
-            {/* ---- A tabela ---- */}
-            <Paper data-tour="membros-tabela" sx={{ borderRadius: 0, overflow: "hidden" }}>
-              {visiveis.length === 0 ? (
-                <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
-                  <Groups sx={{ fontSize: 48, opacity: 0.4 }} />
-                  <Typography sx={{ mt: 1 }}>
-                    {membros.length === 0
-                      ? "Nenhuma startup tem membros ainda."
-                      : "Ninguém corresponde ao filtro."}
-                  </Typography>
-                </Box>
-              ) : (
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Pessoa</TableCell>
-                        <TableCell>Startup</TableCell>
-                        <TableCell align="center">Papel</TableCell>
-                        <TableCell align="center">Entrada</TableCell>
-                        <TableCell align="center" width={60} />
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {visiveis.map((m) => (
-                        <TableRow key={`${m.id_startup}-${m.id_usuario}`} hover>
-                          <TableCell>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                              <Avatar
-                                src={m.foto_url || undefined}
-                                sx={{ width: 32, height: 32, fontSize: 14, bgcolor: "primary.main" }}
-                              >
-                                {inicial(m.nome)}
-                              </Avatar>
-                              <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2" fontWeight={600} noWrap>
-                                  {m.nome}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap>
-                                  {m.email}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                              <Typography variant="body2">{m.startup}</Typography>
-                              {m.startup_status !== "ATIVA" && (
-                                <Chip
-                                  size="small"
-                                  label={STATUS_ROTULO[m.startup_status] || m.startup_status}
-                                  color={STATUS_COR[m.startup_status] || "default"}
-                                />
-                              )}
-                            </Box>
-                          </TableCell>
-                          <TableCell align="center">
-                            {m.lider ? (
-                              <Chip size="small" label="Líder" color="primary" />
-                            ) : (
-                              <Typography variant="caption" color="text.secondary">
-                                Membro
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell align="center">
-                            <Typography variant="caption" color="text.secondary">
-                              {m.entrada_dt
-                                ? new Date(m.entrada_dt).toLocaleDateString("pt-BR")
-                                : "—"}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Tooltip title="Abrir a startup" arrow>
-                              <Button
-                                size="small"
-                                onClick={() => navigate(`/startups/${m.id_startup}`)}
-                                sx={{ minWidth: 0, px: 1 }}
-                              >
-                                <OpenInNew fontSize="small" />
-                              </Button>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
+            <Paper data-tour="membros-tabela" sx={{ borderRadius: 0 }}>
+              <ToolbarTabela
+                busca={busca}
+                onBuscaChange={setBusca}
+                placeholderBusca="Buscar pessoa ou startup..."
+                propsBusca={{ "data-tour": "membros-busca" }}
+                totalFiltros={contarFiltros(filtros)}
+                onAbrirFiltros={() => setPainelAberto(true)}
+                propsBotaoFiltro={{ "data-tour": "membros-filtro-startup" }}
+                onExportar={() => exportarTabelaCsv("membros", colunas, colunasVisiveis, visiveis)}
+              />
+
+              <TabelaDados
+                dados={visiveis}
+                colunas={colunas}
+                // A mesma pessoa em duas startups sao duas linhas: a identidade
+                // da linha e o par, nao a pessoa.
+                chaveId={(m) => `${m.id_startup}-${m.id_usuario}`}
+                chaveStorage="membros"
+                ordemInicial="nome"
+                larguraMinima={820}
+                mensagemVazio={
+                  membros.length === 0
+                    ? "Nenhuma startup tem membros ainda."
+                    : "Ninguém corresponde ao filtro."
+                }
+                onColunasVisiveisChange={setColunasVisiveis}
+                larguraAcoes={56}
+                acoes={[
+                  {
+                    rotulo: "Abrir a startup",
+                    icone: <OpenInNew fontSize="small" />,
+                    onClick: (m) => navigate(`/startups/${m.id_startup}`),
+                  },
+                ]}
+              />
             </Paper>
           </>
         )}
+
+        <PainelFiltros
+          aberto={painelAberto}
+          onFechar={() => setPainelAberto(false)}
+          titulo="Filtrar membros"
+          grupos={grupos}
+          selecionados={filtros}
+          onAplicar={setFiltros}
+          onLimpar={() => setFiltros({})}
+        />
 
         {aVincular && (
           <DialogVincular

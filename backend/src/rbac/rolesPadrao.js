@@ -51,6 +51,14 @@ const PERMISSOES_MENTOR = [
   "programa.questionarios.visualizar",
 
   "eventos.agenda.visualizar",
+
+  // Mensagens (migracao 012) nao existiam antes do RBAC, entao aqui nao ha
+  // "conjunto anterior" a reproduzir — e uma escolha. O mentor nasce podendo
+  // falar com as startups que acompanha e com pessoas especificas, que e o
+  // trabalho dele; o megafone (toda a incubadora, uma role inteira) fica so com
+  // o admin, que pode conceder depois se a incubadora quiser.
+  "comunicacao.mensagens.enviar",
+  "comunicacao.mensagens.enviar_startup",
 ]
 
 /**
@@ -77,6 +85,11 @@ const PERMISSOES_COLABORADOR = [
   "programa.biblioteca.visualizar",
 
   "eventos.agenda.visualizar",
+
+  // Sem nenhuma chave de `comunicacao`: o incubado RECEBE as mensagens da
+  // incubadora (receber nao passa por permissao — ver o catalogo), mas nao
+  // dispara aviso para os outros. Se a incubadora quiser um canal de mao dupla,
+  // e marcar `comunicacao.mensagens.enviar` na role dele.
 ]
 
 const ROLES_PADRAO = [

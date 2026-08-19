@@ -13,21 +13,24 @@
  *   PUT    /tenants/:id        -> atualiza
  *   PATCH  /tenants/:id/status -> ativa/desativa
  */
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Box,
   Paper,
   Typography,
   Button,
+  Chip,
+  IconButton,
+  Tooltip,
+  // A tabela da LISTAGEM e a TabelaDados; estes componentes ficam para a
+  // tabelinha de leitura dentro do dialogo de usuarios, onde paginacao e
+  // gerenciador de colunas so atrapalhariam.
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
-  IconButton,
-  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -37,13 +40,16 @@ import {
   Alert,
   CircularProgress,
   Switch,
-  Stack,
   MenuItem,
   Divider,
 } from "@mui/material"
-import { Add, Edit, Apartment, Business, People, Key } from "@mui/icons-material"
+import { Add, Edit, Business, People, Key } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import api from "../services/api"
+import TabelaDados from "../components/tabela/TabelaDados"
+import ToolbarTabela from "../components/tabela/ToolbarTabela"
+import PainelFiltros, { contarFiltros } from "../components/tabela/PainelFiltros"
+import { exportarTabelaCsv } from "../components/tabela/exportarTabela"
 import {
   MAX_CELULAR,
   celularValido,
@@ -78,6 +84,12 @@ export default function Tenants() {
   const [tenants, setTenants] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [aviso, setAviso] = useState(null) // { tipo, texto }
+
+  // Busca, filtros e colunas da listagem (ver TabelaDados).
+  const [busca, setBusca] = useState("")
+  const [filtros, setFiltros] = useState({})
+  const [painelAberto, setPainelAberto] = useState(false)
+  const [colunasVisiveis, setColunasVisiveis] = useState([])
 
   // Dialog de criacao/edicao.
   const [dialogAberto, setDialogAberto] = useState(false)
@@ -226,6 +238,153 @@ export default function Tenants() {
     }
   }
 
+  // ---------------- Listagem ----------------
+
+  const colunas = useMemo(
+    () => [
+      {
+        chave: "nome",
+        rotulo: "Nome",
+        obrigatoria: true,
+        largura: 240,
+        valorTexto: (t) => t.nome,
+        render: (t) => (
+          <Typography variant="body2" fontWeight={600}>
+            {t.nome}
+          </Typography>
+        ),
+      },
+      {
+        chave: "email",
+        rotulo: "Contato",
+        largura: 240,
+        valorTexto: (t) => [t.email, formatarCelular(t.celular)].filter(Boolean).join(" · "),
+        render: (t) => (
+          <>
+            <Typography variant="body2">{t.email}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {formatarCelular(t.celular)}
+            </Typography>
+          </>
+        ),
+      },
+      {
+        chave: "cidade",
+        rotulo: "Local",
+        largura: 180,
+        valorOrdenacao: (t) => `${t.estado || ""} ${t.cidade || ""}`,
+        valorTexto: (t) => [`${t.cidade || ""} / ${t.estado || ""}`, t.pais].filter(Boolean).join(" · "),
+        render: (t) => (
+          <>
+            <Typography variant="body2">
+              {t.cidade} / {t.estado}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t.pais}
+            </Typography>
+          </>
+        ),
+      },
+      {
+        chave: "total_usuarios",
+        rotulo: "Usuários",
+        alinhamento: "center",
+        largura: 110,
+        ajuda: "Usuários cadastrados sobre o limite contratado.",
+        // Ordena pelo QUANTO DO LIMITE ja foi usado, e nao pelo total: numa
+        // lista de incubadoras, quem esta perto de estourar e o que se procura.
+        valorOrdenacao: (t) => (t.qtd_usuarios ? t.total_usuarios / t.qtd_usuarios : 0),
+        valorTexto: (t) => `${t.total_usuarios} / ${t.qtd_usuarios}`,
+        render: (t) => `${t.total_usuarios} / ${t.qtd_usuarios}`,
+      },
+      {
+        chave: "total_startups",
+        rotulo: "Startups",
+        alinhamento: "center",
+        largura: 110,
+        ajuda: "Startups cadastradas sobre o limite contratado.",
+        valorOrdenacao: (t) => (t.qtd_startups ? t.total_startups / t.qtd_startups : 0),
+        valorTexto: (t) => `${t.total_startups} / ${t.qtd_startups}`,
+        render: (t) => `${t.total_startups} / ${t.qtd_startups}`,
+      },
+      {
+        chave: "ativo",
+        rotulo: "Status",
+        alinhamento: "center",
+        largura: 110,
+        valorOrdenacao: (t) => (t.ativo ? 0 : 1),
+        valorTexto: (t) => (t.ativo ? "Ativa" : "Inativa"),
+        render: (t) => (
+          <Chip
+            size="small"
+            label={t.ativo ? "Ativa" : "Inativa"}
+            color={t.ativo ? "success" : "default"}
+          />
+        ),
+      },
+    ],
+    []
+  )
+
+  const grupos = useMemo(() => {
+    const paises = [...new Set(tenants.map((t) => t.pais).filter(Boolean))].sort()
+    const grupos = [
+      {
+        id: "ativo",
+        rotulo: "Status",
+        tipo: "checkbox",
+        itens: [
+          { id: "sim", rotulo: "Ativa" },
+          { id: "nao", rotulo: "Inativa" },
+        ],
+      },
+    ]
+    // Pais e estado saem dos proprios dados: nao ha cadastro deles em lugar
+    // nenhum, e com uma unica opcao o grupo nao filtraria nada.
+    if (paises.length > 1) {
+      grupos.push({
+        id: "pais",
+        rotulo: "País",
+        tipo: "checkbox",
+        itens: paises.map((p) => ({ id: p, rotulo: p })),
+      })
+    }
+    const estados = [...new Set(tenants.map((t) => t.estado).filter(Boolean))].sort()
+    if (estados.length > 1) {
+      grupos.push({
+        id: "estado",
+        rotulo: "Estado",
+        tipo: "checkbox",
+        itens: estados.map((e) => ({ id: e, rotulo: e })),
+      })
+    }
+    return grupos
+  }, [tenants])
+
+  const filtradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+    const digitos = somenteDigitos(termo)
+    return tenants.filter((t) => {
+      const status = filtros.ativo || []
+      if (status.length && !status.includes(t.ativo ? "sim" : "nao")) return false
+
+      const paises = filtros.pais || []
+      if (paises.length && !paises.includes(t.pais)) return false
+
+      const estados = filtros.estado || []
+      if (estados.length && !estados.includes(t.estado)) return false
+
+      if (!termo) return true
+      const casaTexto = [t.nome, t.email, t.cidade, t.estado, t.pais]
+        .filter(Boolean)
+        .some((campo) => campo.toLowerCase().includes(termo))
+      // O celular e guardado sem mascara: comparar so os digitos faz "(51) 9"
+      // encontrar o mesmo que "519".
+      const casaCelular = digitos && (t.celular || "").includes(digitos)
+      return casaTexto || casaCelular
+    })
+  }, [tenants, busca, filtros])
+
   return (
     <AppLayout>
       <Box>
@@ -250,92 +409,63 @@ export default function Tenants() {
           </Alert>
         )}
 
-        <Paper data-tour="tenants-lista" sx={{ borderRadius: 0, overflow: "hidden" }}>
-          {carregando ? (
-            <Box sx={{ textAlign: "center", py: 6 }}>
-              <CircularProgress />
-            </Box>
-          ) : tenants.length === 0 ? (
-            <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
-              <Apartment sx={{ fontSize: 48, opacity: 0.4 }} />
-              <Typography sx={{ mt: 1 }}>Nenhuma incubadora cadastrada.</Typography>
-            </Box>
-          ) : (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Nome</TableCell>
-                    <TableCell>Contato</TableCell>
-                    <TableCell>Local</TableCell>
-                    <TableCell align="center">Usuários</TableCell>
-                    <TableCell align="center">Startups</TableCell>
-                    <TableCell align="center">Status</TableCell>
-                    <TableCell align="right">Ações</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {tenants.map((t) => (
-                    <TableRow key={t.id_tenant} hover>
-                      <TableCell>
-                        <Typography fontWeight={600}>{t.nome}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{t.email}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {formatarCelular(t.celular)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {t.cidade} / {t.estado}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {t.pais}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        {t.total_usuarios} / {t.qtd_usuarios}
-                      </TableCell>
-                      <TableCell align="center">
-                        {t.total_startups} / {t.qtd_startups}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip
-                          size="small"
-                          label={t.ativo ? "Ativa" : "Inativa"}
-                          color={t.ativo ? "success" : "default"}
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
-                          <Tooltip title="Usuários">
-                            <IconButton size="small" onClick={() => abrirUsuarios(t)}>
-                              <People fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Editar">
-                            <IconButton size="small" onClick={() => abrirEdicao(t)}>
-                              <Edit fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title={t.ativo ? "Desativar" : "Ativar"}>
-                            <Switch
-                              size="small"
-                              checked={t.ativo}
-                              onChange={() => alternarStatus(t)}
-                            />
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+        <Paper data-tour="tenants-lista" sx={{ borderRadius: 0 }}>
+          <ToolbarTabela
+            busca={busca}
+            onBuscaChange={setBusca}
+            placeholderBusca="Buscar por nome, e-mail ou cidade..."
+            totalFiltros={contarFiltros(filtros)}
+            onAbrirFiltros={() => setPainelAberto(true)}
+            onExportar={() => exportarTabelaCsv("incubadoras", colunas, colunasVisiveis, filtradas)}
+          />
+
+          <TabelaDados
+            dados={filtradas}
+            colunas={colunas}
+            chaveId="id_tenant"
+            chaveStorage="tenants"
+            ordemInicial="nome"
+            carregando={carregando}
+            larguraMinima={860}
+            mensagemVazio={
+              tenants.length === 0
+                ? "Nenhuma incubadora cadastrada."
+                : "Nenhuma incubadora corresponde ao filtro."
+            }
+            onColunasVisiveisChange={setColunasVisiveis}
+            larguraAcoes={130}
+            // As tres acoes de uma incubadora vem juntas, e uma delas e um
+            // interruptor — por isso a forma de funcao, e nao a lista de icones.
+            acoes={(t) => (
+              <>
+                <Tooltip title="Usuários">
+                  <IconButton size="small" onClick={() => abrirUsuarios(t)}>
+                    <People fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Editar">
+                  <IconButton size="small" onClick={() => abrirEdicao(t)}>
+                    <Edit fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={t.ativo ? "Desativar" : "Ativar"}>
+                  <Switch size="small" checked={t.ativo} onChange={() => alternarStatus(t)} />
+                </Tooltip>
+              </>
+            )}
+          />
         </Paper>
       </Box>
+
+      <PainelFiltros
+        aberto={painelAberto}
+        onFechar={() => setPainelAberto(false)}
+        titulo="Filtrar incubadoras"
+        grupos={grupos}
+        selecionados={filtros}
+        onAplicar={setFiltros}
+        onLimpar={() => setFiltros({})}
+      />
 
       {/* ---------------- Dialog de criacao / edicao ---------------- */}
       <Dialog open={dialogAberto} onClose={() => setDialogAberto(false)} maxWidth="sm" fullWidth>

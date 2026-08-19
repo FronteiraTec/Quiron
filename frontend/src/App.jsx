@@ -32,11 +32,13 @@ import ConfiguracoesLayout from "./pages/ConfiguracoesLayout"
 import DadosCadastrais from "./pages/DadosCadastrais"
 import ConfiguracaoEmail from "./pages/ConfiguracaoEmail"
 import ConfiguracaoAgenda from "./pages/ConfiguracaoAgenda"
+import ConfiguracaoStartups from "./pages/ConfiguracaoStartups"
 import Auditoria from "./pages/Auditoria"
 import RelatorioProgresso from "./pages/RelatorioProgresso"
 import RelatorioEntregas from "./pages/RelatorioEntregas"
 import RelatorioGargalos from "./pages/RelatorioGargalos"
 import RelatorioEngajamento from "./pages/RelatorioEngajamento"
+import RelatorioTempo from "./pages/RelatorioTempo"
 import Usuarios from "./pages/Usuarios"
 import Jornada from "./pages/Jornada"
 import MinhaStartup from "./pages/MinhaStartup"
@@ -47,6 +49,7 @@ import Feedback from "./pages/Feedback"
 import Mentores from "./pages/Mentores"
 import PresencaEventos from "./pages/PresencaEventos"
 import Membros from "./pages/Membros"
+import Mensagens from "./pages/Mensagens"
 import Avaliacoes from "./pages/Avaliacoes"
 import NotFound from "./pages/NotFound"
 import ProtectedRoute from "./components/ProtectedRoute"
@@ -268,6 +271,20 @@ export default function App() {
               }
             />
 
+            {/* Mensagens internas: a caixa de entrada de quem esta logado e,
+                para quem tem a chave de comunicacao, o historico de envios.
+                ProtectedRoute e nao AdminOuRootRoute de proposito: RECEBER nao
+                passa por permissao — o incubado precisa alcancar o que a
+                incubadora mandou para ele. */}
+            <Route
+              path="/mensagens"
+              element={
+                <ProtectedRoute>
+                  <Mensagens />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Mentores: distribuicao das startups entre os mentores. O vinculo
                 editado aqui e o que recorta a fila de avaliacao de cada um.
                 Restrita ao admin da propria incubadora (ou root), como o
@@ -349,6 +366,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/relatorios/tempo"
+              element={
+                <ProtectedRoute>
+                  <RelatorioTempo />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Usuarios da incubadora: lista mestre-detalhe, grupos e
                 reativacao. Restrita ao admin da propria incubadora (ou root). */}
@@ -376,6 +401,7 @@ export default function App() {
               <Route index element={<DadosCadastrais />} />
               <Route path="email" element={<ConfiguracaoEmail />} />
               <Route path="agenda" element={<ConfiguracaoAgenda />} />
+              <Route path="startups" element={<ConfiguracaoStartups />} />
               <Route path="auditoria" element={<Auditoria />} />
             </Route>
 

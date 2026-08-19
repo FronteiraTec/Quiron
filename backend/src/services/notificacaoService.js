@@ -7,6 +7,7 @@
  *   entrega avaliada  -> os membros ativos da startup
  *   evento criado     -> o publico do evento (geral ou startups direcionadas)
  *   feedback enviado  -> presidencia da FronteiraTec (endereco fixo)
+ *   mensagem interna  -> quem a mensagem alcancou (so se o autor pediu email)
  *
  * DISPARO EM SEGUNDO PLANO. Todas as funcoes exportadas retornam imediatamente
  * e nunca lancam: notificar e efeito colateral do fato, nao parte dele. Um SMTP
@@ -18,6 +19,7 @@ const eventoRepository = require("../repositories/eventoRepository")
 const trilhaRepository = require("../repositories/trilhaRepository")
 const tenantRepository = require("../repositories/tenantRepository")
 const usuarioRepository = require("../repositories/usuarioRepository")
+const mensagemRepository = require("../repositories/mensagemRepository")
 const { enviarEmail, layout, escapar } = require("../utils/email")
 
 // URL base do frontend, usada nos links dos avisos.
@@ -268,4 +270,50 @@ function feedbackEnviado(feedback) {
   })
 }
 
-module.exports = { entregaEnviada, entregaAvaliada, eventoCriado, feedbackEnviado }
+// ---------------------------------------------------------------------------
+// MENSAGEM INTERNA -> quem ela alcancou
+// ---------------------------------------------------------------------------
+
+/**
+ * Repete por email uma mensagem interna, quando quem escreveu pediu.
+ *
+ * Diferente dos outros avisos deste arquivo, este NAO e automatico: a mensagem
+ * ja chega pelo sino, e mandar toda conversa interna para a caixa de entrada de
+ * trinta pessoas ensina todo mundo a ignorar os emails do sistema. Por isso o
+ * envio depende da opcao marcada no formulario (ver mensagemService.enviar).
+ *
+ * A lista de destinatarios sai da propria tabela de entrega — o instantaneo ja
+ * congelado no envio —, e nao de uma nova expansao dos destinos: o email vai
+ * exatamente para quem tem a mensagem na caixa.
+ *
+ * @param {{id_mensagem:number, id_tenant:number, id_remetente:number,
+ *          assunto:string, corpo:string, importante?:boolean}} mensagem
+ */
+function mensagemEnviada(mensagem) {
+  emSegundoPlano(`mensagem=${mensagem?.id_mensagem}`, async () => {
+    const [destinatarios, autor] = await Promise.all([
+      mensagemRepository.listarDestinatarios(mensagem.id_mensagem),
+      mensagem.id_remetente ? usuarioRepository.buscarPorId(mensagem.id_remetente) : null,
+    ])
+
+    const para = emails(destinatarios)
+    if (para.length === 0) return
+
+    await enviarEmail({
+      para,
+      assunto: mensagem.importante ? `[Importante] ${mensagem.assunto}` : mensagem.assunto,
+      remetente: await resolverRemetente(mensagem.id_tenant),
+      html: layout({
+        titulo: escapar(mensagem.assunto),
+        paragrafos: [
+          autor ? `Mensagem de <strong>${escapar(autor.nome)}</strong>:` : "Mensagem da sua incubadora:",
+          escapar(mensagem.corpo).replace(/\n/g, "<br>"),
+        ],
+        acao: { texto: "Ver no Quiron", url: `${FRONTEND_URL}/mensagens` },
+        rodape: "Voce recebeu este aviso porque a mensagem foi enderecada a voce no Quiron.",
+      }),
+    })
+  })
+}
+
+module.exports = { entregaEnviada, entregaAvaliada, eventoCriado, feedbackEnviado, mensagemEnviada }

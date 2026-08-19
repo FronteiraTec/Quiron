@@ -1,14 +1,31 @@
 /**
  * Tela "Startups" - lista das startups da incubadora (visao admin/mentor).
  *
- * Permite buscar por nome e filtrar por fase da trilha / status, alem de
- * criar uma nova startup. Cada linha leva para a pagina de detalhe
- * (/startups/:id).
+ * A LISTA E UMA TABELA (TabelaDados), e nao mais uma pilha de cartoes: com o
+ * cadastro completo — endereco, tipo, situacao e os campos que cada incubadora
+ * inventa — nao existe um conjunto de colunas que sirva para todas. A tabela
+ * deixa cada incubadora escolher o que ver, em que ordem, e guarda a escolha no
+ * navegador. Ver TabelaDados.
+ *
+ * OS CAMPOS PERSONALIZAVEIS VIRAM COLUNA E VIRAM FILTRO, um a um: a incubadora
+ * que criou "Setor" quer listar por setor, nao abrir 40 cadastros para
+ * descobrir quais sao AgriTech. O tipo do campo decide o filtro (categoria vira
+ * lista de marcar, monetario vira intervalo, texto vira busca) — ver
+ * utils/camposExtras.
+ *
+ * Os FILTROS moraram numa fileira de seletores acima da lista. Viraram um
+ * painel lateral (PainelFiltros) porque a fileira crescia com o cadastro: fase,
+ * tipo e status ja eram tres, e cada campo personalizavel acrescenta o seu.
+ *
+ * TIPO e STATUS sao vocabulario de cada incubadora (startup_tipo /
+ * startup_situacao, migracao 010), lidos do startupConfigStore.
  *
  * Endpoints:
- *   GET  /startups?id_tenant=  -> lista (com fase_atual e progresso_pct)
- *   GET  /trilha?id_tenant=    -> arvore da trilha; as fases saem dela (filtro)
- *   POST /startups             -> cria uma startup
+ *   GET   /startups?id_tenant=      -> lista (com fase_atual e progresso_pct)
+ *   GET   /startups/:id             -> cadastro completo, para editar
+ *   PATCH /startups/:id/situacao    -> status em massa
+ *   GET   /trilha?id_tenant=        -> arvore da trilha; as fases saem dela (filtro)
+ *   GET   /trilha/programas         -> trilhas, para o seletor do cadastro
  */
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -17,32 +34,54 @@ import {
   Paper,
   Typography,
   Button,
-  TextField,
-  InputAdornment,
-  MenuItem,
   Chip,
   LinearProgress,
   Alert,
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
+  Link,
 } from "@mui/material"
-import { Add, Search, RocketLaunch } from "@mui/icons-material"
+import { Add, EditOutlined, RocketLaunch, SwapHoriz } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
-import { STATUS_ROTULO, STATUS_COR } from "../data/startupMeta"
-import { MAX_CNPJ, cnpjValido, mascararCnpj, somenteDigitos } from "../utils/mascaras"
+import { useStartupConfigStore } from "../store/startupConfigStore"
+import { usePermissaoStore } from "../store/permissaoStore"
+import DrawerCadastroStartup from "../components/startup/DrawerCadastroStartup"
+import ChipSituacao from "../components/startup/ChipSituacao"
+import TabelaDados from "../components/tabela/TabelaDados"
+import ToolbarTabela from "../components/tabela/ToolbarTabela"
+import PainelFiltros, { contarFiltros } from "../components/tabela/PainelFiltros"
+import AtualizacaoMassa from "../components/tabela/AtualizacaoMassa"
+import { exportarTabelaCsv } from "../components/tabela/exportarTabela"
+import { formatarCnpj, somenteDigitos } from "../utils/mascaras"
+import {
+  PREFIXO_FILTRO_EXTRA,
+  casaFiltroCampoExtra,
+  formatarCampoExtra,
+  grupoFiltroCampoExtra,
+  valorOrdenacaoCampoExtra,
+} from "../utils/camposExtras"
 
-const FORM_VAZIO = { nome: "", cnpj: "", id_trilha: "" }
+/** Startup sem fase pendente na trilha ja passou por todas: esta graduada. */
+const faseDaStartup = (s) => s.fase_atual || "Graduada"
+
+const dataBR = (ts) => (ts ? new Date(ts).toLocaleDateString("pt-BR") : "")
 
 export default function Startups() {
   const navigate = useNavigate()
   const usuario = useAuthStore((s) => s.usuario)
   const idTenant = usuario?.id_tenant ?? null
+
+  // As acoes que a listagem passou a oferecer (editar o cadastro, mudar o
+  // status de varias de uma vez, exportar) nao valem para todo mundo: mentor
+  // costuma so acompanhar. O backend continua sendo quem autoriza — isto aqui
+  // so evita oferecer o que responderia 403. A resposta vai no proprio seletor
+  // para a tela se redesenhar quando as permissoes terminarem de carregar.
+  const podeEditar = usePermissaoStore((s) => s.pode("startups.startups.editar"))
+  const podeExportar = usePermissaoStore((s) => s.pode("startups.startups.exportar"))
+
+  const tipos = useStartupConfigStore((s) => s.tipos) || []
+  const situacoes = useStartupConfigStore((s) => s.situacoes) || []
+  const campos = useStartupConfigStore((s) => s.campos) || []
 
   const [startups, setStartups] = useState([])
   const [fases, setFases] = useState([])
@@ -52,12 +91,21 @@ export default function Startups() {
   const [aviso, setAviso] = useState(null)
 
   const [busca, setBusca] = useState("")
-  const [filtroFase, setFiltroFase] = useState("todas")
-  const [filtroStatus, setFiltroStatus] = useState("todos")
+  // { [idDoGrupo]: valor } — o que o PainelFiltros devolveu no ultimo "Aplicar".
+  const [filtros, setFiltros] = useState({})
+  const [painelAberto, setPainelAberto] = useState(false)
 
-  const [dialogAberto, setDialogAberto] = useState(false)
-  const [form, setForm] = useState(FORM_VAZIO)
-  const [salvando, setSalvando] = useState(false)
+  const [selecionados, setSelecionados] = useState([])
+  const [ancoraMassa, setAncoraMassa] = useState(null)
+  const [aplicandoMassa, setAplicandoMassa] = useState(false)
+
+  // As colunas na tela, para a exportacao sair igual ao que esta sendo lido.
+  const [colunasVisiveis, setColunasVisiveis] = useState([])
+
+  const [drawerAberto, setDrawerAberto] = useState(false)
+  // Preenchido so na edicao: o cadastro completo (com contatos) da startup
+  // clicada, que a listagem nao traz.
+  const [startupEditando, setStartupEditando] = useState(null)
 
   const carregar = async () => {
     if (!idTenant) {
@@ -89,53 +137,317 @@ export default function Startups() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idTenant])
 
+  // ---------------------------------------------------------------- colunas
+  const colunas = useMemo(() => {
+    const fixas = [
+      {
+        chave: "nome",
+        rotulo: "Startup",
+        obrigatoria: true,
+        largura: 260,
+        valorTexto: (s) => s.nome,
+        render: (s) => (
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {s.nome}
+            </Typography>
+            {/* A cidade responde a pergunta mais frequente sobre uma startup
+                depois do nome, e agora ha onde guarda-la. */}
+            {(s.cidade || s.uf) && (
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {[s.cidade, s.uf].filter(Boolean).join(" / ")}
+              </Typography>
+            )}
+          </Box>
+        ),
+      },
+      {
+        chave: "fase_atual",
+        rotulo: "Fase",
+        largura: 170,
+        valorOrdenacao: faseDaStartup,
+        valorTexto: faseDaStartup,
+        render: (s) => <Chip size="small" variant="outlined" label={faseDaStartup(s)} />,
+      },
+      {
+        chave: "tipo",
+        rotulo: "Tipo",
+        largura: 140,
+        valorOrdenacao: (s) => s.tipo_rotulo,
+        valorTexto: (s) => s.tipo_rotulo || "",
+        render: (s) =>
+          s.tipo_rotulo ? (
+            <Chip
+              size="small"
+              variant="outlined"
+              label={s.tipo_rotulo}
+              sx={{ borderColor: s.tipo_cor, color: s.tipo_cor }}
+            />
+          ) : (
+            "—"
+          ),
+      },
+      {
+        chave: "situacao",
+        rotulo: "Status",
+        largura: 130,
+        valorOrdenacao: (s) => s.situacao_rotulo || s.status,
+        valorTexto: (s) => s.situacao_rotulo || s.status || "",
+        render: (s) => <ChipSituacao startup={s} />,
+      },
+      {
+        chave: "progresso_pct",
+        rotulo: "Progresso",
+        largura: 200,
+        valorOrdenacao: (s) => s.progresso_pct,
+        valorTexto: (s) => `${s.progresso_pct}%`,
+        render: (s) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 140 }}>
+            <LinearProgress
+              variant="determinate"
+              value={s.progresso_pct}
+              sx={{ flex: 1, height: 8, borderRadius: 4 }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ width: 36, textAlign: "right" }}>
+              {s.progresso_pct}%
+            </Typography>
+          </Box>
+        ),
+      },
+      // As colunas abaixo existem, mas nao abrem a tabela: sao dado de ficha,
+      // procurado quando se procura, e cada uma ligada de saida empurraria o
+      // progresso para fora da tela.
+      {
+        chave: "cnpj",
+        rotulo: "CNPJ",
+        visivelPadrao: false,
+        largura: 170,
+        valorTexto: (s) => formatarCnpj(s.cnpj) || "",
+        render: (s) => formatarCnpj(s.cnpj) || "—",
+      },
+      {
+        chave: "email",
+        rotulo: "E-mail",
+        visivelPadrao: false,
+        largura: 220,
+        valorTexto: (s) => s.email || "",
+        render: (s) =>
+          s.email ? (
+            <Link
+              href={`mailto:${s.email}`}
+              variant="body2"
+              onClick={(e) => e.stopPropagation()}
+              noWrap
+            >
+              {s.email}
+            </Link>
+          ) : (
+            "—"
+          ),
+      },
+      {
+        chave: "cidade",
+        rotulo: "Cidade",
+        visivelPadrao: false,
+        largura: 160,
+        valorTexto: (s) => [s.cidade, s.uf].filter(Boolean).join(" / "),
+        render: (s) => [s.cidade, s.uf].filter(Boolean).join(" / ") || "—",
+      },
+      {
+        chave: "criado_ts",
+        rotulo: "Cadastro",
+        visivelPadrao: false,
+        largura: 120,
+        valorOrdenacao: (s) => s.criado_ts,
+        valorTexto: (s) => dataBR(s.criado_ts),
+        render: (s) => dataBR(s.criado_ts) || "—",
+      },
+    ]
+
+    // Um campo personalizavel = uma coluna. Entram VISIVEIS: a incubadora nao
+    // cadastrou o campo para escondermos o resultado dele — e quem achar a
+    // tabela larga demais desliga o que nao usa em "Gerenciar colunas", e a
+    // escolha fica guardada.
+    const extras = campos.map((campo) => {
+      const numerico = campo.tipo === "NUMERICO" || campo.tipo === "MONETARIO"
+      const ler = (s) => (s.campos_extras || {})[campo.chave]
+      return {
+        chave: PREFIXO_FILTRO_EXTRA + campo.chave,
+        rotulo: campo.rotulo,
+        largura: 160,
+        alinhamento: numerico ? "right" : "left",
+        valorOrdenacao: (s) => valorOrdenacaoCampoExtra(campo, ler(s)),
+        valorTexto: (s) => formatarCampoExtra(campo, ler(s)) || "",
+        render: (s) => formatarCampoExtra(campo, ler(s)) || "—",
+      }
+    })
+
+    return [...fixas, ...extras]
+  }, [campos])
+
+  // ---------------------------------------------------------------- filtros
+  const gruposFiltro = useMemo(() => {
+    const grupos = []
+
+    // Duas trilhas podem ter fases de mesmo nome; o filtro compara por nome.
+    const nomesFases = [...new Set(fases.map((f) => f.nome))]
+    grupos.push({
+      id: "fase",
+      rotulo: "Fase",
+      tipo: "checkbox",
+      itens: [
+        ...nomesFases.map((nome) => ({ id: nome, rotulo: nome })),
+        { id: "Graduada", rotulo: "Graduada" },
+      ],
+    })
+
+    // Sem tipo cadastrado o grupo nao teria item nenhum para marcar.
+    if (tipos.length > 0) {
+      grupos.push({
+        id: "tipo",
+        rotulo: "Tipo",
+        tipo: "checkbox",
+        itens: tipos.map((t) => ({ id: t.chave, rotulo: t.rotulo })),
+      })
+    }
+
+    if (situacoes.length > 0) {
+      grupos.push({
+        id: "situacao",
+        rotulo: "Status",
+        tipo: "checkbox",
+        itens: situacoes.map((s) => ({ id: s.chave, rotulo: s.rotulo })),
+      })
+    }
+
+    // UF sai dos proprios dados: nao ha cadastro de estados, e listar as 27
+    // quando a incubadora atende duas seria um grupo de rolagem inutil.
+    const ufs = [...new Set(startups.map((s) => s.uf).filter(Boolean))].sort()
+    if (ufs.length > 1) {
+      grupos.push({
+        id: "uf",
+        rotulo: "UF",
+        tipo: "checkbox",
+        itens: ufs.map((uf) => ({ id: uf, rotulo: uf })),
+      })
+    }
+
+    grupos.push({ id: "criado", rotulo: "Data de cadastro", tipo: "data" })
+
+    campos.forEach((campo) => {
+      const grupo = grupoFiltroCampoExtra(campo)
+      if (grupo) grupos.push(grupo)
+    })
+
+    return grupos
+  }, [fases, tipos, situacoes, campos, startups])
+
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase()
+    // O CNPJ e guardado sem mascara: comparar so os digitos faz a busca
+    // funcionar tanto com "12.345" quanto com "12345".
+    const termoDigitos = somenteDigitos(termo)
+
     return startups.filter((s) => {
-      if (termo && !s.nome.toLowerCase().includes(termo)) return false
-      if (filtroFase !== "todas" && (s.fase_atual || "Graduada") !== filtroFase) return false
-      if (filtroStatus !== "todos" && s.status !== filtroStatus) return false
-      return true
+      if (termo) {
+        const casaNome = s.nome.toLowerCase().includes(termo)
+        const casaEmail = (s.email || "").toLowerCase().includes(termo)
+        const casaCnpj = termoDigitos && (s.cnpj || "").includes(termoDigitos)
+        if (!casaNome && !casaEmail && !casaCnpj) return false
+      }
+
+      const fasesSel = filtros.fase || []
+      if (fasesSel.length && !fasesSel.includes(faseDaStartup(s))) return false
+
+      const tiposSel = filtros.tipo || []
+      if (tiposSel.length && !tiposSel.includes(s.tipo)) return false
+
+      const situacoesSel = filtros.situacao || []
+      if (situacoesSel.length && !situacoesSel.includes(s.situacao)) return false
+
+      const ufsSel = filtros.uf || []
+      if (ufsSel.length && !ufsSel.includes(s.uf)) return false
+
+      // O <input type="date"> devolve YYYY-MM-DD e o timestamp comeca do mesmo
+      // jeito: comparar os dez primeiros caracteres compara as datas sem
+      // arrastar fuso horario para dentro do filtro.
+      const periodo = filtros.criado
+      if (periodo?.de || periodo?.ate) {
+        const dia = (s.criado_ts || "").slice(0, 10)
+        if (!dia) return false
+        if (periodo.de && dia < periodo.de) return false
+        if (periodo.ate && dia > periodo.ate) return false
+      }
+
+      return campos.every((campo) => {
+        const selecao = filtros[PREFIXO_FILTRO_EXTRA + campo.chave]
+        return casaFiltroCampoExtra(campo, (s.campos_extras || {})[campo.chave], selecao)
+      })
     })
-  }, [startups, busca, filtroFase, filtroStatus])
+  }, [startups, busca, filtros, campos])
+
+  // ------------------------------------------------------------- acoes
+  const abrirCadastro = () => {
+    setStartupEditando(null)
+    setDrawerAberto(true)
+  }
 
   /**
-   * Abre o cadastro com a trilha PADRAO ja escolhida — e so uma sugestao:
-   * o campo continua editavel, e quem cadastra pode comecar a startup em
-   * qualquer outra trilha.
+   * Editar exige o cadastro COMPLETO: a listagem nao traz os contatos, e abrir
+   * o painel com o que a linha tem faria o salvar apagar a lista de contatos.
    */
-  const abrirCriacao = () => {
-    const padrao = trilhas.find((t) => t.padrao) ?? trilhas[0]
-    setForm({ ...FORM_VAZIO, id_trilha: padrao?.id_no ?? "" })
-    setDialogAberto(true)
-  }
-
-  const alterarCampo = (campo, valor) => setForm((f) => ({ ...f, [campo]: valor }))
-
-  const salvar = async (e) => {
-    e.preventDefault()
-    if (form.cnpj && !cnpjValido(form.cnpj)) {
-      setAviso({ tipo: "error", texto: "CNPJ inválido — confira os números digitados." })
-      return
-    }
-    setSalvando(true)
-    setAviso(null)
+  const editarStartup = async (linha) => {
     try {
-      await api.post("/startups", {
-        id_tenant: idTenant,
-        nome: form.nome,
-        // Sem mascara: a coluna e CHAR(14).
-        cnpj: somenteDigitos(form.cnpj) || null,
-        id_trilha: form.id_trilha || null,
-      })
-      setDialogAberto(false)
-      await carregar()
+      const { data } = await api.get(`/startups/${linha.id_startup}`)
+      setStartupEditando(data.startup)
+      setDrawerAberto(true)
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao criar a startup." })
-    } finally {
-      setSalvando(false)
+      setAviso({
+        tipo: "error",
+        texto: err.response?.data?.erro || "Erro ao abrir o cadastro da startup.",
+      })
     }
   }
+
+  /**
+   * Status em massa.
+   *
+   * Uma chamada por startup, e nao um endpoint de lote: PATCH /:id/situacao ja
+   * existe e e ele quem deriva o `status` do ciclo da situacao (ver
+   * startupRepository). O que falha e reportado — mudar 8 de 10 e dizer "pronto"
+   * seria pior do que nao ter o botao.
+   */
+  const aplicarSituacaoEmMassa = async ({ situacao }) => {
+    if (!situacao) return
+    setAplicandoMassa(true)
+    const resultados = await Promise.allSettled(
+      selecionados.map((id) => api.patch(`/startups/${id}/situacao`, { situacao }))
+    )
+    const falhas = resultados.filter((r) => r.status === "rejected")
+    setAplicandoMassa(false)
+    setAncoraMassa(null)
+
+    if (falhas.length === 0) {
+      const rotulo = situacoes.find((s) => s.chave === situacao)?.rotulo || situacao
+      setAviso({
+        tipo: "success",
+        texto: `${selecionados.length} startup${selecionados.length > 1 ? "s" : ""} marcada${
+          selecionados.length > 1 ? "s" : ""
+        } como "${rotulo}".`,
+      })
+      setSelecionados([])
+    } else {
+      setAviso({
+        tipo: falhas.length === resultados.length ? "error" : "warning",
+        texto:
+          falhas[0].reason?.response?.data?.erro ||
+          `Nao foi possivel alterar o status de ${falhas.length} de ${resultados.length} startups.`,
+      })
+    }
+    carregar()
+  }
+
+  const totalFiltros = contarFiltros(filtros)
 
   return (
     <AppLayout>
@@ -147,7 +459,12 @@ export default function Startups() {
               Startups
             </Typography>
           </Box>
-          <Button data-tour="startups-nova" variant="contained" startIcon={<Add />} onClick={abrirCriacao}>
+          <Button
+            data-tour="startups-nova"
+            variant="contained"
+            startIcon={<Add />}
+            onClick={abrirCadastro}
+          >
             Nova Startup
           </Button>
         </Box>
@@ -161,177 +478,96 @@ export default function Startups() {
           </Alert>
         )}
 
-        <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
-          <TextField
-            data-tour="startups-busca"
-            placeholder="Pesquisar..."
-            size="small"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            sx={{ flex: 1, minWidth: 220 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <TextField
-            data-tour="startups-filtros"
-            select
-            size="small"
-            label="Fase"
-            value={filtroFase}
-            onChange={(e) => setFiltroFase(e.target.value)}
-            sx={{ minWidth: 180 }}
-          >
-            <MenuItem value="todas">Todas as fases</MenuItem>
-            {fases.map((f) => (
-              <MenuItem key={f.id_no} value={f.nome}>
-                {f.nome}
-              </MenuItem>
-            ))}
-            <MenuItem value="Graduada">Graduada</MenuItem>
-          </TextField>
-          <TextField
-            data-tour="startups-filtros"
-            select
-            size="small"
-            label="Status"
-            value={filtroStatus}
-            onChange={(e) => setFiltroStatus(e.target.value)}
-            sx={{ minWidth: 160 }}
-          >
-            <MenuItem value="todos">Todos os status</MenuItem>
-            {Object.entries(STATUS_ROTULO).map(([valor, rotulo]) => (
-              <MenuItem key={valor} value={valor}>
-                {rotulo}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Box>
-
-        <Paper data-tour="startups-lista" sx={{ borderRadius: 0, overflow: "hidden" }}>
-          {carregando ? (
-            <Box sx={{ textAlign: "center", py: 6 }}>
-              <CircularProgress />
-            </Box>
-          ) : filtradas.length === 0 ? (
-            <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
-              <RocketLaunch sx={{ fontSize: 48, opacity: 0.4 }} />
-              <Typography sx={{ mt: 1 }}>Nenhuma startup encontrada.</Typography>
-            </Box>
-          ) : (
-            filtradas.map((s, i) => (
-              <Box
-                key={s.id_startup}
-                onClick={() => navigate(`/startups/${s.id_startup}`)}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  px: 3,
-                  py: 2,
-                  cursor: "pointer",
-                  borderTop: i === 0 ? "none" : "1px solid",
-                  borderColor: "divider",
-                  "&:hover": { bgcolor: "action.hover" },
-                }}
+        <Paper data-tour="startups-lista" sx={{ borderRadius: 0 }}>
+          <ToolbarTabela
+            busca={busca}
+            onBuscaChange={setBusca}
+            placeholderBusca="Pesquisar por nome, CNPJ ou e-mail..."
+            propsBusca={{ "data-tour": "startups-busca" }}
+            totalFiltros={totalFiltros}
+            onAbrirFiltros={() => setPainelAberto(true)}
+            propsBotaoFiltro={{ "data-tour": "startups-filtros" }}
+            totalSelecionados={selecionados.length}
+            onLimparSelecao={() => setSelecionados([])}
+            acoesMassa={
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<SwapHoriz />}
+                onClick={(e) => setAncoraMassa(e.currentTarget)}
               >
-                <Typography fontWeight={600} sx={{ flex: "1 1 220px", minWidth: 0 }} noWrap>
-                  {s.nome}
-                </Typography>
-                <Chip
-                  size="small"
-                  label={s.fase_atual || "Graduada"}
-                  sx={{ flex: "0 0 160px" }}
-                  variant="outlined"
-                />
-                <Chip
-                  size="small"
-                  label={STATUS_ROTULO[s.status] || s.status}
-                  color={STATUS_COR[s.status] || "default"}
-                  sx={{ flex: "0 0 110px" }}
-                />
-                <Box sx={{ flex: "1 1 200px", display: "flex", alignItems: "center", gap: 1, minWidth: 140 }}>
-                  <LinearProgress
-                    variant="determinate"
-                    value={s.progresso_pct}
-                    sx={{ flex: 1, height: 8, borderRadius: 4 }}
-                  />
-                  <Typography variant="body2" color="text.secondary" sx={{ width: 40, textAlign: "right" }}>
-                    {s.progresso_pct}%
-                  </Typography>
-                </Box>
-              </Box>
-            ))
-          )}
+                Alterar status
+              </Button>
+            }
+            onExportar={
+              podeExportar
+                ? () => exportarTabelaCsv("startups", colunas, colunasVisiveis, filtradas)
+                : undefined
+            }
+          />
+
+          <TabelaDados
+            dados={filtradas}
+            colunas={colunas}
+            chaveId="id_startup"
+            chaveStorage="startups"
+            ordemInicial="nome"
+            carregando={carregando}
+            mensagemVazio="Nenhuma startup encontrada."
+            onClickLinha={(s) => navigate(`/startups/${s.id_startup}`)}
+            onColunasVisiveisChange={setColunasVisiveis}
+            selecionavel={podeEditar}
+            selecionados={selecionados}
+            onSelecionadosChange={setSelecionados}
+            larguraAcoes={56}
+            acoes={
+              podeEditar
+                ? [
+                    {
+                      rotulo: "Editar cadastro",
+                      icone: <EditOutlined fontSize="small" />,
+                      onClick: editarStartup,
+                    },
+                  ]
+                : undefined
+            }
+          />
         </Paper>
       </Box>
 
-      <Dialog open={dialogAberto} onClose={() => setDialogAberto(false)} maxWidth="sm" fullWidth>
-        <Box component="form" onSubmit={salvar}>
-          <DialogTitle>Nova startup</DialogTitle>
-          <DialogContent dividers>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField
-                  label="Nome"
-                  fullWidth
-                  required
-                  autoFocus
-                  value={form.nome}
-                  onChange={(e) => alterarCampo("nome", e.target.value)}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  label="CNPJ"
-                  fullWidth
-                  value={form.cnpj}
-                  onChange={(e) => alterarCampo("cnpj", mascararCnpj(e.target.value))}
-                  placeholder="12.345.678/0001-95"
-                  inputProps={{ maxLength: MAX_CNPJ, inputMode: "numeric" }}
-                  error={Boolean(form.cnpj) && !cnpjValido(form.cnpj)}
-                  helperText={form.cnpj && !cnpjValido(form.cnpj) ? "CNPJ inválido." : "Opcional."}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  select
-                  label="Trilha"
-                  fullWidth
-                  value={form.id_trilha}
-                  onChange={(e) => alterarCampo("id_trilha", e.target.value)}
-                  disabled={trilhas.length === 0}
-                  helperText={
-                    trilhas.length === 0
-                      ? "Sua incubadora ainda não tem trilhas. A startup será criada sem trilha."
-                      : "A trilha padrão já vem escolhida — troque se esta startup começa em outra."
-                  }
-                >
-                  <MenuItem value="">
-                    <em>Sem trilha por enquanto</em>
-                  </MenuItem>
-                  {trilhas.map((t) => (
-                    <MenuItem key={t.id_no} value={t.id_no}>
-                      {t.nome}
-                      {t.padrao ? " (padrão)" : ""}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={() => setDialogAberto(false)}>Cancelar</Button>
-            <Button type="submit" variant="contained" disabled={salvando}>
-              {salvando ? <CircularProgress size={22} color="inherit" /> : "Salvar"}
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
+      <PainelFiltros
+        aberto={painelAberto}
+        onFechar={() => setPainelAberto(false)}
+        titulo="Filtrar startups"
+        grupos={gruposFiltro}
+        selecionados={filtros}
+        onAplicar={setFiltros}
+        onLimpar={() => setFiltros({})}
+      />
+
+      <AtualizacaoMassa
+        ancora={ancoraMassa}
+        onFechar={() => setAncoraMassa(null)}
+        totalSelecionados={selecionados.length}
+        aplicando={aplicandoMassa}
+        campos={[
+          {
+            chave: "situacao",
+            rotulo: "Status",
+            opcoes: situacoes.map((s) => ({ valor: s.chave, rotulo: s.rotulo })),
+          },
+        ]}
+        onAplicar={aplicarSituacaoEmMassa}
+      />
+
+      <DrawerCadastroStartup
+        aberto={drawerAberto}
+        onFechar={() => setDrawerAberto(false)}
+        idTenant={idTenant}
+        startup={startupEditando}
+        trilhas={trilhas}
+        onSalvo={carregar}
+      />
     </AppLayout>
   )
 }

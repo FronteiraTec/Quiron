@@ -18,6 +18,7 @@ import { useAuthStore } from "../store/authStore"
 import { usePreferenciaStore } from "../store/preferenciaStore"
 import { usePermissaoStore } from "../store/permissaoStore"
 import { useAgendaConfigStore } from "../store/agendaConfigStore"
+import { useStartupConfigStore } from "../store/startupConfigStore"
 
 /**
  * @param {boolean} [fullBleed] Remove o padding do main e faz o conteudo ocupar
@@ -30,6 +31,7 @@ export default function AppLayout({ children, fullBleed = false }) {
   const carregarPreferencias = usePreferenciaStore((s) => s.carregar)
   const carregarPermissoes = usePermissaoStore((s) => s.carregar)
   const carregarAgendaConfig = useAgendaConfigStore((s) => s.carregar)
+  const carregarStartupConfig = useStartupConfigStore((s) => s.carregar)
 
   const theme = useTheme()
   const smUp = useMediaQuery(theme.breakpoints.up("sm"))
@@ -74,6 +76,13 @@ export default function AppLayout({ children, fullBleed = false }) {
   useEffect(() => {
     if (usuario?.id_tenant) carregarAgendaConfig(usuario.id_tenant)
   }, [usuario?.id_tenant, carregarAgendaConfig])
+
+  // Tipos, situacoes e campos personalizaveis do cadastro de startup, pelo
+  // mesmo motivo: sao lidos na lista de startups, no cadastro, no detalhe e em
+  // "Minha Startup".
+  useEffect(() => {
+    if (usuario?.id_tenant) carregarStartupConfig(usuario.id_tenant)
+  }, [usuario?.id_tenant, carregarStartupConfig])
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>

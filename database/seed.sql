@@ -65,6 +65,34 @@ SELECT t.id_tenant, d.chave, d.rotulo, d.cor, d.icone, d.ordem
  WHERE t.email = 'contato@incubadorademo.com'
     ON CONFLICT DO NOTHING;
 
+-- Tipos e situacoes padrao de startup. Mesma logica das categorias acima: a
+-- fonte canonica e backend/src/startups/padroes.js, usada por quem cria a
+-- incubadora pela API; aqui esta repetido porque o seed cria o tenant direto
+-- em SQL. Sem elas as FKs (id_tenant, tipo) e (id_tenant, situacao) barrariam
+-- o cadastro de qualquer startup na demo.
+INSERT INTO startup_tipo (id_tenant, chave, rotulo, cor, ordem)
+SELECT t.id_tenant, d.chave, d.rotulo, d.cor, d.ordem
+  FROM tenant t
+ CROSS JOIN (VALUES
+        ('INCUBADA',  'Incubada',  '#6366f1', 1),
+        ('RESIDENTE', 'Residente', '#0ea5e9', 2),
+        ('ASSOCIADA', 'Associada', '#10b981', 3),
+        ('GRADUADA',  'Graduada',  '#f59e0b', 4)
+      ) AS d(chave, rotulo, cor, ordem)
+ WHERE t.email = 'contato@incubadorademo.com'
+    ON CONFLICT DO NOTHING;
+
+INSERT INTO startup_situacao (id_tenant, chave, rotulo, cor, ciclo, ordem)
+SELECT t.id_tenant, d.chave, d.rotulo, d.cor, d.ciclo::statusStartup, d.ordem
+  FROM tenant t
+ CROSS JOIN (VALUES
+        ('ATIVA',     'Ativa',     '#10b981', 'ATIVA',     1),
+        ('PAUSADA',   'Pausada',   '#f59e0b', 'PAUSADA',   2),
+        ('ENCERRADA', 'Concluida', '#64748b', 'ENCERRADA', 3)
+      ) AS d(chave, rotulo, cor, ciclo, ordem)
+ WHERE t.email = 'contato@incubadorademo.com'
+    ON CONFLICT DO NOTHING;
+
 INSERT INTO usuarios (nome, email, celular, senha_hash)
 VALUES (
     'Admin',
@@ -111,11 +139,22 @@ SELECT t.id_tenant, u.id_usuario, 'usuario'
 ON CONFLICT (id_tenant, id_usuario) DO NOTHING;
 
 -- Startup de exemplo, na incubadora demo.
-INSERT INTO startup (id_tenant, nome, status)
-SELECT t.id_tenant, 'FlipTech', 'ATIVA'
+INSERT INTO startup (id_tenant, nome, status, tipo, situacao, email, cnpj,
+                     cep, uf, cidade, bairro, rua, numero)
+SELECT t.id_tenant, 'FlipTech', 'ATIVA', 'INCUBADA', 'ATIVA',
+       'contato@fliptech.com.br', '19131243000197',
+       '01310100', 'SP', 'Sao Paulo', 'Bela Vista', 'Avenida Paulista', '1578'
   FROM tenant t
  WHERE t.email = 'contato@incubadorademo.com'
    AND NOT EXISTS (SELECT 1 FROM startup s WHERE s.nome = 'FlipTech');
+
+-- Um contato de exemplo, para a aba nao nascer vazia na demo.
+INSERT INTO startup_contato (id_startup, nome, cargo, email, telefone, principal, ordem)
+SELECT s.id_startup, 'Flavia Nogueira', 'CEO', 'flavia@fliptech.com.br',
+       '11977777777', TRUE, 1
+  FROM startup s
+ WHERE s.nome = 'FlipTech'
+   AND NOT EXISTS (SELECT 1 FROM startup_contato c WHERE c.id_startup = s.id_startup);
 
 -- Vincula o incubado como lider da FlipTech.
 INSERT INTO startup_membros (id_startup, id_usuario, lider)

@@ -204,6 +204,7 @@ function Conteudo({ idTenant }) {
 
           <TabelaRelatorio
             chaveId="id_no"
+            chaveStorage="relatorio-gargalos-passos"
             linhas={dados.passos}
             ordemInicial="presos"
             colunas={[
