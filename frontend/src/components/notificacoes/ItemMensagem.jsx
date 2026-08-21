@@ -19,6 +19,10 @@ function inicial(nome) {
 export default function ItemMensagem({ mensagem, onClick }) {
   const quando = formatDistanceToNow(new Date(mensagem.criado_ts), { addSuffix: true, locale: ptBR })
   const para = resumirDestinos(mensagem.destinos)
+  // Aviso tem assunto; fala de conversa nao (migracao 013). Sem assunto, quem
+  // titula e a pessoa — que e o que se le num app de mensagem.
+  const aviso = Boolean(mensagem.assunto)
+  const titulo = mensagem.assunto || mensagem.remetente_nome || "Nova mensagem"
 
   return (
     <ButtonBase
@@ -55,7 +59,7 @@ export default function ItemMensagem({ mensagem, onClick }) {
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
           {mensagem.importante && <PriorityHigh sx={{ fontSize: 15, color: "error.main", flexShrink: 0 }} />}
           <Typography variant="body2" fontWeight={mensagem.lida ? 500 : 700} noWrap>
-            {mensagem.assunto}
+            {titulo}
           </Typography>
         </Box>
 
@@ -75,8 +79,10 @@ export default function ItemMensagem({ mensagem, onClick }) {
         </Typography>
 
         <Typography variant="caption" color="text.disabled" sx={{ display: "block" }} noWrap>
-          {mensagem.remetente_nome || "Alguém"}
-          {para ? ` · para ${para}` : ""} · {quando}
+          {/* No aviso, quem escreveu ja nao esta no titulo — entra aqui, com o
+              publico. Na conversa, o nome ja titula: sobra so o "quando". */}
+          {aviso ? `${mensagem.remetente_nome || "Alguém"}${para ? ` · para ${para}` : ""} · ` : ""}
+          {quando}
         </Typography>
       </Box>
 

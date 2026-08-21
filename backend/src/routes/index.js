@@ -58,6 +58,13 @@ router.use("/auditlogs", require("./auditLogRoutes"))
 // mentores, uma role ou pessoas especificas) que alimenta o sino da Navbar.
 router.use("/mensagens", require("./mensagemRoutes"))
 
+// Tarefas: a gestao interna da incubadora (o quadro do que a equipe tem para
+// fazer), com as colunas e os campos que cada uma define.
+router.use("/tarefas", require("./tarefaRoutes"))
+// Vocabulario configuravel do quadro (colunas e campos personalizaveis de cada
+// incubadora). Fora de /tarefas porque /tarefas/:id capturaria "config" como id.
+router.use("/tarefas-config", require("./tarefaConfigRoutes"))
+
 // Relatorios: leituras agregadas do que os outros modulos ja registram
 // (progresso na trilha, fila de avaliacao, gargalos, presenca em eventos).
 router.use("/relatorios", require("./relatorioRoutes"))

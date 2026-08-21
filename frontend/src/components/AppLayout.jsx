@@ -19,6 +19,7 @@ import { usePreferenciaStore } from "../store/preferenciaStore"
 import { usePermissaoStore } from "../store/permissaoStore"
 import { useAgendaConfigStore } from "../store/agendaConfigStore"
 import { useStartupConfigStore } from "../store/startupConfigStore"
+import { useTarefaConfigStore } from "../store/tarefaConfigStore"
 
 /**
  * @param {boolean} [fullBleed] Remove o padding do main e faz o conteudo ocupar
@@ -32,6 +33,7 @@ export default function AppLayout({ children, fullBleed = false }) {
   const carregarPermissoes = usePermissaoStore((s) => s.carregar)
   const carregarAgendaConfig = useAgendaConfigStore((s) => s.carregar)
   const carregarStartupConfig = useStartupConfigStore((s) => s.carregar)
+  const carregarTarefaConfig = useTarefaConfigStore((s) => s.carregar)
 
   const theme = useTheme()
   const smUp = useMediaQuery(theme.breakpoints.up("sm"))
@@ -83,6 +85,14 @@ export default function AppLayout({ children, fullBleed = false }) {
   useEffect(() => {
     if (usuario?.id_tenant) carregarStartupConfig(usuario.id_tenant)
   }, [usuario?.id_tenant, carregarStartupConfig])
+
+  // Colunas e campos personalizaveis do quadro de tarefas, pelo mesmo motivo:
+  // sao lidos na tela de tarefas (nas duas visualizacoes) e no painel de
+  // cadastro. Quem nao tem a chave recebe 403 e o store guarda listas vazias —
+  // essa pessoa nao ve o item de menu de qualquer forma.
+  useEffect(() => {
+    if (usuario?.id_tenant) carregarTarefaConfig(usuario.id_tenant)
+  }, [usuario?.id_tenant, carregarTarefaConfig])
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>

@@ -18,61 +18,22 @@
 const startupConfigRepository = require("../repositories/startupConfigRepository")
 const rbacService = require("./rbacService")
 const auditLogService = require("./auditLogService")
-const { CICLOS_VALIDOS, TIPOS_CAMPO } = require("../startups/padroes")
+const { CICLOS_VALIDOS } = require("../startups/padroes")
+// A derivacao da chave, a validacao do rotulo/cor e a normalizacao da `config`
+// de cada tipo moram em campos/tipos: sao as mesmas regras da definicao de
+// campo da gestao de tarefas, e duas copias divergiriam na primeira correcao.
+const {
+  chaveDisponivel,
+  chaveDoRotulo,
+  normalizarConfig,
+  validarCor,
+  validarRotulo,
+  validarTipoCampo,
+} = require("../campos/tipos")
 const { erroNegocio } = require("../utils/erros")
 
 const LER = "startups.startups.visualizar"
 const GERENCIAR = "configuracoes.startups.gerenciar"
-
-const HEX = /^#[0-9a-fA-F]{6}$/
-const CHAVE_VALIDA = /^[A-Z0-9_]{1,40}$/
-
-/**
- * Deriva a chave a partir do rotulo: "Em tracao" -> "EM_TRACAO".
- *
- * Mesma funcao (e mesma justificativa) de agendaConfigService: a chave e o que
- * fica gravado em cada startup e nunca muda; o rotulo e o que a incubadora ve e
- * reescreve a vontade. Gerar uma da outra poupa quem cadastra de entender essa
- * distincao — ele so digita o nome.
- */
-function gerarChave(rotulo) {
-  return rotulo
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 40)
-}
-
-/**
- * Uma chave livre no tenant. Se "PARCEIRA" ja existe (mesmo desativada, porque
- * a PK nao liga para o `ativo`), tenta PARCEIRA_2, _3...
- *
- * @param {(idTenant:number, chave:string) => Promise<any>} buscar
- */
-async function chaveDisponivel(idTenant, base, buscar) {
-  let candidata = base
-  let n = 2
-  while (await buscar(idTenant, candidata)) {
-    const sufixo = `_${n}`
-    candidata = `${base.slice(0, 40 - sufixo.length)}${sufixo}`
-    n += 1
-  }
-  return candidata
-}
-
-/** O rotulo precisa existir, caber na coluna e gerar uma chave utilizavel. */
-function validarRotulo(rotulo, limite, oQue) {
-  if (!rotulo || !rotulo.trim()) throw erroNegocio(400, `Informe o nome ${oQue}.`)
-  if (rotulo.trim().length > limite) {
-    throw erroNegocio(400, `O nome ${oQue} deve ter no maximo ${limite} caracteres.`)
-  }
-}
-
-function validarCor(cor) {
-  if (cor && !HEX.test(cor)) throw erroNegocio(400, "Cor invalida. Use hexadecimal, como #6366f1.")
-}
 
 // ---------------------------------------------------------------------------
 // TIPOS
@@ -92,13 +53,11 @@ async function criarTipo(idTenant, dados, usuario) {
   validarCor(dados.cor)
 
   const rotulo = dados.rotulo.trim()
-  const base = gerarChave(rotulo)
-  // Rotulo so de simbolos ("###") gera chave vazia, que a PK aceitaria como
-  // string vazia e o resto do sistema trataria como tipo sem nome.
-  if (!CHAVE_VALIDA.test(base)) {
-    throw erroNegocio(400, "O nome do tipo precisa ter ao menos uma letra ou numero.")
-  }
-  const chave = await chaveDisponivel(idTenant, base, startupConfigRepository.buscarTipo)
+  const chave = await chaveDisponivel(
+    idTenant,
+    chaveDoRotulo(rotulo, "do tipo"),
+    startupConfigRepository.buscarTipo
+  )
 
   let tipo
   try {
@@ -228,11 +187,11 @@ async function criarSituacao(idTenant, dados, usuario) {
   validarCiclo(ciclo)
 
   const rotulo = dados.rotulo.trim()
-  const base = gerarChave(rotulo)
-  if (!CHAVE_VALIDA.test(base)) {
-    throw erroNegocio(400, "O nome da situacao precisa ter ao menos uma letra ou numero.")
-  }
-  const chave = await chaveDisponivel(idTenant, base, startupConfigRepository.buscarSituacao)
+  const chave = await chaveDisponivel(
+    idTenant,
+    chaveDoRotulo(rotulo, "da situacao"),
+    startupConfigRepository.buscarSituacao
+  )
 
   let situacao
   try {
@@ -363,97 +322,6 @@ async function usoDaSituacao(idTenant, chave, usuario) {
 // CAMPOS PERSONALIZAVEIS
 // ---------------------------------------------------------------------------
 
-/**
- * Valida a `config` de um campo contra o seu tipo, e devolve so o que aquele
- * tipo usa.
- *
- * FILTRAR, e nao so validar: sem isso a config de um campo que ja foi
- * CATEGORIA e virou outra coisa carregaria `opcoes` para sempre, e a proxima
- * pessoa a ler o JSON nao saberia dizer o que vale.
- */
-function normalizarConfig(tipo, config) {
-  const entrada = config && typeof config === "object" ? config : {}
-
-  if (tipo === "CATEGORIA") {
-    const opcoes = Array.isArray(entrada.opcoes) ? entrada.opcoes : []
-    const limpas = opcoes
-      .map((o) => ({
-        valor: String(o?.valor ?? o?.rotulo ?? "").trim(),
-        rotulo: String(o?.rotulo ?? o?.valor ?? "").trim(),
-      }))
-      .filter((o) => o.valor && o.rotulo)
-
-    if (limpas.length === 0) {
-      throw erroNegocio(400, "Um campo de categoria precisa de ao menos uma opcao.")
-    }
-    // Opcoes com o mesmo valor sao indistinguiveis na hora de gravar: as duas
-    // gravariam a mesma string e uma delas nunca poderia ser selecionada de
-    // volta ao abrir o cadastro.
-    const vistos = new Set()
-    for (const o of limpas) {
-      if (vistos.has(o.valor)) {
-        throw erroNegocio(400, `A opcao "${o.valor}" esta repetida.`)
-      }
-      vistos.add(o.valor)
-    }
-    return { opcoes: limpas }
-  }
-
-  if (tipo === "DOCUMENTO") {
-    const mascara = String(entrada.mascara ?? "").trim()
-    if (!mascara) {
-      throw erroNegocio(400, "Um campo de documento precisa de uma mascara. Ex.: ###.###.###-##")
-    }
-    if (mascara.length > 40) {
-      throw erroNegocio(400, "A mascara deve ter no maximo 40 caracteres.")
-    }
-    // '#' = digito, 'A' = letra ou digito. Sem nenhum dos dois a "mascara" e
-    // texto fixo e o campo nao aceitaria nada.
-    if (!/[#A]/.test(mascara)) {
-      throw erroNegocio(400, "Use # para digito e A para letra ou digito. Ex.: ###.###.###-##")
-    }
-    return { mascara }
-  }
-
-  if (tipo === "NUMERICO") {
-    const saida = {}
-    if (entrada.min !== undefined && entrada.min !== null && entrada.min !== "") {
-      saida.min = Number(entrada.min)
-    }
-    if (entrada.max !== undefined && entrada.max !== null && entrada.max !== "") {
-      saida.max = Number(entrada.max)
-    }
-    if (saida.min !== undefined && !Number.isFinite(saida.min)) {
-      throw erroNegocio(400, "O minimo precisa ser um numero.")
-    }
-    if (saida.max !== undefined && !Number.isFinite(saida.max)) {
-      throw erroNegocio(400, "O maximo precisa ser um numero.")
-    }
-    if (saida.min !== undefined && saida.max !== undefined && saida.min > saida.max) {
-      throw erroNegocio(400, "O minimo nao pode ser maior que o maximo.")
-    }
-    const casas = Number(entrada.casas ?? 0)
-    if (!Number.isInteger(casas) || casas < 0 || casas > 6) {
-      throw erroNegocio(400, "As casas decimais devem ser um inteiro entre 0 e 6.")
-    }
-    saida.casas = casas
-    const sufixo = String(entrada.sufixo ?? "").trim()
-    if (sufixo) saida.sufixo = sufixo.slice(0, 10)
-    return saida
-  }
-
-  if (tipo === "MONETARIO") {
-    const moeda = String(entrada.moeda ?? "BRL").trim().toUpperCase()
-    if (!/^[A-Z]{3}$/.test(moeda)) {
-      throw erroNegocio(400, "A moeda deve ser o codigo de tres letras, como BRL ou USD.")
-    }
-    return { moeda }
-  }
-
-  // TEXTO.
-  return entrada.multilinha ? { multilinha: true } : {}
-}
-
 async function listarCampos(idTenant, usuario, incluirInativos = false) {
   if (!idTenant) throw erroNegocio(400, "Informe o id_tenant.")
   await rbacService.garantirPermissao(idTenant, usuario, LER)
@@ -465,17 +333,14 @@ async function criarCampo(idTenant, dados, usuario) {
   if (!idTenant) throw erroNegocio(400, "Informe o id_tenant.")
   await rbacService.garantirPermissao(idTenant, usuario, GERENCIAR)
   validarRotulo(dados.rotulo, 80, "do campo")
-
-  if (!TIPOS_CAMPO.includes(dados.tipo)) {
-    throw erroNegocio(400, `Tipo de campo invalido. Use: ${TIPOS_CAMPO.join(", ")}.`)
-  }
+  validarTipoCampo(dados.tipo)
 
   const rotulo = dados.rotulo.trim()
-  const base = gerarChave(rotulo)
-  if (!CHAVE_VALIDA.test(base)) {
-    throw erroNegocio(400, "O nome do campo precisa ter ao menos uma letra ou numero.")
-  }
-  const chave = await chaveDisponivel(idTenant, base, startupConfigRepository.buscarCampoPorChave)
+  const chave = await chaveDisponivel(
+    idTenant,
+    chaveDoRotulo(rotulo, "do campo"),
+    startupConfigRepository.buscarCampoPorChave
+  )
   const config = normalizarConfig(dados.tipo, dados.config)
 
   let campo

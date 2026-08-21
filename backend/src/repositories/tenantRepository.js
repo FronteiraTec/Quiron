@@ -191,7 +191,9 @@ async function buscarPapel(idTenant, idUsuario) {
  */
 async function buscarUsuarioVinculado(idTenant, idUsuario) {
   const { rows } = await query(
-    `SELECT u.id_usuario, u.nome, u.email
+    // foto_url e papel entraram para o cabecalho da conversa (migracao 013):
+    // e a mesma pessoa, vista de outra tela.
+    `SELECT u.id_usuario, u.nome, u.email, u.foto_url, tu.papel, tu.ativo
        FROM tenant_usuarios tu
        JOIN usuarios u ON u.id_usuario = tu.id_usuario
       WHERE tu.id_tenant = $1 AND tu.id_usuario = $2`,

@@ -1,5 +1,10 @@
 /**
- * Formulario de nova mensagem interna.
+ * Formulario de AVISO: a mensagem com destino escolhido, que abre conversa com
+ * cada pessoa alcancada.
+ *
+ * E o unico caminho que passa pelas chaves `enviar_*`. A resposta dentro de uma
+ * conversa nao vem por aqui — ela nao escolhe publico, so devolve a palavra a
+ * quem ja falou (ver Conversa.jsx e mensagemService.responder).
  *
  * O seletor de destinatarios e UM campo so, com as opcoes agrupadas: startups,
  * mentores, roles e pessoas na mesma busca. A alternativa — escolher primeiro o
@@ -163,7 +168,7 @@ export default function NovaMensagemDialog({ aberto, idTenant, onFechar, onEnvia
   return (
     <Dialog open={aberto} onClose={fechar} maxWidth="sm" fullWidth>
       <Box component="form" onSubmit={enviar}>
-        <DialogTitle sx={{ fontWeight: 700 }}>Nova mensagem</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>Novo aviso</DialogTitle>
 
         <DialogContent dividers>
           {(erro || erroOpcoes) && (

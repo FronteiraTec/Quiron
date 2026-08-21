@@ -27,8 +27,31 @@ const REDIRECT_URI =
   process.env.GOOGLE_REDIRECT_URI ||
   `${process.env.FRONTEND_URL || "http://localhost"}/api/google-agenda/callback`
 
+// Escopo de calendario, configuravel. O padrao e o de menor privilegio que
+// atende ao desenho (uma agenda separada, criada por nos).
+//
+// POR QUE E CONFIGURAVEL. A caixa de "adicionar escopos manualmente" do Google
+// Cloud Console valida contra um catalogo legado e recusa escopos granulares
+// mais novos — inclusive este, com a mensagem "o nome do escopo inserido e
+// invalido ou se refere a um escopo mais recente". Quase sempre e so a Calendar
+// API nao estar ativada no projeto (a caixa so resolve escopos de API ativa),
+// e ativar resolve. Quando nao resolve, trocar de escopo passa a ser questao de
+// ambiente, e nao de editar codigo e reconstruir a imagem.
+//
+// ALTERNATIVA, se o Console insistir em recusar:
+//   GOOGLE_SCOPE_CALENDAR="https://www.googleapis.com/auth/calendar.calendars \
+//                          https://www.googleapis.com/auth/calendar.events.owned"
+// `calendar.calendars` cria a agenda secundaria e `calendar.events.owned`
+// escreve nela ("calendarios que voce possui" — a nossa e um deles). Custa mais
+// privilegio que o padrao: o `events.owned` alcanca os eventos das OUTRAS
+// agendas proprias da pessoa, o que o `app.created` nao faz. Ainda assim e bem
+// menos que o `calendar` cheio, que le e apaga tudo o que ela enxerga.
+const ESCOPO_CALENDARIO =
+  process.env.GOOGLE_SCOPE_CALENDAR || "https://www.googleapis.com/auth/calendar.app.created"
+
 const ESCOPOS = [
-  "https://www.googleapis.com/auth/calendar.app.created",
+  // Aceita varios escopos separados por espaco (ver a alternativa acima).
+  ...ESCOPO_CALENDARIO.split(/\s+/).filter(Boolean),
   // openid + email so para saber COM QUAL conta a pessoa conectou, e poder
   // mostrar isso na tela. Nao sao escopos sensiveis e nao pesam na revisao.
   "openid",

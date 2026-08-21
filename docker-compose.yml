@@ -56,6 +56,9 @@ services:
       # Precisa ser IDENTICO ao "URI de redirecionamento autorizado" cadastrado
       # no Google Cloud. O padrao serve para o Nginx deste projeto.
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost/api/google-agenda/callback}
+      # Escopo de calendario. Vazio = calendar.app.created (menor privilegio).
+      # So mexa se o Console recusar esse escopo — ver docs/google-agenda.md.
+      GOOGLE_SCOPE_CALENDAR: ${GOOGLE_SCOPE_CALENDAR:-}
       # Fuso declarado ao Google em cada evento. As colunas inicio_ts/fim_ts
       # guardam hora de parede, sem fuso: alguem precisa dizer "14h onde".
       TZ_AGENDA: ${TZ_AGENDA:-America/Sao_Paulo}

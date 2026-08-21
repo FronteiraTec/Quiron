@@ -1,9 +1,15 @@
 /**
- * Um campo personalizavel do cadastro de startup, desenhado a partir da sua
- * definicao (startup_campo).
+ * Um campo personalizavel, desenhado a partir da sua definicao.
  *
- * A definicao mora no banco e o desenho mora aqui: e a metade visual do modulo
- * cujo backend e startupConfigService. Cada tipo tem uma renderizacao propria —
+ * SERVE OS DOIS MODULOS que oferecem campos proprios — o cadastro de startup
+ * (startup_campo) e a gestao de tarefas (tarefa_campo) —, e por isso mora em
+ * components/campos e nao dentro de um deles. As duas definicoes tem o mesmo
+ * formato e o mesmo conjunto de tipos (ver backend/src/campos), entao um
+ * segundo componente seria a mesma tela desenhada duas vezes, divergindo na
+ * primeira correcao.
+ *
+ * A definicao mora no banco e o desenho mora aqui. Cada tipo tem uma
+ * renderizacao propria —
  * um campo monetario com entrada livre e um campo de categoria em texto seriam
  * duas formas diferentes de gravar dado errado.
  *
@@ -30,8 +36,8 @@ import { simboloDaMoeda } from "../../utils/camposExtras"
 /**
  * O valor do banco vira o texto do formulario.
  *
- * @param {Object} campo - a definicao (startup_campo).
- * @param {*} valor - o que estava em startup.campos_extras.
+ * @param {Object} campo - a definicao (startup_campo / tarefa_campo).
+ * @param {*} valor - o que estava no `campos_extras` do registro.
  */
 export function valorParaFormulario(campo, valor) {
   if (valor === null || valor === undefined) return ""

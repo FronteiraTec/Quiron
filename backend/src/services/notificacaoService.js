@@ -8,6 +8,8 @@
  *   evento criado     -> o publico do evento (geral ou startups direcionadas)
  *   feedback enviado  -> presidencia da FronteiraTec (endereco fixo)
  *   mensagem interna  -> quem a mensagem alcancou (so se o autor pediu email)
+ *   tarefa atribuida  -> o novo responsavel
+ *   tarefa concluida  -> quem a criou
  *
  * DISPARO EM SEGUNDO PLANO. Todas as funcoes exportadas retornam imediatamente
  * e nunca lancam: notificar e efeito colateral do fato, nao parte dele. Um SMTP
@@ -20,6 +22,7 @@ const trilhaRepository = require("../repositories/trilhaRepository")
 const tenantRepository = require("../repositories/tenantRepository")
 const usuarioRepository = require("../repositories/usuarioRepository")
 const mensagemRepository = require("../repositories/mensagemRepository")
+const tarefaRepository = require("../repositories/tarefaRepository")
 const { enviarEmail, layout, escapar } = require("../utils/email")
 
 // URL base do frontend, usada nos links dos avisos.
@@ -316,4 +319,123 @@ function mensagemEnviada(mensagem) {
   })
 }
 
-module.exports = { entregaEnviada, entregaAvaliada, eventoCriado, feedbackEnviado, mensagemEnviada }
+// ---------------------------------------------------------------------------
+// TAREFA ATRIBUIDA -> o novo responsavel
+// ---------------------------------------------------------------------------
+
+/** O prazo, em portugues, para o corpo do email. */
+function frasePrazo(prazo) {
+  if (!prazo) return ""
+  const dia = String(prazo).slice(0, 10).split("-").reverse().join("/")
+  return `Prazo: <strong>${dia}</strong>.`
+}
+
+/**
+ * Avisa quem acabou de receber uma tarefa.
+ *
+ * SO QUANDO O RESPONSAVEL MUDA, e nunca para quem fez a mudanca: reatribuir a
+ * tarefa a si mesmo, ou salvar o titulo de uma tarefa que ja era sua, nao e
+ * novidade para ninguem — e um email a cada gravacao ensina a pessoa a ignorar
+ * os avisos deste sistema. Quem decide se houve troca e o tarefaService, que
+ * tem o estado anterior em maos.
+ *
+ * O aviso importa porque a tarefa atribuida e a unica coisa no Quiron que
+ * aparece na lista de alguem sem que essa pessoa tenha feito nada: sem email,
+ * ela so descobre entrando na tela.
+ *
+ * @param {{tarefa:object, idAutor:number}} dados - `idAutor` e quem atribuiu.
+ */
+function tarefaAtribuida({ tarefa, idAutor }) {
+  emSegundoPlano(`tarefa atribuida=${tarefa?.id_tarefa}`, async () => {
+    if (!tarefa?.id_responsavel) return
+    // Atribuir a si mesmo nao gera aviso: a pessoa acabou de fazer isso.
+    if (Number(tarefa.id_responsavel) === Number(idAutor)) return
+
+    const [responsavel, quemAtribuiu] = await Promise.all([
+      usuarioRepository.buscarPorId(tarefa.id_responsavel),
+      idAutor ? usuarioRepository.buscarPorId(idAutor) : null,
+    ])
+    if (!responsavel?.email) return
+
+    const titulo = escapar(tarefa.titulo)
+
+    await enviarEmail({
+      para: [responsavel.email],
+      assunto: `Nova tarefa para voce: ${tarefa.titulo}`,
+      remetente: await resolverRemetente(tarefa.id_tenant),
+      html: layout({
+        titulo: "Uma tarefa foi atribuida a voce",
+        paragrafos: [
+          quemAtribuiu
+            ? `<strong>${escapar(quemAtribuiu.nome)}</strong> atribuiu a voce a tarefa <strong>${titulo}</strong>.`
+            : `A tarefa <strong>${titulo}</strong> foi atribuida a voce.`,
+          tarefa.startup_nome ? `Startup: <strong>${escapar(tarefa.startup_nome)}</strong>.` : "",
+          frasePrazo(tarefa.prazo),
+          // A descricao e o conteudo util do aviso: sem ela a pessoa precisa
+          // entrar no sistema so para descobrir o que foi pedido.
+          (tarefa.descricao || "").trim()
+            ? `<blockquote style="border-left:3px solid #e5e7eb;margin:16px 0;padding-left:12px;color:#4b5563;">${escapar(tarefa.descricao).replace(/\n/g, "<br>")}</blockquote>`
+            : "",
+        ].filter(Boolean),
+        acao: { texto: "Ver a tarefa", url: `${FRONTEND_URL}/tarefas` },
+        rodape: "Voce recebeu este aviso porque foi marcado como responsavel por esta tarefa no Quiron.",
+      }),
+    })
+  })
+}
+
+// ---------------------------------------------------------------------------
+// TAREFA CONCLUIDA -> quem a criou
+// ---------------------------------------------------------------------------
+
+/**
+ * Avisa quem pediu a tarefa de que ela foi concluida.
+ *
+ * VAI PARA O AUTOR, e nao para o responsavel: o responsavel acabou de mover o
+ * cartao e sabe muito bem o que fez. Quem esta esperando e quem pediu — e e ele
+ * que, sem este aviso, precisa voltar ao quadro de tempos em tempos so para
+ * conferir.
+ *
+ * Nao dispara quando o autor conclui a propria tarefa, pelo mesmo motivo.
+ *
+ * @param {{tarefa:object, idAutor:number}} dados - `idAutor` e quem concluiu.
+ */
+function tarefaConcluida({ tarefa, idAutor }) {
+  emSegundoPlano(`tarefa concluida=${tarefa?.id_tarefa}`, async () => {
+    if (!tarefa?.criado_por) return
+    if (Number(tarefa.criado_por) === Number(idAutor)) return
+
+    const [criador, quemConcluiu] = await Promise.all([
+      usuarioRepository.buscarPorId(tarefa.criado_por),
+      idAutor ? usuarioRepository.buscarPorId(idAutor) : null,
+    ])
+    if (!criador?.email) return
+
+    await enviarEmail({
+      para: [criador.email],
+      assunto: `Tarefa concluida: ${tarefa.titulo}`,
+      remetente: await resolverRemetente(tarefa.id_tenant),
+      html: layout({
+        titulo: "Uma tarefa que voce criou foi concluida",
+        paragrafos: [
+          `<strong>${escapar(tarefa.titulo)}</strong> foi movida para ` +
+            `<strong>${escapar(tarefa.status_rotulo || "concluida")}</strong>` +
+            (quemConcluiu ? ` por ${escapar(quemConcluiu.nome)}` : "") + ".",
+          tarefa.startup_nome ? `Startup: <strong>${escapar(tarefa.startup_nome)}</strong>.` : "",
+        ].filter(Boolean),
+        acao: { texto: "Ver no quadro", url: `${FRONTEND_URL}/tarefas` },
+        rodape: "Voce recebeu este aviso porque criou esta tarefa no Quiron.",
+      }),
+    })
+  })
+}
+
+module.exports = {
+  entregaEnviada,
+  entregaAvaliada,
+  eventoCriado,
+  feedbackEnviado,
+  mensagemEnviada,
+  tarefaAtribuida,
+  tarefaConcluida,
+}

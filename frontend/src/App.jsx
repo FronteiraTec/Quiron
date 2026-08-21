@@ -33,6 +33,7 @@ import DadosCadastrais from "./pages/DadosCadastrais"
 import ConfiguracaoEmail from "./pages/ConfiguracaoEmail"
 import ConfiguracaoAgenda from "./pages/ConfiguracaoAgenda"
 import ConfiguracaoStartups from "./pages/ConfiguracaoStartups"
+import ConfiguracaoTarefas from "./pages/ConfiguracaoTarefas"
 import Auditoria from "./pages/Auditoria"
 import RelatorioProgresso from "./pages/RelatorioProgresso"
 import RelatorioEntregas from "./pages/RelatorioEntregas"
@@ -50,6 +51,7 @@ import Mentores from "./pages/Mentores"
 import PresencaEventos from "./pages/PresencaEventos"
 import Membros from "./pages/Membros"
 import Mensagens from "./pages/Mensagens"
+import Tarefas from "./pages/Tarefas"
 import Avaliacoes from "./pages/Avaliacoes"
 import NotFound from "./pages/NotFound"
 import ProtectedRoute from "./components/ProtectedRoute"
@@ -285,6 +287,21 @@ export default function App() {
               }
             />
 
+            {/* Tarefas: a gestao interna da incubadora, em tabela ou kanban.
+                ProtectedRoute e nao AdminOuRootRoute de proposito: quem entra e
+                decidido pelo RBAC (`tarefas.tarefas.visualizar`), nao pelo
+                papel — em uma incubadora o mentor coordena o programa e precisa
+                do quadro, em outra ele so avalia entregas. Quem nao tem a chave
+                nem ve o item no menu, e o backend recusa a lista. */}
+            <Route
+              path="/tarefas"
+              element={
+                <ProtectedRoute>
+                  <Tarefas />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Mentores: distribuicao das startups entre os mentores. O vinculo
                 editado aqui e o que recorta a fila de avaliacao de cada um.
                 Restrita ao admin da propria incubadora (ou root), como o
@@ -402,6 +419,7 @@ export default function App() {
               <Route path="email" element={<ConfiguracaoEmail />} />
               <Route path="agenda" element={<ConfiguracaoAgenda />} />
               <Route path="startups" element={<ConfiguracaoStartups />} />
+              <Route path="tarefas" element={<ConfiguracaoTarefas />} />
               <Route path="auditoria" element={<Auditoria />} />
             </Route>
 

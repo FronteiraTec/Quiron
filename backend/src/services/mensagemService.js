@@ -49,6 +49,7 @@ const PERMISSAO_POR_TIPO = {
 }
 
 const CHAVE_ENVIAR = "comunicacao.mensagens.enviar"
+const CHAVE_RESPONDER = "comunicacao.mensagens.responder"
 const CHAVE_VER_TODAS = "comunicacao.mensagens.visualizar"
 const CHAVE_EXCLUIR = "comunicacao.mensagens.excluir"
 
@@ -124,13 +125,37 @@ async function validarDestino(idTenant, { tipo, idReferencia }) {
 }
 
 /**
- * Envia uma mensagem: valida, confere as permissoes de cada destino, expande a
- * lista de pessoas e grava tudo numa transacao.
+ * Grava mensagem + destinos + entregas numa transacao.
  *
  * A transacao existe pelo caso ruim: se a gravacao dos destinatarios falhar no
  * meio, sobraria uma mensagem que aparece no historico do remetente e na caixa
  * de metade das pessoas — pior do que nao ter sido enviada, porque ninguem
  * desconfia de um aviso que "consta como enviado".
+ *
+ * Usada pelos dois caminhos de escrita — o aviso (`enviar`) e a resposta
+ * (`responder`) —, que diferem no que autorizam e em como escolhem o publico,
+ * nao no que gravam.
+ */
+async function gravar({ idTenant, idRemetente, assunto, corpo, importante, rota, destinos, idsUsuarios, idMensagemPai }) {
+  return withTransaction(async (client) => {
+    const criada = await mensagemRepository.criar(client, {
+      idTenant,
+      idRemetente,
+      assunto: assunto || null,
+      corpo,
+      importante: Boolean(importante),
+      rota: rota || null,
+      idMensagemPai: idMensagemPai || null,
+    })
+    await mensagemRepository.adicionarDestinos(client, criada.id_mensagem, destinos)
+    await mensagemRepository.adicionarDestinatarios(client, criada.id_mensagem, idsUsuarios)
+    return criada
+  })
+}
+
+/**
+ * Envia uma mensagem: valida, confere as permissoes de cada destino, expande a
+ * lista de pessoas e grava.
  *
  * @param {number} idTenant
  * @param {{id:number, root?:boolean}} usuario - quem esta enviando.
@@ -191,18 +216,15 @@ async function enviar(idTenant, usuario, dados) {
     )
   }
 
-  const mensagem = await withTransaction(async (client) => {
-    const criada = await mensagemRepository.criar(client, {
-      idTenant,
-      idRemetente: usuario.id,
-      assunto,
-      corpo,
-      importante: Boolean(dados.importante),
-      rota: dados.rota || null,
-    })
-    await mensagemRepository.adicionarDestinos(client, criada.id_mensagem, destinosValidados)
-    await mensagemRepository.adicionarDestinatarios(client, criada.id_mensagem, idsUsuarios)
-    return criada
+  const mensagem = await gravar({
+    idTenant,
+    idRemetente: usuario.id,
+    assunto,
+    corpo,
+    importante: Boolean(dados.importante),
+    rota: dados.rota || null,
+    destinos: destinosValidados,
+    idsUsuarios,
   })
 
   await auditLogService.registrar({
@@ -230,6 +252,124 @@ async function enviar(idTenant, usuario, dados) {
     destinos: destinosValidados,
     total_destinatarios: idsUsuarios.length,
   }
+}
+
+// ---------------------------------------------------------------------------
+// CONVERSAS (migracao 013)
+//
+// A conversa nao e uma entidade guardada: e o par (voce, o outro) lido dos dois
+// lados das mensagens. Um aviso enviado a startup inteira aparece como uma
+// conversa com CADA membro — a resposta de cada um e privada, so entre ele e
+// quem escreveu. Foi a escolha de desenho: o desabafo de um incubado nao vai
+// junto para todos os mentores.
+// ---------------------------------------------------------------------------
+
+/**
+ * As conversas do usuario logado. Como a caixa de entrada, nao passa por
+ * permissao: sao as trocas DELE.
+ */
+async function conversas(idTenant, usuario) {
+  if (!idTenant) throw erroNegocio(400, "Informe o id_tenant.")
+  return mensagemRepository.listarConversas(idTenant, usuario.id)
+}
+
+/**
+ * A thread com uma pessoa. `marcarLidas` (padrao) zera o que ela mandou —
+ * abrir a conversa e ler, e o remetente ve o tique do outro lado.
+ */
+async function conversa(idTenant, usuario, idOutro, { limite, marcarLidas = true } = {}) {
+  if (!idTenant) throw erroNegocio(400, "Informe o id_tenant.")
+  if (!idOutro) throw erroNegocio(400, "Informe com quem e a conversa.")
+  if (Number(idOutro) === usuario.id) throw erroNegocio(400, "Nao existe conversa consigo mesmo.")
+
+  const [pessoa, mensagens] = await Promise.all([
+    tenantRepository.buscarUsuarioVinculado(idTenant, idOutro),
+    mensagemRepository.listarConversa(idTenant, usuario.id, idOutro, Number(limite) || 200),
+  ])
+  if (!pessoa) throw erroNegocio(404, "Pessoa nao encontrada nesta incubadora.")
+
+  if (marcarLidas) await mensagemRepository.marcarConversaLida(idTenant, usuario.id, idOutro)
+
+  // As lidas acabaram de mudar no banco; refletimos no que ja foi lido em
+  // memoria para o front nao precisar de uma segunda ida ao servidor.
+  const agora = new Date().toISOString()
+  return {
+    pessoa,
+    mensagens: marcarLidas
+      ? mensagens.map((m) => (m.minha || m.lida_ts ? m : { ...m, lida_ts: agora }))
+      : mensagens,
+  }
+}
+
+/** Marca como lido o que o interlocutor mandou, sem carregar a thread. */
+async function marcarConversaLida(idTenant, usuario, idOutro) {
+  if (!idTenant) throw erroNegocio(400, "Informe o id_tenant.")
+  const total = await mensagemRepository.marcarConversaLida(idTenant, usuario.id, idOutro)
+  return { marcadas: total }
+}
+
+/**
+ * Responde dentro de uma conversa existente.
+ *
+ * NAO exige `enviar`. Iniciar conversa e escolher um publico — e por isso que
+ * passa por permissao; responder e devolver a palavra a quem ja falou com voce,
+ * e travar isso deixaria o incubado recebendo cobranca sem poder nem dizer
+ * "recebi". O que o autoriza e a conversa existir: sem uma troca anterior entre
+ * os dois, a resposta e recusada, e ai a chave certa e mesmo `enviar`.
+ *
+ * A chave `responder` fica no catalogo (concedida a todas as roles padrao) para
+ * a incubadora que precise de um canal de mao unica poder desmarcar.
+ *
+ * @param {number} idOutro - a quem se responde.
+ * @param {{corpo:string, idMensagemPai?:number}} dados
+ */
+async function responder(idTenant, usuario, idOutro, dados) {
+  if (!idTenant) throw erroNegocio(400, "Informe o id_tenant.")
+  if (!idOutro) throw erroNegocio(400, "Informe para quem e a resposta.")
+  if (Number(idOutro) === usuario.id) throw erroNegocio(400, "Nao da para responder a si mesmo.")
+
+  const corpo = (dados.corpo || "").trim()
+  if (!corpo) throw erroNegocio(400, "Escreva a mensagem antes de enviar.")
+  if (corpo.length > CORPO_MAX) {
+    throw erroNegocio(400, `A mensagem deve ter no maximo ${CORPO_MAX} caracteres.`)
+  }
+
+  await rbacService.garantirPermissao(idTenant, usuario, CHAVE_RESPONDER)
+
+  const pessoa = await tenantRepository.buscarUsuarioVinculado(idTenant, idOutro)
+  if (!pessoa) throw erroNegocio(404, "Pessoa nao encontrada nesta incubadora.")
+
+  const jaConversaram = await mensagemRepository.existeConversa(idTenant, usuario.id, idOutro)
+  if (!jaConversaram) {
+    // Quem PODE iniciar nao fica preso a esta porta: cai no fluxo de envio.
+    const podeIniciar = await rbacService.temPermissao(idTenant, usuario, CHAVE_ENVIAR)
+    if (!podeIniciar) {
+      throw erroNegocio(403, "Voce so pode responder a quem ja falou com voce.")
+    }
+  }
+
+  // A expansao passa pelo repositorio como qualquer destino USUARIO: e ela que
+  // confere que a pessoa esta ATIVA na incubadora.
+  const ids = await mensagemRepository.idsPorDestino(idTenant, {
+    tipo: "USUARIO",
+    idReferencia: Number(idOutro),
+  })
+  if (ids.length === 0) {
+    throw erroNegocio(400, "Esta pessoa nao esta ativa na incubadora.")
+  }
+
+  const mensagem = await gravar({
+    idTenant,
+    idRemetente: usuario.id,
+    // Sem assunto de proposito: e fala de conversa, nao aviso (migracao 013).
+    assunto: null,
+    corpo,
+    destinos: [{ tipo: "USUARIO", idReferencia: Number(idOutro), rotulo: pessoa.nome }],
+    idsUsuarios: ids,
+    idMensagemPai: dados.idMensagemPai || null,
+  })
+
+  return { ...mensagem, destinos: [{ tipo: "USUARIO", id_referencia: Number(idOutro), rotulo: pessoa.nome }] }
 }
 
 /**
@@ -334,7 +474,9 @@ async function excluir(idMensagem, usuario) {
     acao: "EXCLUIR",
     entidade: "mensagem",
     entidadeId: String(idMensagem),
-    descricao: `Excluiu a mensagem "${mensagem.assunto}".`,
+    // Resposta de conversa nao tem assunto (migracao 013): o log registra o
+    // inicio do texto, para a linha da auditoria dizer alguma coisa.
+    descricao: `Excluiu a mensagem "${mensagem.assunto || mensagem.corpo.slice(0, 60)}".`,
     dadosAntes: mensagem,
   })
 }
@@ -388,6 +530,10 @@ async function opcoesDeDestino(idTenant, usuario) {
 
 module.exports = {
   enviar,
+  responder,
+  conversas,
+  conversa,
+  marcarConversaLida,
   caixaDeEntrada,
   contarNaoLidas,
   marcarLida,

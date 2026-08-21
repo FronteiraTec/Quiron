@@ -7,6 +7,7 @@ const usuarioRepository = require("../repositories/usuarioRepository")
 const rbacRepository = require("../repositories/rbacRepository")
 const agendaConfigRepository = require("../repositories/agendaConfigRepository")
 const startupConfigRepository = require("../repositories/startupConfigRepository")
+const tarefaConfigRepository = require("../repositories/tarefaConfigRepository")
 const { gerarHash } = require("../utils/senha")
 const { withTransaction } = require("../config/db")
 const { erroNegocio } = require("../utils/erros")
@@ -63,6 +64,10 @@ async function criar(dados) {
   // antes da primeira startup, entao sem esta linha a incubadora nasceria com
   // o cadastro travado.
   await startupConfigRepository.semearVocabularioPadrao(tenant.id_tenant)
+  // Colunas padrao do quadro de tarefas, pelo mesmo motivo: a FK
+  // (id_tenant, status) exige uma coluna antes da primeira tarefa, entao sem
+  // esta linha a incubadora nasceria com o quadro travado.
+  await tarefaConfigRepository.semearStatusPadrao(tenant.id_tenant)
   return tenant
 }
 

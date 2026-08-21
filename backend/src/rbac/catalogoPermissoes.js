@@ -156,6 +156,13 @@ const CATALOGO_PERMISSOES = [
           // `enviar` sempre enxerga as proprias, com ou sem esta chave.
           { acao: "visualizar", rotulo: "Ver mensagens enviadas por todos" },
           { acao: "enviar", rotulo: "Enviar para pessoas especificas" },
+          // RESPONDER e separado de `enviar` porque e outra coisa: nao e
+          // escolher um publico, e devolver a palavra a quem ja falou com voce
+          // (o service exige uma conversa existente). Nasce concedida a TODAS
+          // as roles padrao — inclusive ao incubado, que sem ela receberia
+          // recado sem poder dizer "recebi". Fica no catalogo para a incubadora
+          // que precise de um canal de mao unica poder desmarcar.
+          { acao: "responder", rotulo: "Responder a quem falou com voce" },
           { acao: "enviar_startup", rotulo: "Enviar para os membros de uma startup" },
           { acao: "enviar_mentores", rotulo: "Enviar para os mentores" },
           { acao: "enviar_role", rotulo: "Enviar para uma role inteira" },
@@ -163,6 +170,49 @@ const CATALOGO_PERMISSOES = [
           // Excluir a mensagem de outra pessoa. O autor sempre pode apagar a
           // propria (o mesmo desenho de `visualizar`).
           { acao: "excluir", rotulo: "Excluir mensagens de qualquer pessoa" },
+        ],
+      },
+    ],
+  },
+  {
+    modulo: "tarefas",
+    rotulo: "Tarefas",
+    // Gestao interna da incubadora (migracao 014): o quadro do que a EQUIPE tem
+    // para fazer, distinto das entregas, que sao o trabalho da startup.
+    //
+    // Quem entra e definido aqui, e nao pelo papel, porque a equipe muda de
+    // incubadora para incubadora: numa delas o mentor coordena o programa e
+    // precisa do quadro, noutra ele so avalia entregas.
+    //
+    // NAO HA acao "ver as minhas", e a ausencia e proposital: quem esta
+    // envolvido numa tarefa — o responsavel e quem a criou — SEMPRE a enxerga,
+    // com chave ou sem. Uma tarefa atribuida e a unica coisa do sistema que
+    // entra na lista de alguem sem que essa pessoa tenha feito nada; exigir uma
+    // chave para ela ver o que lhe pediram so criaria um jeito novo de deixar
+    // gente trabalhando no escuro. E o mesmo raciocinio de RECEBER mensagem,
+    // que tambem nao esta neste catalogo.
+    //
+    // `visualizar` e o degrau ACIMA disso: o quadro INTEIRO da incubadora, o
+    // que cada um esta fazendo. E a chave de quem coordena.
+    recursos: [
+      {
+        recurso: "tarefas",
+        rotulo: "Tarefas",
+        acoes: [
+          {
+            acao: "visualizar",
+            rotulo: "Ver as tarefas de toda a incubadora",
+          },
+          { acao: "criar", rotulo: "Criar" },
+          // EDITAR e sobre o trabalho DOS OUTROS: o responsavel sempre pode
+          // mexer na propria tarefa, com ou sem esta chave. Sem isso, o quadro
+          // vira um mural que so o coordenador atualiza e para de refletir a
+          // realidade em uma semana.
+          { acao: "editar", rotulo: "Editar tarefas de qualquer pessoa" },
+          // Idem: o autor sempre pode apagar a que criou (o mesmo desenho de
+          // `excluir` nas mensagens).
+          { acao: "excluir", rotulo: "Excluir tarefas de qualquer pessoa" },
+          { acao: "exportar", rotulo: "Exportar" },
         ],
       },
     ],
@@ -230,6 +280,16 @@ const CATALOGO_PERMISSOES = [
         recurso: "startups",
         rotulo: "Cadastro de startups",
         acoes: [{ acao: "gerenciar", rotulo: "Gerenciar tipos, situacoes e campos" }],
+      },
+      // Colunas e campos personalizaveis do quadro de tarefas. Como na agenda e
+      // no cadastro de startup, so a ESCRITA mora aqui: LER exige
+      // `tarefas.tarefas.visualizar`, porque o rotulo e a cor de cada status
+      // sao as COLUNAS do quadro — sem elas o kanban renderiza colunas sem nome
+      // e os campos extras somem.
+      {
+        recurso: "tarefas",
+        rotulo: "Quadro de tarefas",
+        acoes: [{ acao: "gerenciar", rotulo: "Gerenciar colunas e campos" }],
       },
       // A auditoria (quem fez o que, e quando) e registro de conformidade, nao
       // relatorio de gestao: mora junto das demais configuracoes da incubadora.

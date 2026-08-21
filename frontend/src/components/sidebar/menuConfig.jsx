@@ -51,6 +51,7 @@ import {
   Assessment,
   TrendingUp,
   HourglassBottom,
+  TaskAlt,
 } from "@mui/icons-material"
 
 // Larguras do menu (compartilhadas com a Navbar e o conteudo).
@@ -66,6 +67,12 @@ const MENU_ADMIN = [
   // (receber nao passa por RBAC — ver o catalogo). Quem pode ESCREVER ganha o
   // botao "Nova mensagem" dentro da tela, nao um item de menu diferente.
   { id: "mensagens", texto: "Mensagens", icone: <Forum />, rota: "/mensagens", novo: true },
+  // Gestao interna da equipe. NAO leva `permissao`, pelo mesmo motivo de
+  // Mensagens: quem e responsavel por uma tarefa a enxerga com chave ou sem —
+  // e a chave `tarefas.tarefas.visualizar` amplia isso para o quadro INTEIRO,
+  // nao e o que da acesso a tela. Esconder o item de quem nao a tem deixaria a
+  // pessoa sem caminho ate a tarefa que lhe atribuiram.
+  { id: "tarefas", texto: "Tarefas", icone: <TaskAlt />, rota: "/tarefas", novo: true },
   {
     id: "incubadora",
     texto: "Incubadora",
@@ -142,6 +149,12 @@ const MENU_MENTOR = [
   // (receber nao passa por RBAC — ver o catalogo). Quem pode ESCREVER ganha o
   // botao "Nova mensagem" dentro da tela, nao um item de menu diferente.
   { id: "mensagens", texto: "Mensagens", icone: <Forum />, rota: "/mensagens", novo: true },
+  // O mentor nasce com a chave do quadro inteiro (ver rolesPadrao): acompanhar
+  // startup gera tarefa, e um quadro que ele so le seria um quadro que ele nao
+  // usa. Sem `permissao` no item pelo mesmo motivo do admin: desmarcar a chave
+  // reduz o que ele VE, nao tira dele a tela — ele continua com as tarefas que
+  // lhe atribuirem.
+  { id: "tarefas", texto: "Tarefas", icone: <TaskAlt />, rota: "/tarefas", novo: true },
   {
     id: "startups",
     texto: "Startups",
@@ -181,6 +194,11 @@ const MENU_USUARIO = [
   // botao "Nova mensagem" dentro da tela, nao um item de menu diferente.
   { id: "mensagens", texto: "Mensagens", icone: <Forum />, rota: "/mensagens", novo: true },
   { id: "jornada", texto: "Minha Jornada", icone: <Timeline />, rota: "/jornada", novo: true },
+  // O incubado tambem tem a tela, e sem chave nenhuma: se alguem da equipe lhe
+  // atribuir uma tarefa, e aqui que ele a encontra. Sem `visualizar` a lista
+  // traz so o que e dele — o quadro interno da incubadora continua fora do
+  // alcance, e a propria tela explica o recorte.
+  { id: "tarefas", texto: "Tarefas", icone: <TaskAlt />, rota: "/tarefas" },
   // O Blueprint/maturidade que era a tela "Minha Empresa" virou a aba
   // "Evolucao" aqui dentro — eram duas telas concorrentes sobre a startup.
   { id: "minha-startup", texto: "Minha Startup", icone: <RocketLaunch />, rota: "/minha-startup" },

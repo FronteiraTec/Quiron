@@ -59,6 +59,17 @@ const PERMISSOES_MENTOR = [
   // o admin, que pode conceder depois se a incubadora quiser.
   "comunicacao.mensagens.enviar",
   "comunicacao.mensagens.enviar_startup",
+  "comunicacao.mensagens.responder",
+
+  // Tarefas (migracao 014) tambem nao existiam antes do RBAC, entao aqui
+  // tambem nao ha "conjunto anterior" a reproduzir — e uma escolha. O mentor
+  // nasce enxergando o quadro da equipe e podendo anotar o que precisa ser
+  // feito: acompanhar startup gera tarefa ("cobrar o plano da Acme"), e um
+  // quadro que ele so le seria um quadro que ele nao usa. Mexer na tarefa DOS
+  // OUTROS (editar, excluir) fica com o admin — a propria, o responsavel
+  // sempre pode, com ou sem chave (ver o catalogo).
+  "tarefas.tarefas.visualizar",
+  "tarefas.tarefas.criar",
 ]
 
 /**
@@ -86,10 +97,19 @@ const PERMISSOES_COLABORADOR = [
 
   "eventos.agenda.visualizar",
 
-  // Sem nenhuma chave de `comunicacao`: o incubado RECEBE as mensagens da
-  // incubadora (receber nao passa por permissao — ver o catalogo), mas nao
-  // dispara aviso para os outros. Se a incubadora quiser um canal de mao dupla,
-  // e marcar `comunicacao.mensagens.enviar` na role dele.
+  // De `tarefas`, NENHUMA CHAVE — o que nao e o mesmo que "sem acesso". O
+  // quadro e a gestao INTERNA da incubadora, e o incubado nao faz parte da
+  // equipe dela: sem `visualizar` ele nao enxerga o que a incubadora tem a
+  // RESPEITO DELE. Mas se alguem da equipe lhe atribuir uma tarefa, ele a ve e
+  // pode trabalha-la — isso nao passa por permissao (ver o catalogo e
+  // tarefaService). Para poe-lo no quadro inteiro, basta marcar
+  // `tarefas.tarefas.visualizar`.
+
+  // De `comunicacao`, so RESPONDER: o incubado recebe os avisos da incubadora
+  // (receber nao passa por permissao — ver o catalogo) e pode responder a quem
+  // falou com ele, mas nao inicia conversa nem dispara aviso para os outros.
+  // Para dar a ele o direito de iniciar, marque `comunicacao.mensagens.enviar`.
+  "comunicacao.mensagens.responder",
 ]
 
 const ROLES_PADRAO = [

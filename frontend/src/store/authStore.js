@@ -11,6 +11,7 @@ import { usePreferenciaStore } from "./preferenciaStore"
 import { usePermissaoStore } from "./permissaoStore"
 import { useAgendaConfigStore } from "./agendaConfigStore"
 import { useStartupConfigStore } from "./startupConfigStore"
+import { useTarefaConfigStore } from "./tarefaConfigStore"
 
 export const useAuthStore = create((set) => ({
   // Estado inicial: recupera o token salvo (se houver).
@@ -48,6 +49,8 @@ export const useAuthStore = create((set) => ({
     useAgendaConfigStore.getState().limpar()
     // Idem para o vocabulario do cadastro de startup (tipos, situacoes, campos).
     useStartupConfigStore.getState().limpar()
+    // Idem para o do quadro de tarefas (colunas e campos).
+    useTarefaConfigStore.getState().limpar()
     // Volta as preferencias visuais ao padrao para o proximo usuario.
     usePreferenciaStore.getState().resetar()
   },

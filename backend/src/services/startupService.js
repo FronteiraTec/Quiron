@@ -6,7 +6,7 @@ const startupConfigRepository = require("../repositories/startupConfigRepository
 const tenantRepository = require("../repositories/tenantRepository")
 const trilhaRepository = require("../repositories/trilhaRepository")
 const rbacService = require("./rbacService")
-const { montarCamposExtras } = require("../startups/camposExtras")
+const { montarCamposExtras } = require("../campos/valores")
 const { SITUACAO_FALLBACK } = require("../startups/padroes")
 const { erroNegocio } = require("../utils/erros")
 

@@ -21,6 +21,13 @@ router.get("/nao-lidas", ctrl.contarNaoLidas) // ?id_tenant=
 router.get("/opcoes", ctrl.opcoes) // ?id_tenant=
 router.get("/enviadas", ctrl.listarEnviadas) // ?id_tenant=&limite=
 
+// Conversas (migracao 013). O ":id" aqui e a OUTRA PESSOA, nao a mensagem: a
+// conversa nao tem id proprio, e o par (voce, ele).
+router.get("/conversas", ctrl.listarConversas) // ?id_tenant=
+router.get("/conversas/:id", ctrl.abrirConversa) // ?id_tenant=&limite=&marcar=
+router.post("/conversas/:id", ctrl.responder) // body: id_tenant, corpo
+router.post("/conversas/:id/lidas", ctrl.marcarConversaLida) // body: id_tenant
+
 router.post("/", ctrl.enviar)
 router.post("/lidas", ctrl.marcarTodasLidas) // body: id_tenant
 

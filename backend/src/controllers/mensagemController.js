@@ -38,6 +38,53 @@ async function opcoes(req, res, next) {
   }
 }
 
+/** GET /mensagens/conversas?id_tenant= — a lista de conversas (estilo chat). */
+async function listarConversas(req, res, next) {
+  try {
+    const conversas = await mensagemService.conversas(req.query.id_tenant, req.usuario)
+    res.json({ conversas })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** GET /mensagens/conversas/:id?id_tenant=&limite= — a thread com uma pessoa. */
+async function abrirConversa(req, res, next) {
+  try {
+    const dados = await mensagemService.conversa(req.query.id_tenant, req.usuario, req.params.id, {
+      limite: req.query.limite,
+      // "?marcar=nao" abre sem dar por lido (usado pela atualizacao em segundo
+      // plano, que nao deve marcar o que ninguem olhou).
+      marcarLidas: req.query.marcar !== "nao",
+    })
+    res.json(dados)
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** POST /mensagens/conversas/:id — responde na conversa (body: id_tenant, corpo). */
+async function responder(req, res, next) {
+  try {
+    const mensagem = await mensagemService.responder(req.body.id_tenant, req.usuario, req.params.id, {
+      corpo: req.body.corpo,
+      idMensagemPai: req.body.id_mensagem_pai,
+    })
+    res.status(201).json({ mensagem })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** POST /mensagens/conversas/:id/lidas — zera o nao lido daquela conversa. */
+async function marcarConversaLida(req, res, next) {
+  try {
+    res.json(await mensagemService.marcarConversaLida(req.body.id_tenant, req.usuario, req.params.id))
+  } catch (err) {
+    next(err)
+  }
+}
+
 /** GET /mensagens/enviadas?id_tenant=&limite= — o historico de envios. */
 async function listarEnviadas(req, res, next) {
   try {
@@ -112,6 +159,10 @@ async function excluir(req, res, next) {
 module.exports = {
   caixaDeEntrada,
   contarNaoLidas,
+  listarConversas,
+  abrirConversa,
+  responder,
+  marcarConversaLida,
   opcoes,
   listarEnviadas,
   listarDestinatarios,

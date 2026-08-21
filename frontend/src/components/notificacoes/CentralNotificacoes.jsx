@@ -123,8 +123,9 @@ export default function CentralNotificacoes() {
     if (!mensagem.lida) mensagens.marcarLida(mensagem.id_mensagem)
     fechar()
     // `rota` e opcional: a mensagem pode apontar para a tela do assunto dela
-    // (ex.: "/entregas"). Sem rota, abre a propria mensagem na lista.
-    navigate(mensagem.rota || `/mensagens?m=${mensagem.id_mensagem}`)
+    // (ex.: "/entregas"). Sem rota, abre a CONVERSA com quem escreveu — o
+    // clique no aviso ja deixa a pessoa em condicao de responder.
+    navigate(mensagem.rota || `/mensagens?c=${mensagem.id_remetente}`)
   }
 
   const irParaEvento = (evento) => {

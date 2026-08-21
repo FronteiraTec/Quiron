@@ -25,11 +25,23 @@ CREATE TYPE passoEventoTipo AS ENUM ('ENVIADA', 'APROVADO', 'AJUSTE', 'REPROVADO
 --   ESCOLHA_UNICA  -> multipla escolha com UMA resposta (radio, tem alternativas)
 --   CAIXAS_SELECAO -> assinalar VARIAS respostas (checkbox, tem alternativas)
 CREATE TYPE perguntaTipo AS ENUM('TEXTO_CURTO', 'PARAGRAFO', 'ESCOLHA_UNICA', 'CAIXAS_SELECAO');
--- Tipos de campo personalizavel do cadastro de startup (startup_campo.tipo).
+-- Tipos de campo personalizavel (startup_campo.tipo e tarefa_campo.tipo).
 -- Lista fechada porque cada tipo tem renderizacao propria no front e validacao
 -- propria no back: um tipo desconhecido nao viraria campo nenhum, viraria tela
--- quebrada. Ver backend/src/startups/padroes.js (migracao 010).
+-- quebrada. Compartilhado pelos dois modulos que oferecem campos proprios — o
+-- cadastro de startup (migracao 010) e a gestao de tarefas (migracao 014) —,
+-- que o backend valida com o mesmo codigo (backend/src/campos).
 CREATE TYPE campoTipo AS ENUM ('TEXTO', 'CATEGORIA', 'NUMERICO', 'DOCUMENTO', 'MONETARIO');
+-- Gestao de tarefas (migracao 014). O que um status do quadro SIGNIFICA para o
+-- sistema, por tras do rotulo livre que cada incubadora escolhe: e o mesmo
+-- desenho do `ciclo` de startup_situacao, e serve para as tres perguntas que o
+-- codigo faz sem entender vocabulario alheio — a tarefa esta aberta? esta
+-- atrasada? quando foi concluida?
+CREATE TYPE tarefaCategoria AS ENUM ('PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA');
+-- A prioridade e enum, e nao vocabulario por tenant como o status: nao e um
+-- estagio do fluxo (que varia de incubadora para incubadora), e uma escala
+-- ordenada de quatro degraus que o quadro usa para desempatar e para colorir.
+CREATE TYPE tarefaPrioridade AS ENUM ('BAIXA', 'MEDIA', 'ALTA', 'URGENTE');
 -- Como uma mensagem interna foi enderecada (mensagem_destino.tipo, migracao
 -- 012). Lista fechada porque cada valor tem uma consulta de expansao propria
 -- (mensagemRepository.idsPorDestino) e uma chave de permissao propria no
@@ -1394,6 +1406,10 @@ CREATE TABLE IF NOT EXISTS usuario_role (
 -- refeita na leitura: quem entrar na startup amanha nao recebe o aviso de
 -- hoje, e quem sair nao perde o que ja tinha. Ver o cabecalho da migracao 012
 -- para o raciocinio completo.
+--
+-- CONVERSA (migracao 013) nao tem tabela: e o par (remetente, destinatario)
+-- lido dos dois lados. Responder e mandar uma mensagem de volta com destino
+-- USUARIO; a thread e a uniao das duas direcoes em ordem cronologica.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS mensagem (
     id_mensagem BIGINT GENERATED ALWAYS AS IDENTITY,
@@ -1401,15 +1417,24 @@ CREATE TABLE IF NOT EXISTS mensagem (
     -- NULL = o autor saiu do sistema. A mensagem sobrevive a ele: apagar o
     -- usuario nao pode apagar o aviso que trinta pessoas ja leram.
     id_remetente INTEGER,
-    assunto VARCHAR(150) NOT NULL,
+    -- Opcional (migracao 013): aviso tem assunto ("Pitch na sexta"), fala de
+    -- conversa nao tem. NULL e o que distingue os dois na interface.
+    assunto VARCHAR(150),
     corpo TEXT NOT NULL,
     -- Destaque visual no sino e no email. Nao muda quem recebe.
     importante BOOLEAN NOT NULL DEFAULT FALSE,
     -- Rota do front para onde o clique na notificacao leva (ex.: "/entregas").
     rota VARCHAR(255),
+    -- A que esta mensagem responde (migracao 013). SET NULL porque apagar o
+    -- aviso original nao pode apagar o que as pessoas responderam depois.
+    id_mensagem_pai BIGINT,
     criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
 
     CONSTRAINT pk_mensagem PRIMARY KEY (id_mensagem),
+    CONSTRAINT fk_mensagem_pai
+        FOREIGN KEY (id_mensagem_pai)
+        REFERENCES mensagem (id_mensagem)
+        ON DELETE SET NULL,
     CONSTRAINT fk_mensagem_tenant
         FOREIGN KEY (id_tenant)
         REFERENCES tenant (id_tenant)
@@ -1421,6 +1446,9 @@ CREATE TABLE IF NOT EXISTS mensagem (
 );
 
 CREATE INDEX IF NOT EXISTS ix_mensagem_tenant ON mensagem (id_tenant, criado_ts DESC);
+-- A conversa e derivada do par (remetente, destinatario): este indice cobre o
+-- lado "o que eu mandei"; ix_mensagem_destinatario_caixa cobre o outro.
+CREATE INDEX IF NOT EXISTS ix_mensagem_remetente ON mensagem (id_remetente, criado_ts DESC);
 
 -- O criterio escolhido, preservado como foi dito ("a startup Acme", "os
 -- mentores", "a role Financeiro"). id_referencia aponta para tabelas
@@ -1549,3 +1577,218 @@ CREATE TABLE IF NOT EXISTS google_evento (
 -- "O que ja mandei para esta pessoa?" — a varredura da sincronizacao manual.
 CREATE INDEX IF NOT EXISTS ix_google_evento_usuario
     ON google_evento (id_usuario, enviado_ts);
+
+
+-- ===========================================================================
+-- GESTAO DE TAREFAS DA INCUBADORA (migracao 014)
+--
+-- Tudo que o sistema registra nas tabelas acima e o trabalho da STARTUP: a
+-- entrega que ela sobe, a avaliacao que recebe, o evento que frequenta. O
+-- trabalho da propria INCUBADORA — cobrar um contrato, montar um edital,
+-- revisar o material de uma fase — nao tinha onde morar e acabava em planilha.
+--
+-- E gestao INTERNA: quem entra e definido pelo RBAC (modulo `tarefas` do
+-- catalogo de permissoes), nao pelo papel.
+-- ===========================================================================
+
+-- As COLUNAS DO QUADRO, vocabulario de cada incubadora. Mesmo desenho de
+-- startup_situacao: chave estavel + rotulo editavel + uma CATEGORIA que diz o
+-- que o status significa para o codigo. Sem a categoria, um status "Arquivada"
+-- contaria como pendencia atrasada para sempre.
+CREATE TABLE IF NOT EXISTS tarefa_status (
+    id_tenant INTEGER         NOT NULL,
+    chave     VARCHAR(40)     NOT NULL,
+    rotulo    VARCHAR(60)     NOT NULL,
+    cor       CHAR(7)         NOT NULL DEFAULT '#6366f1',
+    categoria tarefaCategoria NOT NULL DEFAULT 'PENDENTE',
+    ordem     SMALLINT        NOT NULL DEFAULT 0,
+    ativo     BOOLEAN         NOT NULL DEFAULT TRUE,
+    criado_ts TIMESTAMP       NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_tarefa_status PRIMARY KEY (id_tenant, chave),
+
+    CONSTRAINT fk_tarefa_status_tenant
+        FOREIGN KEY (id_tenant)
+        REFERENCES tenant (id_tenant)
+        ON DELETE CASCADE,
+
+    CONSTRAINT ck_tarefa_status_cor CHECK (cor ~ '^#[0-9a-fA-F]{6}$')
+);
+
+-- Duas colunas com o mesmo nome no quadro nao dariam para distinguir.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tarefa_status_rotulo
+    ON tarefa_status (id_tenant, lower(rotulo));
+
+
+-- CAMPOS PERSONALIZAVEIS da tarefa: a DEFINICAO (o valor vai no JSONB de cada
+-- tarefa). Copia estrutural de startup_campo, e de proposito: sao o mesmo
+-- recurso aplicado a outra entidade, e o backend valida os dois com o mesmo
+-- codigo (backend/src/campos). Uma tabela unica com uma coluna "entidade" foi
+-- descartada: a contagem de uso e os indices de unicidade sao por entidade, e a
+-- tabela compartilhada trocaria duas definicoes claras por uma cheia de "se for
+-- tarefa, entao...".
+CREATE TABLE IF NOT EXISTS tarefa_campo (
+    id_campo    INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_tenant   INTEGER      NOT NULL,
+    -- Nome da propriedade dentro de tarefa.campos_extras. Imutavel: esta
+    -- gravada no JSONB de cada tarefa, e troca-la orfanaria os valores.
+    chave       VARCHAR(40)  NOT NULL,
+    rotulo      VARCHAR(80)  NOT NULL,
+    tipo        campoTipo    NOT NULL,
+    descricao   VARCHAR(200),
+    obrigatorio BOOLEAN      NOT NULL DEFAULT FALSE,
+    ordem       SMALLINT     NOT NULL DEFAULT 0,
+    ativo       BOOLEAN      NOT NULL DEFAULT TRUE,
+    config      JSONB        NOT NULL DEFAULT '{}',
+    criado_ts   TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_tarefa_campo PRIMARY KEY (id_campo),
+
+    CONSTRAINT fk_tarefa_campo_tenant
+        FOREIGN KEY (id_tenant)
+        REFERENCES tenant (id_tenant)
+        ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tarefa_campo_chave
+    ON tarefa_campo (id_tenant, chave);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tarefa_campo_rotulo
+    ON tarefa_campo (id_tenant, lower(rotulo));
+
+
+-- A TAREFA.
+--
+-- `ordem` e a posicao dentro da coluna do quadro, renumerada pelo repositorio a
+-- cada arrasto (ver tarefaRepository.mover): no kanban, subir um cartao e uma
+-- decisao de prioridade, nao um efeito colateral de ordenacao. Nao ha
+-- unicidade nela de proposito — duas tarefas empatadas desempatam por
+-- prioridade e prazo, e uma constraint faria o arrasto falhar no meio.
+CREATE TABLE IF NOT EXISTS tarefa (
+    id_tarefa      INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_tenant      INTEGER          NOT NULL,
+
+    titulo         VARCHAR(160)     NOT NULL,
+    descricao      TEXT,
+
+    status         VARCHAR(40)      NOT NULL,
+    prioridade     tarefaPrioridade NOT NULL DEFAULT 'MEDIA',
+
+    -- QUEM FAZ. NULL e estado legitimo: a tarefa nasce sem dono e ganha um
+    -- quando alguem a puxa. SET NULL ao remover a pessoa, e nao CASCADE — a
+    -- tarefa continua existindo depois que o responsavel sai, e e justamente
+    -- ela que precisa de um novo dono.
+    id_responsavel INTEGER,
+
+    -- SOBRE QUEM E. Opcional: "revisar o contrato da Acme" fala de uma startup;
+    -- "montar o edital" nao fala de nenhuma.
+    id_startup     INTEGER,
+
+    -- DATE e nao TIMESTAMP: prazo de tarefa e um dia, e guardar hora faria
+    -- "vence hoje" depender do fuso de quem consulta.
+    prazo          DATE,
+
+    ordem          INTEGER          NOT NULL DEFAULT 0,
+
+    -- Preenchido pelo backend quando a tarefa entra num status de categoria
+    -- CONCLUIDA, e limpo quando ela volta. Coluna, e nao "olhe o audit_log":
+    -- e o dado que responde "o que a equipe fechou este mes" numa consulta so.
+    concluida_ts   TIMESTAMP,
+
+    -- Os VALORES dos campos personalizaveis, { "chave": valor }. A definicao
+    -- de cada chave esta em tarefa_campo.
+    campos_extras  JSONB            NOT NULL DEFAULT '{}',
+
+    criado_por     INTEGER,
+    criado_ts      TIMESTAMP        NOT NULL DEFAULT NOW(),
+    atualizado_ts  TIMESTAMP        NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_tarefa PRIMARY KEY (id_tarefa),
+
+    CONSTRAINT fk_tarefa_tenant
+        FOREIGN KEY (id_tenant)
+        REFERENCES tenant (id_tenant)
+        ON DELETE CASCADE,
+
+    -- COMPOSTA, como as de startup: sem o id_tenant, uma tarefa poderia
+    -- apontar para a coluna de outra incubadora.
+    CONSTRAINT fk_tarefa_status
+        FOREIGN KEY (id_tenant, status)
+        REFERENCES tarefa_status (id_tenant, chave)
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_tarefa_responsavel
+        FOREIGN KEY (id_responsavel)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_tarefa_startup
+        FOREIGN KEY (id_startup)
+        REFERENCES startup (id_startup)
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_tarefa_criado_por
+        FOREIGN KEY (criado_por)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL
+);
+
+-- O quadro le sempre "as tarefas deste tenant, agrupadas por coluna, na ordem".
+CREATE INDEX IF NOT EXISTS ix_tarefa_tenant_status
+    ON tarefa (id_tenant, status, ordem);
+
+-- "O que e meu" e a pergunta mais frequente depois do quadro inteiro.
+CREATE INDEX IF NOT EXISTS ix_tarefa_responsavel
+    ON tarefa (id_responsavel) WHERE id_responsavel IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS ix_tarefa_startup
+    ON tarefa (id_startup) WHERE id_startup IS NOT NULL;
+
+-- Torna o JSONB pesquisavel sem varrer a tabela, como em startup.
+CREATE INDEX IF NOT EXISTS ix_tarefa_campos_extras
+    ON tarefa USING GIN (campos_extras);
+
+
+-- Anexos de uma tarefa (migracao 015).
+--
+-- TABELA DE LIGACAO, e nao uma coluna `anexos` na tarefa. `evento.anexos` e
+-- `entrega.anexos` sao JSONB/TEXT[] por razoes historicas, e a migracao 007
+-- registra o preco: linhas antigas em tres formatos, nenhuma apontando para
+-- arquivo que exista. Aqui a referencia e FK de verdade, o que garante que o
+-- anexo listado existe, que desanexar nao reescreve documento nenhum e —
+-- principal — que da para responder "esta tarefa pode ver este arquivo?" numa
+-- consulta. E o que a rota de download pergunta: `arquivoService.abrir`
+-- autoriza PRIVADO por dono-ou-chave-de-entregas, regra que nao serve para
+-- tarefa, onde quem abre o anexo e quem enxerga a tarefa.
+--
+-- Desanexar NAO apaga o arquivo: a linha aqui e so o vinculo, e o mesmo arquivo
+-- pode estar anexado em outro lugar.
+CREATE TABLE IF NOT EXISTS tarefa_anexo (
+    id_tarefa   INTEGER   NOT NULL,
+    id_arquivo  UUID      NOT NULL,
+    -- Quem anexou. Distinto de `arquivo.enviado_por`: um arquivo ja enviado
+    -- pode ser anexado a uma tarefa por outra pessoa.
+    anexado_por INTEGER,
+    criado_ts   TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_tarefa_anexo PRIMARY KEY (id_tarefa, id_arquivo),
+
+    CONSTRAINT fk_tarefa_anexo_tarefa
+        FOREIGN KEY (id_tarefa)
+        REFERENCES tarefa (id_tarefa)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_tarefa_anexo_arquivo
+        FOREIGN KEY (id_arquivo)
+        REFERENCES arquivo (id_arquivo)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_tarefa_anexo_usuario
+        FOREIGN KEY (anexado_por)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL
+);
+
+-- A PK ja atende "os anexos desta tarefa". Este indice atende a outra direcao:
+-- "este arquivo esta anexado em alguma tarefa?", que e a pergunta da
+-- autorizacao de download.
+CREATE INDEX IF NOT EXISTS ix_tarefa_anexo_arquivo ON tarefa_anexo (id_arquivo);

@@ -48,6 +48,21 @@ email
 > "Quiron" que ele mesmo criou. O escopo mais comum (`calendar.events`) daria
 > acesso a **todos** os eventos de **todos** os calendários da pessoa.
 
+> **Se o Console recusar o escopo** com *"o nome do escopo inserido é inválido
+> ou se refere a um escopo mais recente que está fora do domínio desta API
+> legada"*, o nome não está errado — o `calendar.app.created` está catalogado na
+> [página oficial de escopos](https://developers.google.com/identity/protocols/oauth2/scopes).
+> Quem recusa é o validador da caixa de **entrada manual**, que roda contra um
+> catálogo antigo e só resolve escopos de APIs **já ativadas no projeto**.
+> Na ordem:
+>
+> 1. Ative a **Google Calendar API** (passo 1.1) — é a causa mais comum;
+> 2. volte aos escopos e **selecione da lista** (filtre por `calendar.app.created`)
+>    em vez de digitar na caixa manual;
+> 3. se o Console já tiver migrado para o **Google Auth Platform**, os escopos
+>    saíram da "Tela de permissão OAuth" e agora ficam em **Acesso a dados**;
+> 4. persistindo, use a alternativa da seção 2.1 — sem tocar em código.
+
 Enquanto o app estiver em **Teste**, só os emails cadastrados em **Usuários de
 teste** conseguem conectar (limite de 100), e a autorização expira a cada 7
 dias. Para uso real, clique em **Publicar app**.
@@ -86,6 +101,25 @@ TZ_AGENDA=America/Sao_Paulo
 # Cifra os tokens do Google no banco. Gere com: openssl rand -base64 32
 SECRET_KEY=
 ```
+
+### 2.1. Trocar o escopo, se for preciso
+
+O escopo de calendário é configurável — trocar é questão de ambiente, não de
+editar código:
+
+```dotenv
+GOOGLE_SCOPE_CALENDAR=https://www.googleapis.com/auth/calendar.calendars https://www.googleapis.com/auth/calendar.events.owned
+```
+
+`calendar.calendars` cria a agenda secundária e `calendar.events.owned` escreve
+nela ("calendários que você possui" — a nossa é um deles). Aceita vários escopos
+separados por espaço.
+
+**O custo é real:** o `events.owned` alcança os eventos das **outras** agendas
+próprias da pessoa, coisa que o `app.created` não faz. Ainda assim é bem menos
+que o `calendar` cheio, que lê e apaga tudo o que ela enxerga. Use só se o
+Console realmente não aceitar o padrão, e depois de tentar os passos da seção
+1.2.
 
 Aplique a migração e suba o backend:
 
@@ -156,6 +190,8 @@ evento criado dispararia uma tentativa condenada.
 
 | Sintoma | Causa |
 |---|---|
+| "O nome do escopo inserido é inválido... API legada" | O validador da caixa de escopo **manual** do Console só resolve escopos de APIs ativadas. Ative a Google Calendar API e selecione o escopo da **lista**. Ver o quadro na seção 1.2 |
+| `invalid_scope` na hora de conectar | O escopo não chegou a ser aceito. Use a alternativa da seção 2.1 |
 | `redirect_uri_mismatch` | `GOOGLE_REDIRECT_URI` diferente do cadastrado no Google Cloud. Compare caractere a caractere |
 | "O Google não devolveu a autorização de longo prazo" | A conta já autorizou o app antes. Remova o acesso em <https://myaccount.google.com/permissions> e conecte de novo |
 | Cartão não aparece no Perfil | `GOOGLE_CLIENT_ID` vazio ou o backend não foi reiniciado depois de editar o `.env` |

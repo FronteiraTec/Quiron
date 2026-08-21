@@ -49,19 +49,12 @@ const SITUACAO_FALLBACK = "ATIVA"
 const CICLOS_VALIDOS = ["ATIVA", "PAUSADA", "ENCERRADA"]
 
 /**
- * Os tipos de campo personalizavel que o modulo aceita.
- *
- * Lista fechada porque cada tipo tem renderizacao propria no front e validacao
- * propria no back — um tipo desconhecido nao viraria campo nenhum, viraria
- * tela quebrada.
- *
- *   TEXTO     -> texto livre (uma linha ou varias, conforme config.multilinha)
- *   CATEGORIA -> escolha entre as opcoes cadastradas (config.opcoes)
- *   NUMERICO  -> numero, com config.min / config.max / config.casas opcionais
- *   DOCUMENTO -> texto com MASCARA definida pela incubadora (config.mascara)
- *   MONETARIO -> valor em dinheiro, guardado como numero (config.moeda)
+ * Os tipos de campo personalizavel mudaram de casa: hoje moram em
+ * campos/tipos.js, junto da validacao da `config` de cada um, porque a gestao
+ * de tarefas define campos com a mesma lista. Continua reexportado daqui para
+ * quem ja importava de padroes.
  */
-const TIPOS_CAMPO = ["TEXTO", "CATEGORIA", "NUMERICO", "DOCUMENTO", "MONETARIO"]
+const { TIPOS_CAMPO } = require("../campos/tipos")
 
 module.exports = {
   TIPOS_PADRAO,

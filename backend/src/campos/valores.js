@@ -1,12 +1,18 @@
 /**
  * Validacao e normalizacao dos VALORES dos campos personalizaveis.
  *
- * Mora aqui, e nao dentro do startupService, porque e a metade "runtime" de um
- * par: startupConfigService valida a DEFINICAO do campo (o admin criando um
- * campo monetario), este arquivo valida o VALOR que chega no cadastro de cada
- * startup contra aquela definicao. Sao duas validacoes diferentes sobre a mesma
- * config, e juntar as duas num service so tornaria dificil dizer qual erro veio
- * de onde.
+ * GENERICO DE PROPOSITO: recebe as DEFINICOES (a lista de campos de um modulo)
+ * e os valores digitados, e nao sabe de que modulo eles vieram. E o que permite
+ * que o cadastro de startup (startup_campo) e a gestao de tarefas
+ * (tarefa_campo) compartilhem uma unica implementacao — sao o mesmo problema
+ * duas vezes, e duas copias garantiriam que uma correcao entrasse em uma e
+ * faltasse na outra.
+ *
+ * Mora aqui, e nao dentro de um service, porque e a metade "runtime" de um par:
+ * campos/tipos.js valida a DEFINICAO do campo (o admin criando um campo
+ * monetario), este arquivo valida o VALOR que chega no cadastro contra aquela
+ * definicao. Sao duas validacoes diferentes sobre a mesma config, e juntar as
+ * duas num arquivo so tornaria dificil dizer qual erro veio de onde.
  *
  * O QUE ENTRA NO JSONB
  * Valor ja normalizado por tipo, nunca a string da tela:
@@ -24,7 +30,7 @@
  *                comparar —, e string nao responde nenhuma delas.
  *
  * Campo vazio nao entra no documento: gravar `{ "faturamento": null }` faria
- * `campos_extras ? 'faturamento'` dizer que a startup preencheu quando ela nao
+ * `campos_extras ? 'faturamento'` dizer que o registro preencheu quando ele nao
  * preencheu, e e essa a pergunta da contagem de uso antes de desativar um campo.
  */
 const { erroNegocio } = require("../utils/erros")
@@ -138,7 +144,8 @@ function normalizarValor(campo, valor) {
  * natureza — nenhuma constraint do banco impede), e recusar quebraria o
  * formulario aberto no momento em que o admin desativa um campo.
  *
- * @param {Array} definicoes - campos ATIVOS do tenant (startup_campo).
+ * @param {Array} definicoes - campos ATIVOS do tenant (startup_campo ou
+ *   tarefa_campo, conforme o modulo que chama).
  * @param {Object} valores - o que veio do formulario, { chave: valor }.
  * @returns {Object} documento normalizado, pronto para o JSONB.
  */

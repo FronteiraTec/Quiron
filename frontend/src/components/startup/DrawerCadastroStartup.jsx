@@ -43,7 +43,7 @@ import { useStartupConfigStore } from "../../store/startupConfigStore"
 import CampoPersonalizado, {
   valorParaFormulario,
   valorParaEnvio,
-} from "./CampoPersonalizado"
+} from "../campos/CampoPersonalizado"
 import {
   MAX_CNPJ,
   MAX_CEP,

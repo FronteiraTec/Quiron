@@ -83,13 +83,22 @@ async function idsPorDestino(idTenant, { tipo, idReferencia }) {
   return rows.map((r) => r.id_usuario)
 }
 
-/** Insere a mensagem. Recebe o client da transacao (ver mensagemService.enviar). */
-async function criar(client, { idTenant, idRemetente, assunto, corpo, importante = false, rota = null }) {
+/**
+ * Insere a mensagem. Recebe o client da transacao (ver mensagemService.enviar).
+ *
+ * `assunto` vem NULL quando e fala de conversa e nao aviso (migracao 013), e
+ * `idMensagemPai` diz a que ela responde.
+ */
+async function criar(
+  client,
+  { idTenant, idRemetente, assunto = null, corpo, importante = false, rota = null, idMensagemPai = null }
+) {
   const { rows } = await client.query(
-    `INSERT INTO mensagem (id_tenant, id_remetente, assunto, corpo, importante, rota)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id_mensagem, id_tenant, id_remetente, assunto, corpo, importante, rota, criado_ts`,
-    [idTenant, idRemetente, assunto, corpo, importante, rota]
+    `INSERT INTO mensagem (id_tenant, id_remetente, assunto, corpo, importante, rota, id_mensagem_pai)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING id_mensagem, id_tenant, id_remetente, assunto, corpo, importante, rota,
+               id_mensagem_pai, criado_ts`,
+    [idTenant, idRemetente, assunto, corpo, importante, rota, idMensagemPai]
   )
   return rows[0]
 }
@@ -229,6 +238,135 @@ async function listarEnviadas(idTenant, { idRemetente = null, limite = 100 } = {
   return rows
 }
 
+// ---------------------------------------------------------------------------
+// CONVERSAS (migracao 013)
+//
+// Nao ha tabela `conversa`: ela e o par (remetente, destinatario) lido dos dois
+// lados. Este CTE e a base de tudo que vem abaixo — normaliza as duas direcoes
+// numa lista so, ja dizendo quem e "o outro" em cada troca.
+//
+// Mensagem de autor removido (id_remetente NULL, ver o ON DELETE SET NULL de
+// 012) fica de fora: sem os dois lados nao ha conversa. Ela continua na caixa
+// de entrada e no historico, que nao dependem do par.
+// ---------------------------------------------------------------------------
+const TROCAS = `
+  WITH trocas AS (
+    -- O que MANDARAM para mim: o outro e quem escreveu.
+    SELECT m.id_mensagem, m.id_remetente AS outro, m.assunto, m.corpo, m.importante,
+           m.criado_ts, FALSE AS minha, (md.lida_ts IS NOT NULL) AS lida
+      FROM mensagem_destinatario md
+      JOIN mensagem m ON m.id_mensagem = md.id_mensagem
+     WHERE md.id_usuario = $2 AND m.id_tenant = $1 AND m.id_remetente IS NOT NULL
+
+    UNION ALL
+
+    -- O que EU mandei: uma troca por destinatario — o aviso para a startup
+    -- inteira vira uma conversa com cada membro, que e o desenho escolhido.
+    SELECT m.id_mensagem, md.id_usuario AS outro, m.assunto, m.corpo, m.importante,
+           m.criado_ts, TRUE AS minha, (md.lida_ts IS NOT NULL) AS lida
+      FROM mensagem m
+      JOIN mensagem_destinatario md ON md.id_mensagem = m.id_mensagem
+     WHERE m.id_remetente = $2 AND m.id_tenant = $1
+  )`
+
+/**
+ * A lista de conversas de uma pessoa: uma linha por interlocutor, com a ultima
+ * fala e quantas dele estao por ler. Ordenada pela conversa mais recente.
+ */
+async function listarConversas(idTenant, idUsuario) {
+  const { rows } = await query(
+    `${TROCAS},
+     ultima AS (
+       SELECT DISTINCT ON (outro) *
+         FROM trocas
+        ORDER BY outro, criado_ts DESC, id_mensagem DESC
+     ),
+     pendentes AS (
+       SELECT outro, COUNT(*)::int AS nao_lidas
+         FROM trocas
+        WHERE minha = FALSE AND lida = FALSE
+        GROUP BY outro
+     )
+     SELECT u.id_usuario, u.nome, u.email, u.foto_url,
+            tu.papel,
+            ul.id_mensagem, ul.assunto, ul.corpo, ul.importante,
+            ul.criado_ts, ul.minha, ul.lida,
+            COALESCE(p.nao_lidas, 0) AS nao_lidas
+       FROM ultima ul
+       JOIN usuarios u ON u.id_usuario = ul.outro
+       LEFT JOIN tenant_usuarios tu ON tu.id_usuario = u.id_usuario AND tu.id_tenant = $1
+       LEFT JOIN pendentes p ON p.outro = ul.outro
+      ORDER BY ul.criado_ts DESC`,
+    [idTenant, idUsuario]
+  )
+  return rows
+}
+
+/**
+ * A thread com uma pessoa, em ordem cronologica (a ordem em que se le um chat).
+ *
+ * `lida_ts` vem da linha de entrega DAQUELE interlocutor: nas minhas mensagens
+ * e o tique de "ele leu"; nas dele, quando eu li.
+ */
+async function listarConversa(idTenant, idUsuario, idOutro, limite = 200) {
+  const { rows } = await query(
+    `SELECT * FROM (
+       SELECT m.id_mensagem, m.assunto, m.corpo, m.importante, m.rota,
+              m.id_mensagem_pai, m.criado_ts, m.id_remetente,
+              (m.id_remetente = $2) AS minha,
+              md.lida_ts,
+              ${DESTINOS_JSON}
+         FROM mensagem m
+         JOIN mensagem_destinatario md ON md.id_mensagem = m.id_mensagem
+        WHERE m.id_tenant = $1
+          AND ((m.id_remetente = $3 AND md.id_usuario = $2)
+            OR (m.id_remetente = $2 AND md.id_usuario = $3))
+        ORDER BY m.criado_ts DESC, m.id_mensagem DESC
+        LIMIT $4
+     ) recorte
+     ORDER BY criado_ts, id_mensagem`,
+    [idTenant, idUsuario, idOutro, limite]
+  )
+  return rows
+}
+
+/** Marca como lido tudo que o interlocutor mandou. Devolve quantas mudaram. */
+async function marcarConversaLida(idTenant, idUsuario, idOutro) {
+  const { rowCount } = await query(
+    `UPDATE mensagem_destinatario md
+        SET lida_ts = NOW()
+       FROM mensagem m
+      WHERE m.id_mensagem = md.id_mensagem
+        AND md.id_usuario = $2
+        AND m.id_tenant = $1
+        AND m.id_remetente = $3
+        AND md.lida_ts IS NULL`,
+    [idTenant, idUsuario, idOutro]
+  )
+  return rowCount
+}
+
+/**
+ * Ja houve troca entre as duas pessoas?
+ *
+ * E o que autoriza responder sem a chave de iniciar conversa: so se pode
+ * devolver a palavra a quem ja a deu. Olha as duas direcoes de proposito —
+ * quem escreveu primeiro nao precisa de um segundo convite para continuar.
+ */
+async function existeConversa(idTenant, idUsuario, idOutro) {
+  const { rows } = await query(
+    `SELECT 1
+       FROM mensagem m
+       JOIN mensagem_destinatario md ON md.id_mensagem = m.id_mensagem
+      WHERE m.id_tenant = $1
+        AND ((m.id_remetente = $3 AND md.id_usuario = $2)
+          OR (m.id_remetente = $2 AND md.id_usuario = $3))
+      LIMIT 1`,
+    [idTenant, idUsuario, idOutro]
+  )
+  return rows.length > 0
+}
+
 /** Busca uma mensagem pelo id (sem destinos/destinatarios). */
 async function buscarPorId(id) {
   const { rows } = await query(
@@ -268,6 +406,10 @@ module.exports = {
   marcarLida,
   marcarTodasLidas,
   listarEnviadas,
+  listarConversas,
+  listarConversa,
+  marcarConversaLida,
+  existeConversa,
   buscarPorId,
   listarDestinatarios,
   excluir,

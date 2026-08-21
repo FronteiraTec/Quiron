@@ -150,35 +150,29 @@ async function salvar(upload, { idTenant, visibilidade = "PRIVADO" }, usuario) {
 }
 
 /**
- * Carrega um arquivo para download, aplicando a autorizacao do regime.
+ * Carrega um arquivo para servir, SEM autorizar nada.
  *
- * PUBLICO sai direto. PRIVADO exige token e, alem disso, uma de duas coisas:
- * ser quem enviou (a pessoa sempre alcanca o proprio arquivo) ou ter a chave
- * `avaliacoes.entregas.baixar` naquela incubadora — que e o mentor avaliando.
+ * Separada de `abrir` porque a autorizacao de um arquivo privado depende do
+ * MODULO que o referencia, e nao ha uma regra so que sirva para todos: anexo de
+ * entrega se autoriza por `avaliacoes.entregas.baixar` (ver `abrir`), anexo de
+ * tarefa se autoriza por quem enxerga aquela tarefa (ver
+ * tarefaService.abrirAnexo). Um `if` por modulo aqui dentro faria este arquivo
+ * — o unico que fala com o disco — precisar conhecer as regras de todos eles.
  *
- * LIMITE CONHECIDO: a checagem e por TENANT, nao por startup. Um mentor com a
- * chave que descobrisse o UUID de um anexo de startup que ele nao acompanha
- * conseguiria abri-lo. Fechar isso exige ligar o arquivo a entrega, o que hoje
- * nao da para fazer no upload (o anexo sobe ANTES de a entrega existir) —
- * teria de ser amarrado no envio. Fica registrado como o proximo aperto.
+ * QUEM CHAMA ESTA FUNCAO E RESPONSAVEL PELA AUTORIZACAO. Ela nao e exposta em
+ * rota nenhuma: quem a usa e sempre um service que ja disse "sim" antes.
  *
  * @param {string} idArquivo
- * @param {{id:number, root?:boolean}|null} usuario - null quando nao autenticado.
+ * @param {{idTenant?: number}} [esperado] - quando informado, confere que o
+ *   arquivo e mesmo daquela incubadora. Defesa em profundidade: o vinculo que
+ *   autorizou ja implica o tenant, e isto e o que garante que continue assim se
+ *   alguem quebrar o vinculo depois.
  */
-async function abrir(idArquivo, usuario) {
+async function carregar(idArquivo, { idTenant } = {}) {
   const arquivo = await arquivoRepository.buscarPorId(idArquivo)
   if (!arquivo) throw erroNegocio(404, "Arquivo nao encontrado.")
-
-  if (arquivo.visibilidade === "PRIVADO") {
-    if (!usuario) throw erroNegocio(401, "Autenticacao necessaria.")
-    const ehDono = Number(arquivo.enviado_por) === Number(usuario.id)
-    if (!ehDono && !usuario.root) {
-      await rbacService.garantirPermissao(
-        arquivo.id_tenant,
-        usuario,
-        "avaliacoes.entregas.baixar"
-      )
-    }
+  if (idTenant && Number(arquivo.id_tenant) !== Number(idTenant)) {
+    throw erroNegocio(404, "Arquivo nao encontrado.")
   }
 
   const caminho = caminhoDe(arquivo.nome_armazenado)
@@ -200,9 +194,51 @@ async function abrir(idArquivo, usuario) {
   }
 }
 
+/**
+ * Carrega um arquivo para download, aplicando a autorizacao do regime.
+ *
+ * E a rota GENERICA (GET /arquivos/:id). PUBLICO sai direto. PRIVADO exige
+ * token e, alem disso, uma de duas coisas: ser quem enviou (a pessoa sempre
+ * alcanca o proprio arquivo) ou ter a chave `avaliacoes.entregas.baixar`
+ * naquela incubadora — que e o mentor avaliando.
+ *
+ * LIMITE CONHECIDO: a checagem e por TENANT, nao por startup. Um mentor com a
+ * chave que descobrisse o UUID de um anexo de startup que ele nao acompanha
+ * conseguiria abri-lo. Fechar isso exige ligar o arquivo a entrega, o que hoje
+ * nao da para fazer no upload (o anexo sobe ANTES de a entrega existir) —
+ * teria de ser amarrado no envio. Fica registrado como o proximo aperto.
+ *
+ * O anexo de TAREFA nao passa por aqui, e e o desenho que este limite pede: ele
+ * tem rota propria (GET /tarefas/:id/anexos/:idArquivo), autorizada pelo
+ * vinculo em `tarefa_anexo` — saber o UUID nao basta, e preciso enxergar a
+ * tarefa em que ele esta.
+ *
+ * @param {string} idArquivo
+ * @param {{id:number, root?:boolean}|null} usuario - null quando nao autenticado.
+ */
+async function abrir(idArquivo, usuario) {
+  const arquivo = await arquivoRepository.buscarPorId(idArquivo)
+  if (!arquivo) throw erroNegocio(404, "Arquivo nao encontrado.")
+
+  if (arquivo.visibilidade === "PRIVADO") {
+    if (!usuario) throw erroNegocio(401, "Autenticacao necessaria.")
+    const ehDono = Number(arquivo.enviado_por) === Number(usuario.id)
+    if (!ehDono && !usuario.root) {
+      await rbacService.garantirPermissao(
+        arquivo.id_tenant,
+        usuario,
+        "avaliacoes.entregas.baixar"
+      )
+    }
+  }
+
+  return carregar(idArquivo)
+}
+
 module.exports = {
   salvar,
   abrir,
+  carregar,
   prepararDiretorio,
   UPLOAD_DIR,
   MAX_PRIVADO,

@@ -93,6 +93,22 @@ SELECT t.id_tenant, d.chave, d.rotulo, d.cor, d.ciclo::statusStartup, d.ordem
  WHERE t.email = 'contato@incubadorademo.com'
     ON CONFLICT DO NOTHING;
 
+-- Colunas padrao do quadro de tarefas. Mesma logica: a fonte canonica e
+-- backend/src/tarefas/padroes.js, usada por quem cria a incubadora pela API;
+-- aqui esta repetido porque o seed cria o tenant direto em SQL. Sem elas a FK
+-- (id_tenant, status) barraria a criacao de qualquer tarefa na demo.
+INSERT INTO tarefa_status (id_tenant, chave, rotulo, cor, categoria, ordem)
+SELECT t.id_tenant, d.chave, d.rotulo, d.cor, d.categoria::tarefaCategoria, d.ordem
+  FROM tenant t
+ CROSS JOIN (VALUES
+        ('A_FAZER',      'A fazer',      '#64748b', 'PENDENTE',     1),
+        ('EM_ANDAMENTO', 'Em andamento', '#6366f1', 'EM_ANDAMENTO', 2),
+        ('EM_REVISAO',   'Em revisão',   '#f59e0b', 'EM_ANDAMENTO', 3),
+        ('CONCLUIDA',    'Concluída',    '#10b981', 'CONCLUIDA',    4)
+      ) AS d(chave, rotulo, cor, categoria, ordem)
+ WHERE t.email = 'contato@incubadorademo.com'
+    ON CONFLICT DO NOTHING;
+
 INSERT INTO usuarios (nome, email, celular, senha_hash)
 VALUES (
     'Admin',
