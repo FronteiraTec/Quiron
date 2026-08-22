@@ -39,6 +39,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 import { TIPO_META } from "../../data/trilhaMeta"
 import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
+import PlayerYoutube from "../biblioteca/PlayerYoutube"
+import { ehYoutube } from "../../utils/youtube"
 import api from "../../services/api"
 
 export default function PreviewIncubada({ programa, onFechar }) {
@@ -101,6 +103,17 @@ export default function PreviewIncubada({ programa, onFechar }) {
       cancelado = true
     }
   }, [atual])
+
+  // O primeiro video do YouTube vinculado ao passo ocupa o quadro do topo —
+  // e o mesmo player que a startup usa na Jornada, entao a previa mostra o
+  // video de verdade em vez do desenho de "conteudo da tarefa".
+  const videoAtual = useMemo(
+    () => conteudosAtual.find((c) => ehYoutube(c.url)) || null,
+    [conteudosAtual]
+  )
+
+  // O que sobra vira a lista de materiais; o video do topo nao se repete nela.
+  const outrosConteudos = conteudosAtual.filter((c) => c !== videoAtual)
 
   const alternarModulo = (id) =>
     setModulosAbertos((s) => {
@@ -341,31 +354,41 @@ export default function PreviewIncubada({ programa, onFechar }) {
                   )}
                 </Box>
 
-                {/* Player/placeholder de conteudo */}
-                <Box
-                  sx={{
-                    aspectRatio: "16 / 7",
-                    borderRadius: "8px",
-                    display: "grid",
-                    placeItems: "center",
-                    color: "text.secondary",
-                    bgcolor: "action.hover",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    mb: 3,
-                  }}
-                >
-                  <Box sx={{ textAlign: "center" }}>
-                    <PlayCircleOutline sx={{ fontSize: 56, opacity: 0.6 }} />
-                    <Typography sx={{ opacity: 0.8 }}>Conteúdo da tarefa</Typography>
+                {/* Player do video da tarefa (ou o placeholder, se nao houver) */}
+                {videoAtual ? (
+                  <Box sx={{ mb: 3 }}>
+                    <PlayerYoutube
+                      url={videoAtual.url}
+                      titulo={videoAtual.titulo}
+                      duracao={videoAtual.duracao}
+                    />
                   </Box>
-                </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      aspectRatio: "16 / 7",
+                      borderRadius: "8px",
+                      display: "grid",
+                      placeItems: "center",
+                      color: "text.secondary",
+                      bgcolor: "action.hover",
+                      border: "1px solid",
+                      borderColor: "divider",
+                      mb: 3,
+                    }}
+                  >
+                    <Box sx={{ textAlign: "center" }}>
+                      <PlayCircleOutline sx={{ fontSize: 56, opacity: 0.6 }} />
+                      <Typography sx={{ opacity: 0.8 }}>Conteúdo da tarefa</Typography>
+                    </Box>
+                  </Box>
+                )}
 
                 <Typography sx={{ color: "text.secondary", mb: 3, lineHeight: 1.7 }}>
                   {atual.descricao || "Esta tarefa ainda não possui descrição. Assim que a incubadora preencher os detalhes, eles aparecerão aqui para a startup."}
                 </Typography>
 
-                {conteudosAtual.length > 0 && (
+                {outrosConteudos.length > 0 && (
                   <Box sx={{ mb: 3 }}>
                     <Typography
                       variant="caption"
@@ -375,7 +398,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
                       CONTEÚDO DA INCUBADORA
                     </Typography>
                     <Stack spacing={1.5}>
-                      {conteudosAtual.map((c) => {
+                      {outrosConteudos.map((c) => {
                         const cmeta = TIPO_CONTEUDO[c.tipo]
                         const CIcone = cmeta.icon
                         const card = (

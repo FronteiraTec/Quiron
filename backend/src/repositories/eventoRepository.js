@@ -11,8 +11,15 @@ const { query } = require("../config/db")
 // Evento + nome de quem criou + startups direcionadas (agregadas em JSON).
 const SELECT_EVENTO = `
   SELECT e.id_evento, e.id_tenant, e.titulo, e.descricao, e.categoria, e.local,
-         e.id_local, e.inicio_ts, e.fim_ts, e.mentor_nome, e.anexos, e.vagas,
+         e.id_local, e.inicio_ts, e.fim_ts, e.id_usuario_mentor, e.anexos, e.vagas,
          e.obrigatorio,
+         -- O responsavel em duas formas, so uma gravada por vez (mesmo desenho
+         -- do local, acima): o usuario quando e um mentor da incubadora, o
+         -- texto quando e alguem de fora. Resolver aqui mantem mentor_nome
+         -- significando "o nome do responsavel" para as sete telas e os dois
+         -- servicos (e-mail, Google Agenda) que ja o exibem — e, vindo do
+         -- usuario, ele acompanha a troca de nome em vez de envelhecer.
+         COALESCE(mentor.nome, e.mentor_nome) AS mentor_nome,
          e.ativo, e.criado_por, u.nome AS criado_por_nome, e.criado_ts, e.atualizado_ts,
          -- Rotulo/cor/icone vem da configuracao da incubadora, nao do evento:
          -- renomear a categoria reetiqueta o historico inteiro de graca.
@@ -35,6 +42,7 @@ const SELECT_EVENTO = `
     LEFT JOIN evento_categoria cat
            ON cat.id_tenant = e.id_tenant AND cat.chave = e.categoria
     LEFT JOIN evento_local loc ON loc.id_local = e.id_local
+    LEFT JOIN usuarios mentor ON mentor.id_usuario = e.id_usuario_mentor
 `
 
 /**
@@ -197,18 +205,20 @@ async function definirStartups(idEvento, idsStartups, client) {
 async function criar(dados) {
   const {
     idTenant, titulo, descricao, categoria, local, idLocal, inicioTs, fimTs,
-    idsStartups, mentorNome, anexos, vagas, obrigatorio, criadoPor,
+    idsStartups, idUsuarioMentor, mentorNome, anexos, vagas, obrigatorio, criadoPor,
   } = dados
   const { rows } = await query(
     `INSERT INTO evento
        (id_tenant, titulo, descricao, categoria, local, id_local, inicio_ts, fim_ts,
-        mentor_nome, anexos, vagas, obrigatorio, criado_por)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        id_usuario_mentor, mentor_nome, anexos, vagas, obrigatorio, criado_por)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      RETURNING id_evento`,
     [
       idTenant, titulo, descricao ?? null, categoria, local ?? null, idLocal ?? null,
       inicioTs, fimTs ?? null,
-      mentorNome ?? null, JSON.stringify(anexos ?? []), vagas ?? null, obrigatorio ?? false, criadoPor,
+      // Um ou outro, nunca os dois — ver o COALESCE em SELECT_EVENTO.
+      idUsuarioMentor ?? null, mentorNome ?? null,
+      JSON.stringify(anexos ?? []), vagas ?? null, obrigatorio ?? false, criadoPor,
     ]
   )
   const idEvento = rows[0].id_evento
@@ -220,19 +230,20 @@ async function criar(dados) {
 async function atualizar(id, dados) {
   const {
     titulo, descricao, categoria, local, idLocal, inicioTs, fimTs,
-    idsStartups, mentorNome, anexos, vagas, obrigatorio,
+    idsStartups, idUsuarioMentor, mentorNome, anexos, vagas, obrigatorio,
   } = dados
   const { rows } = await query(
     `UPDATE evento
         SET titulo = $1, descricao = $2, categoria = $3, local = $4, id_local = $5,
-            inicio_ts = $6, fim_ts = $7, mentor_nome = $8,
-            anexos = $9, vagas = $10, obrigatorio = $11, atualizado_ts = NOW()
-      WHERE id_evento = $12 AND ativo = TRUE
+            inicio_ts = $6, fim_ts = $7, id_usuario_mentor = $8, mentor_nome = $9,
+            anexos = $10, vagas = $11, obrigatorio = $12, atualizado_ts = NOW()
+      WHERE id_evento = $13 AND ativo = TRUE
       RETURNING id_evento`,
     [
       titulo, descricao ?? null, categoria, local ?? null, idLocal ?? null,
       inicioTs, fimTs ?? null,
-      mentorNome ?? null, JSON.stringify(anexos ?? []), vagas ?? null, obrigatorio ?? false, id,
+      idUsuarioMentor ?? null, mentorNome ?? null,
+      JSON.stringify(anexos ?? []), vagas ?? null, obrigatorio ?? false, id,
     ]
   )
   if (!rows[0]) return undefined

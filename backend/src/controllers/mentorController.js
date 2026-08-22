@@ -5,8 +5,51 @@ const mentorService = require("../services/mentorService")
 
 async function listar(req, res, next) {
   try {
-    const mentores = await mentorService.listar(req.query.id_tenant, req.usuario)
-    res.json({ mentores })
+    // `dias` e a janela de "mentorias no periodo", escolhida na propria tela.
+    // Sai na resposta junto com a lista — ver mentorService.listar.
+    const { mentores, dias } = await mentorService.listar(
+      req.query.id_tenant,
+      req.usuario,
+      req.query.dias
+    )
+    res.json({ mentores, dias })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function criar(req, res, next) {
+  try {
+    const mentor = await mentorService.criar(req.body.id_tenant, req.body, req.usuario)
+    res.status(201).json({ mentor })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function salvarPerfil(req, res, next) {
+  try {
+    const perfil = await mentorService.salvarPerfil(
+      req.body.id_tenant,
+      req.params.idUsuario,
+      req.body,
+      req.usuario
+    )
+    res.json({ perfil })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function alterarSituacao(req, res, next) {
+  try {
+    const perfil = await mentorService.alterarSituacao(
+      req.body.id_tenant,
+      req.params.idUsuario,
+      req.body.situacao,
+      req.usuario
+    )
+    res.json({ perfil })
   } catch (err) {
     next(err)
   }
@@ -63,4 +106,13 @@ async function listarPorStartup(req, res, next) {
   }
 }
 
-module.exports = { listar, detalhar, vincular, desvincular, listarPorStartup }
+module.exports = {
+  listar,
+  criar,
+  salvarPerfil,
+  alterarSituacao,
+  detalhar,
+  vincular,
+  desvincular,
+  listarPorStartup,
+}

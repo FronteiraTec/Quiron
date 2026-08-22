@@ -48,6 +48,12 @@ CREATE TYPE tarefaPrioridade AS ENUM ('BAIXA', 'MEDIA', 'ALTA', 'URGENTE');
 -- catalogo RBAC: um tipo desconhecido nao viraria destino nenhum, viraria
 -- mensagem sem destinatario.
 CREATE TYPE mensagemDestinoTipo AS ENUM ('TENANT', 'STARTUP', 'MENTORES', 'ROLE', 'USUARIO');
+-- O cadastro do mentor (migracao 016). Estes dois SAO enum — ao contrario das
+-- especialidades, que sao texto livre — porque ha leitura de sistema atras
+-- deles: o formato decide o que a coordenacao oferece a startup, e a situacao
+-- alimenta o filtro e a acao em massa da listagem de mentores.
+CREATE TYPE mentorFormato AS ENUM ('PRESENCIAL', 'ONLINE', 'HIBRIDO');
+CREATE TYPE mentorSituacao AS ENUM ('ATIVO', 'INDISPONIVEL', 'INATIVO');
 -- NOTA: a categoria de evento ERA o enum `eventoCategoria`, com oito valores
 -- fixos. Virou dado por incubadora na tabela `evento_categoria` (migracao 008),
 -- porque enum e tipo de coluna: acrescentar uma categoria para UMA incubadora
@@ -378,6 +384,75 @@ CREATE TABLE IF NOT EXISTS mentor_startup (
         REFERENCES startup (id_startup)
         ON DELETE CASCADE
 );
+
+
+-- ---------------------------------------------------------------------------
+-- O CADASTRO DO MENTOR (migracao 016).
+--
+-- "Mentor" continua sendo o papel 'mentor' em tenant_usuarios; esta tabela e
+-- so o que a coordenacao sabe sobre ele. E POR TENANT porque a mesma pessoa
+-- pode mentorar em duas incubadoras com disponibilidade e status diferentes em
+-- cada uma.
+--
+-- OPCIONAL DE PROPOSITO: a listagem faz LEFT JOIN e aplica os padroes
+-- (ATIVO / HIBRIDO), e a linha nasce no primeiro salvamento. Criar uma linha
+-- vazia para todo mentor obrigaria a criar tambem no dia em que alguem vira
+-- mentor em /usuarios — dois lugares gravando a mesma coisa.
+--
+-- ESPECIALIDADES E DEMANDAS SAO TEXT[], e nao vocabulario por tenant como
+-- startup_tipo: nao ha codigo atras do valor, ninguem deriva estado do sistema
+-- de "Growth" ou "Juridico". Sao rotulos para achar gente, e o front sugere os
+-- que ja estao em uso na incubadora. O GIN e o que faz o filtro valer.
+--
+-- `situacao` NAO E `tenant_usuarios.ativo`: `ativo` diz se a pessoa tem acesso,
+-- `situacao` diz o que a coordenacao sabe dela. "Indisponivel neste semestre"
+-- nao pode tirar o login de ninguem.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS mentor_perfil (
+    id_tenant  INTEGER NOT NULL,
+    id_usuario INTEGER NOT NULL,
+
+    -- De onde ele vem ("Professor UFPE", "Consultor externo") e a area dentro
+    -- desse vinculo ("Centro de Informatica", "Juridico").
+    vinculo VARCHAR(120),
+    area    VARCHAR(120),
+
+    especialidades TEXT[] NOT NULL DEFAULT '{}',
+    demandas       TEXT[] NOT NULL DEFAULT '{}',
+
+    -- Disponibilidade ESTIMADA, em horas por mes: e o que o mentor declarou.
+    -- Quem mede e a contagem de mentorias no periodo, e ler as duas lado a
+    -- lado e o ponto da tela.
+    horas_mes SMALLINT,
+
+    formato  mentorFormato  NOT NULL DEFAULT 'HIBRIDO',
+    situacao mentorSituacao NOT NULL DEFAULT 'ATIVO',
+
+    -- O que nao cabe em campo nenhum ("so atende healthtech", "avisar com 15
+    -- dias"). Vira coluna da listagem, fechada por padrao.
+    observacoes TEXT,
+
+    atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_mentor_perfil PRIMARY KEY (id_tenant, id_usuario),
+
+    -- FK COMPOSTA para tenant_usuarios, e nao para usuarios: so existe perfil
+    -- de quem esta na incubadora, e tirar a pessoa de la leva o cadastro junto.
+    CONSTRAINT fk_mentor_perfil_vinculo
+        FOREIGN KEY (id_tenant, id_usuario)
+        REFERENCES tenant_usuarios (id_tenant, id_usuario)
+        ON DELETE CASCADE,
+
+    -- 500h/mes e mais do que existe num mes de trabalho: o teto so barra
+    -- digito trocado (o "40" que vira "400").
+    CONSTRAINT ck_mentor_perfil_horas
+        CHECK (horas_mes IS NULL OR (horas_mes >= 0 AND horas_mes <= 500))
+);
+
+CREATE INDEX IF NOT EXISTS ix_mentor_perfil_especialidades
+    ON mentor_perfil USING GIN (especialidades);
+CREATE INDEX IF NOT EXISTS ix_mentor_perfil_demandas
+    ON mentor_perfil USING GIN (demandas);
 
 
 -- ---------------------------------------------------------------------------
@@ -1188,7 +1263,15 @@ CREATE TABLE IF NOT EXISTS evento (
     inicio_ts TIMESTAMP NOT NULL,
     fim_ts TIMESTAMP,
 
-    -- Nome do mentor responsavel (texto livre; nao ha selecao de usuario aqui).
+    -- O responsavel pela atividade, em duas formas — e as duas valem, no mesmo
+    -- desenho de local/id_local: `id_usuario_mentor` quando e um mentor da
+    -- incubadora, `mentor_nome` (texto) quando e um convidado de fora, ou o
+    -- legado anterior a migracao 016.
+    --
+    -- E o id que da historico ao mentor: "ultima mentoria" e "mentorias no
+    -- periodo" na tela /mentores saem daqui. Por texto, "Ana Souza" e "ana
+    -- souza" seriam dois mentores e nenhuma contagem fecharia.
+    id_usuario_mentor INTEGER,
     mentor_nome VARCHAR(150),
     -- Lista de anexos [{ nome, url }] em formato JSON.
     anexos JSONB NOT NULL DEFAULT '[]',
@@ -1211,8 +1294,21 @@ CREATE TABLE IF NOT EXISTS evento (
     -- aconteceu nela.
     CONSTRAINT fk_evento_local
         FOREIGN KEY (id_local)
-        REFERENCES evento_local (id_local)
+        REFERENCES evento_local (id_local),
+
+    -- SET NULL pelo mesmo motivo: excluir o usuario nao apaga a atividade que
+    -- aconteceu. Ela perde o dono, nao a existencia — e o `mentor_nome` fica
+    -- dizendo quem foi.
+    CONSTRAINT fk_evento_mentor
+        FOREIGN KEY (id_usuario_mentor)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL
 );
+
+-- A consulta do historico de um mentor e sempre "as mentorias DELE, em ordem
+-- de data" (ver mentorRepository.listarPorTenant).
+CREATE INDEX IF NOT EXISTS ix_evento_mentor
+    ON evento (id_usuario_mentor, inicio_ts);
 
 -- ---------------------------------------------------------------------------
 -- Direcionamento do evento: quais startups o enxergam.

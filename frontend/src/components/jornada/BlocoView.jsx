@@ -5,6 +5,8 @@
  */
 import { Box, Typography, Divider, Link } from "@mui/material"
 import { Lightbulb, PlayCircleOutline, InsertDriveFile, OpenInNew } from "@mui/icons-material"
+import PlayerYoutube from "../biblioteca/PlayerYoutube"
+import { ehYoutube } from "../../utils/youtube"
 
 const CALLOUT = {
   dica: { cor: "#0ea5e9", bg: "#0ea5e914", rotulo: "Dica" },
@@ -67,8 +69,17 @@ function Bloco({ bloco }) {
         </Box>
       )
     }
+    // Video da aula: sendo do YouTube (o caso normal, ja que e de la que a
+    // incubadora anexa), toca aqui dentro. Qualquer outro endereco continua
+    // como cartao de link.
     case "video":
-      return <MidiaLink bloco={bloco} icone={<PlayCircleOutline />} rotulo="Vídeo" />
+      return ehYoutube(bloco.url) ? (
+        <Box sx={{ my: 1.5 }}>
+          <PlayerYoutube url={bloco.url} titulo={bloco.nome} />
+        </Box>
+      ) : (
+        <MidiaLink bloco={bloco} icone={<PlayCircleOutline />} rotulo="Vídeo" />
+      )
     case "arquivo":
       return <MidiaLink bloco={bloco} icone={<InsertDriveFile />} rotulo="Anexo" />
     case "divisor":

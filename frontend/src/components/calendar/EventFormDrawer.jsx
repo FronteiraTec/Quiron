@@ -1,6 +1,14 @@
 /**
  * EventFormDrawer - drawer de criacao/edicao de uma atividade do calendario.
  * Usado pelo botao "Nova Atividade" e pelo "Editar" do EventDrawer.
+ *
+ * O RESPONSAVEL PODE SER UM MENTOR DE VERDADE (migracao 016). Era so um nome
+ * digitado, e por texto nao ha como saber que "Ana Souza" e "ana souza" sao a
+ * mesma pessoa — e a tela /mentores conta a mentoria de cada um a partir daqui.
+ * Entao o campo virou um seletor com os mentores da incubadora, mas continua
+ * `freeSolo`: palestrante convidado e parceiro de fora nao tem usuario, e
+ * exigir um da lista deixaria essas atividades sem responsavel nenhum. Mesmo
+ * desenho do local (cadastro OU texto avulso), logo acima.
  */
 import { useEffect, useState } from "react"
 import {
@@ -24,12 +32,17 @@ import {
 import { Close, Add, DeleteOutline } from "@mui/icons-material"
 import { format } from "date-fns"
 import { useCategorias, useLocais } from "./categorias"
+import api from "../../services/api"
+import { useAuthStore } from "../../store/authStore"
 
 const FORM_VAZIO = {
   titulo: "",
   categoria: "",
   descricao: "",
   idsStartups: [],
+  // O responsavel em duas formas, so uma preenchida por vez: `id_usuario_mentor`
+  // quando escolhido da lista de mentores, `mentor_nome` quando digitado avulso.
+  id_usuario_mentor: null,
   mentor_nome: "",
   // Local em duas formas, so uma preenchida por vez: `idLocal` quando escolhido
   // do cadastro da incubadora, `local` quando digitado avulso. Ver migracao 008.
@@ -51,6 +64,9 @@ function eventoParaForm(evento) {
     categoria: evento.categoria,
     descricao: evento.descricao || "",
     idsStartups: (evento.startups || []).map((s) => s.id_startup),
+    id_usuario_mentor: evento.id_usuario_mentor || null,
+    // A API resolve `mentor_nome` para o nome do usuario quando ha id, entao
+    // o campo abre preenchido nos dois casos.
     mentor_nome: evento.mentor_nome || "",
     idLocal: evento.id_local || null,
     local: evento.local || "",
@@ -65,9 +81,35 @@ function eventoParaForm(evento) {
 export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = [], eventoEditar, dataInicial }) {
   const { categorias } = useCategorias()
   const { locais } = useLocais()
+  const idTenant = useAuthStore((s) => s.usuario?.id_tenant ?? null)
   const [form, setForm] = useState(FORM_VAZIO)
+  const [mentores, setMentores] = useState([])
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState(null)
+
+  /**
+   * Os mentores da incubadora, para o seletor de responsavel.
+   *
+   * FALHA CALADA de proposito: quem cria evento nao necessariamente tem a
+   * permissao de ver mentores, e um 403 aqui nao pode impedir o cadastro da
+   * atividade. Sem a lista o campo continua funcionando como texto livre, que
+   * e exatamente o que ele era antes da migracao 016.
+   */
+  useEffect(() => {
+    if (!aberto || !idTenant) return
+    let cancelado = false
+    api
+      .get("/mentores", { params: { id_tenant: idTenant } })
+      .then(({ data }) => {
+        if (!cancelado) setMentores(data.mentores || [])
+      })
+      .catch(() => {
+        if (!cancelado) setMentores([])
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [aberto, idTenant])
 
   useEffect(() => {
     if (!aberto) return
@@ -111,7 +153,10 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
         local: form.idLocal ? null : form.local || null,
         id_local: form.idLocal || null,
         id_startups: form.idsStartups,
-        mentor_nome: form.mentor_nome || null,
+        // Um ou outro, nunca os dois — mesma regra do local, e o repositorio
+        // resolve a exibicao com um COALESCE.
+        id_usuario_mentor: form.id_usuario_mentor || null,
+        mentor_nome: form.id_usuario_mentor ? null : form.mentor_nome || null,
         anexos: form.anexos.filter((a) => a.nome || a.url),
         vagas: form.vagas ? Number(form.vagas) : null,
         inicio_ts: `${form.data}T${form.horaInicio}:00`,
@@ -291,12 +336,44 @@ export default function EventFormDrawer({ aberto, onClose, onSalvar, startups = 
               <FormHelperText>Deixe em branco para direcionar a todas as startups incubadas.</FormHelperText>
             </Grid>
             <Grid item xs={12}>
-              <TextField
-                label="Mentor responsável"
-                fullWidth
-                value={form.mentor_nome}
-                onChange={(e) => alterar("mentor_nome", e.target.value)}
+              <Autocomplete
+                freeSolo
+                options={mentores}
+                value={
+                  form.id_usuario_mentor
+                    ? mentores.find((m) => m.id_usuario === form.id_usuario_mentor) || null
+                    : form.mentor_nome
+                }
+                getOptionLabel={(opcao) => (typeof opcao === "string" ? opcao : opcao.nome)}
+                isOptionEqualToValue={(opcao, valor) => opcao.id_usuario === valor?.id_usuario}
+                onChange={(_, valor) => {
+                  if (valor && typeof valor === "object") {
+                    setForm((f) => ({ ...f, id_usuario_mentor: valor.id_usuario, mentor_nome: valor.nome }))
+                  } else {
+                    setForm((f) => ({ ...f, id_usuario_mentor: null, mentor_nome: valor || "" }))
+                  }
+                }}
+                // Digitar depois de ter escolhido da lista descarta a escolha:
+                // o que vale passa a ser o texto (e a atividade sai da contagem
+                // daquele mentor, que e o comportamento correto).
+                onInputChange={(_, texto, motivo) => {
+                  if (motivo === "input") {
+                    setForm((f) => ({ ...f, id_usuario_mentor: null, mentor_nome: texto }))
+                  }
+                }}
+                renderOption={(props, opcao) => (
+                  <li {...props} key={opcao.id_usuario}>
+                    {opcao.nome}
+                  </li>
+                )}
+                renderInput={(params) => (
+                  <TextField {...params} label="Mentor responsável" fullWidth />
+                )}
               />
+              <FormHelperText>
+                Escolha um mentor da incubadora para a atividade entrar no histórico dele, ou
+                digite o nome de um convidado de fora.
+              </FormHelperText>
             </Grid>
             <Grid item xs={12}>
               <TextField

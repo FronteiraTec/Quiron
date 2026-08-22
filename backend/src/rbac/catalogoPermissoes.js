@@ -43,11 +43,26 @@ const CATALOGO_PERMISSOES = [
       {
         recurso: "mentores",
         rotulo: "Mentores",
-        // Gestao da lista de mentores pelo admin: quem acompanha quem.
+        // Gestao da lista de mentores pelo admin: quem acompanha quem, e o
+        // cadastro de cada um (migracao 016).
+        //
+        // `editar` e separado de `vincular`/`desvincular` de proposito: sao
+        // duas decisoes diferentes. Distribuir startups muda o que o mentor
+        // ENXERGA no sistema; editar o cadastro so muda o que a coordenacao
+        // anotou sobre ele. Quem organiza a agenda da incubadora costuma
+        // precisar do segundo sem ter o primeiro.
+        //
+        // `criar` cria a PESSOA (com papel de mentor e senha provisoria), e
+        // por isso o service exige tambem ser admin do tenant, como /usuarios:
+        // a chave sozinha nao pode virar um caminho paralelo para cadastrar
+        // gente na incubadora.
         acoes: [
           { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "criar", rotulo: "Cadastrar" },
+          { acao: "editar", rotulo: "Editar cadastro" },
           { acao: "vincular", rotulo: "Vincular" },
           { acao: "desvincular", rotulo: "Desvincular" },
+          { acao: "exportar", rotulo: "Exportar" },
         ],
       },
       {

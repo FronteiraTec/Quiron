@@ -36,6 +36,8 @@ import {
 import { motion } from "framer-motion"
 import StatusPasso from "./StatusPasso"
 import BlocoView from "./BlocoView"
+import PlayerYoutube from "../biblioteca/PlayerYoutube"
+import { ehYoutube } from "../../utils/youtube"
 import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
 import {
   enviarArquivo,
@@ -444,8 +446,8 @@ function SecaoBloco({ icone, titulo, children }) {
   )
 }
 
-// Render de um conteudo referenciado: AULA aparece inline (leitura); os demais
-// como cartao de material com link.
+// Render de um conteudo referenciado: AULA aparece inline (leitura); video do
+// YouTube toca na propria pagina; os demais como cartao de material com link.
 function ConteudoEnsinado({ conteudo }) {
   const meta = TIPO_CONTEUDO[conteudo.tipo]
   const Icone = meta.icon
@@ -478,7 +480,34 @@ function ConteudoEnsinado({ conteudo }) {
     )
   }
 
-  // Video / Material / Template / Link -> cartao com link.
+  // Video anexado do YouTube (o caso normal: e de la que a incubadora anexa).
+  // Toca dentro do sistema, com o titulo e o resumo em volta — ir ate o
+  // YouTube passa a ser opcao, e nao o unico caminho para assistir. Vale para
+  // qualquer tipo cujo link seja do YouTube, inclusive o que foi cadastrado
+  // como LINK em vez de VIDEO.
+  if (ehYoutube(conteudo.url)) {
+    return (
+      <Box>
+        <PlayerYoutube url={conteudo.url} duracao={conteudo.duracao} />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+          <Icone sx={{ fontSize: 18, color: meta.cor, flexShrink: 0 }} />
+          <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{conteudo.titulo}</Typography>
+          {conteudo.duracao && (
+            <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
+              {conteudo.duracao}
+            </Typography>
+          )}
+        </Box>
+        {conteudo.resumo && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+            {conteudo.resumo}
+          </Typography>
+        )}
+      </Box>
+    )
+  }
+
+  // Material / Template / Link (e video que nao seja do YouTube) -> cartao.
   const card = (
     <Box
       sx={{

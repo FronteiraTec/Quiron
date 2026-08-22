@@ -1,5 +1,6 @@
 /**
- * Coluna direita da tela de Mentores: as startups de um mentor.
+ * A aba "Startups" do painel de um mentor: quais ele acompanha, e quais ainda
+ * pode acompanhar.
  *
  * E aqui que o vinculo mentor <-> startup e criado e desfeito. Esse vinculo
  * nao e decorativo: ele decide o que o mentor enxerga (a fila em
@@ -8,13 +9,16 @@
  *
  * Por isso o desvincular pede confirmacao e diz o que vai acontecer com as
  * entregas que ainda esperam resposta — elas somem da fila dele.
+ *
+ * NAO DESENHA MAIS O CABECALHO com nome e e-mail: era a coluna direita de uma
+ * tela mestre-detalhe, e virou uma aba dentro do DrawerMentor, que ja diz de
+ * quem e o painel. Repetir a identificacao empurraria a lista para baixo da
+ * dobra num drawer.
  */
 import { useState } from "react"
 import {
   Box,
   Typography,
-  Avatar,
-  Chip,
   Button,
   IconButton,
   TextField,
@@ -22,17 +26,11 @@ import {
   Tooltip,
   Alert,
   CircularProgress,
-  Divider,
 } from "@mui/material"
 import { SupervisorAccount, LinkOff, Add, RocketLaunch } from "@mui/icons-material"
 
 import ConfirmDialog from "../programa/ConfirmDialog"
 import ChipSituacao from "../startup/ChipSituacao"
-import { formatarCelular } from "../../utils/mascaras"
-
-function inicial(nome) {
-  return (nome || "?").trim().charAt(0).toUpperCase()
-}
 
 /** Uma linha da lista de startups acompanhadas. */
 function LinhaStartup({ startup, onRemover }) {
@@ -135,32 +133,6 @@ export default function MentorPainel({ mentor, detalhe, carregando, onVincular, 
 
   return (
     <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
-      {/* ---- Cabecalho: quem e o mentor ---- */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, px: 3, py: 2.5 }}>
-        <Avatar
-          src={mentor.foto_url || undefined}
-          sx={{ width: 52, height: 52, fontSize: 20, bgcolor: "primary.main" }}
-        >
-          {inicial(mentor.nome)}
-        </Avatar>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="h6" fontWeight={700} noWrap>
-            {mentor.nome}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" noWrap>
-            {mentor.email}
-            {mentor.celular ? ` · ${formatarCelular(mentor.celular)}` : ""}
-          </Typography>
-          {mentor.desde && (
-            <Typography variant="caption" color="text.secondary">
-              Mentor desde {new Date(mentor.desde).toLocaleDateString("pt-BR")}
-            </Typography>
-          )}
-        </Box>
-      </Box>
-
-      <Divider />
-
       {/* ---- Vincular a uma nova startup ---- */}
       <Box sx={{ px: 3, py: 2, display: "flex", gap: 1, alignItems: "flex-start" }}>
         <TextField

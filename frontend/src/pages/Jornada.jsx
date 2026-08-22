@@ -54,7 +54,6 @@ import ModulosGrid from "../components/jornada/ModulosGrid"
 import AtividadesSidebar from "../components/jornada/AtividadesSidebar"
 import PassoConteudo from "../components/jornada/PassoConteudo"
 import PassoImpacto from "../components/jornada/PassoImpacto"
-import GanhaForma from "../components/jornada/GanhaForma"
 import EmptyState from "../components/programa/EmptyState"
 
 const LARGURA_NAV = 300
@@ -71,14 +70,12 @@ export default function Jornada() {
   const [navAberta, setNavAberta] = useState(true) // recolher barra esquerda
   const [impactoAberto, setImpactoAberto] = useState(true) // recolher barra direita
   const [toast, setToast] = useState(null)
-  const [celebracao, setCelebracao] = useState(null) // { area, mensagem }
 
   const selecionar = (id) => {
     j.setSelecionadoId(id)
     if (!mdUp) setNavMobile(false)
   }
 
-  // Gravar agora vai ao servidor: so celebra depois de confirmado.
   const salvarRascunho = async (resposta, anexos) => {
     const r = await j.salvarRascunho(j.selecionadoId, resposta, anexos)
     setToast(
@@ -89,16 +86,12 @@ export default function Jornada() {
   }
 
   const enviar = async (resposta, anexos) => {
-    const area = j.passo?.area
     const r = await j.enviarAvaliacao(j.selecionadoId, resposta, anexos)
-
-    if (!r.ok) {
-      setToast({ texto: r.erro, severidade: "error" })
-      return
-    }
-
-    if (area) setCelebracao({ area })
-    else setToast({ texto: "Enviado! O mentor foi notificado.", severidade: "success" })
+    setToast(
+      r.ok
+        ? { texto: "Enviado! O mentor foi notificado.", severidade: "success" }
+        : { texto: r.erro, severidade: "error" }
+    )
   }
 
   // Carregando a jornada do servidor.
@@ -504,9 +497,6 @@ export default function Jornada() {
       >
         {nav}
       </Drawer>
-
-      {/* Microcelebracao "ganha forma" */}
-      <GanhaForma evento={celebracao} onClose={() => setCelebracao(null)} />
 
       {/* Toast */}
       <Snackbar

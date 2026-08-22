@@ -7,7 +7,7 @@ const eventoService = require("../services/eventoService")
 function lerCampos(body) {
   const {
     titulo, descricao, categoria, local, id_local, inicio_ts, fim_ts,
-    id_startups, mentor_nome, anexos, vagas, obrigatorio,
+    id_startups, id_usuario_mentor, mentor_nome, anexos, vagas, obrigatorio,
   } = body
   return {
     titulo,
@@ -21,6 +21,10 @@ function lerCampos(body) {
     inicioTs: inicio_ts,
     fimTs: fim_ts,
     idsStartups: Array.isArray(id_startups) ? id_startups : [],
+    // O responsavel tambem vem em duas formas, e tambem so uma por vez:
+    // `id_usuario_mentor` quando e um mentor da incubadora, `mentor_nome`
+    // (texto) quando e alguem de fora. Ver o COALESCE em eventoRepository.
+    idUsuarioMentor: id_usuario_mentor || null,
     mentorNome: mentor_nome,
     anexos,
     vagas,

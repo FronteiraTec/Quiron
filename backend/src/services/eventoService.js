@@ -78,7 +78,7 @@ async function buscar(id, usuario) {
  *
  * @param {number} idTenant - tenant DONO do evento (nao o da requisicao).
  */
-async function validarDados(idTenant, { titulo, categoria, inicioTs, idLocal }) {
+async function validarDados(idTenant, { titulo, categoria, inicioTs, idLocal, idUsuarioMentor }) {
   if (!titulo || !inicioTs) {
     throw erroNegocio(400, "Informe titulo e inicio_ts.")
   }
@@ -105,6 +105,21 @@ async function validarDados(idTenant, { titulo, categoria, inicioTs, idLocal }) 
     }
     if (!local.ativo) {
       throw erroNegocio(400, `O local "${local.nome}" esta desativado.`)
+    }
+  }
+
+  // O responsavel, quando escolhido da lista, precisa ser mentor DESTA
+  // incubadora. Sem a checagem daria para apontar a atividade para qualquer
+  // usuario — e como e daqui que sai o historico de mentoria da tela
+  // /mentores (migracao 016), a contagem de alguem passaria a incluir sessoes
+  // que nao sao dele. Quem e de fora continua entrando pelo texto livre.
+  if (idUsuarioMentor) {
+    const papel = await tenantRepository.buscarPapel(idTenant, idUsuarioMentor)
+    if (!papel) {
+      throw erroNegocio(400, "O responsavel escolhido nao esta nesta incubadora.")
+    }
+    if (papel !== "mentor" && papel !== "admin") {
+      throw erroNegocio(400, "O responsavel escolhido nao e mentor da incubadora.")
     }
   }
 }

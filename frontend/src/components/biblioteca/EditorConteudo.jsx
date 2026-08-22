@@ -37,6 +37,8 @@ import {
 } from "@mui/icons-material"
 import BlockEditor from "./BlockEditor"
 import { SeletorLogo } from "./LogoConteudo"
+import PlayerYoutube from "./PlayerYoutube"
+import { ehYoutube } from "../../utils/youtube"
 import { TIPO_CONTEUDO, TAGS } from "../../data/bibliotecaMeta"
 import { useAuthStore } from "../../store/authStore"
 
@@ -259,6 +261,21 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar }) {
                 placeholder="ex.: 12 min"
                 sx={{ maxWidth: 200 }}
               />
+              {/* Confere o link antes de salvar: e exatamente este player que a
+                  startup vera dentro do passo da trilha. Link errado ou video
+                  privado aparece aqui, e nao so quando o incubado abrir. */}
+              {ehYoutube(form.url) && (
+                <Box>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontWeight: 700, display: "block", mb: 0.75 }}
+                  >
+                    COMO A STARTUP VAI VER
+                  </Typography>
+                  <PlayerYoutube url={form.url} titulo={form.titulo} duracao={form.duracao} />
+                </Box>
+              )}
             </>
           )}
 

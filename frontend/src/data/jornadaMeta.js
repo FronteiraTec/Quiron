@@ -6,7 +6,7 @@
  *
  *   STATUS_PASSO / STATUS_ESTAGIO      -> como cada estado aparece
  *   STATUS_BLUEPRINT                   -> estado de uma fase no Blueprint
- *   AREAS_EMPRESA                      -> rotulo da celebracao GanhaForma
+ *   AREAS_EMPRESA                      -> rotulo/icone da area do passo
  *   STATUS_CONCLUIDO / STATUS_INICIADO -> quais estados contam
  *
  * Os estados do PASSO sao derivados no servidor a partir de entrega +
@@ -64,8 +64,8 @@ export const STATUS_INICIADO = ["RASCUNHO", "AGUARDANDO", "AJUSTE", "APROVADO"]
 //
 // NAO alimentam mais o Blueprint: ele passou a derivar das FASES da trilha, que
 // e a estrutura que a incubadora realmente monta no Construtor. Isto sobrou
-// como rotulo/icone da microcelebracao GanhaForma ("Mercado esta tomando
-// forma") quando o passo tem area preenchida.
+// como rotulo/icone da area no Construtor (InspectorPanel), quando o passo tem
+// area preenchida.
 // ---------------------------------------------------------------------------
 export const AREAS_EMPRESA = [
   { nome: "Problema", icon: ReportProblemOutlined },

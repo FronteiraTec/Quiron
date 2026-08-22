@@ -665,40 +665,55 @@ const TOUR_STARTUP_DETALHE = {
 // Mentores (/mentores)
 // ---------------------------------------------------------------------------
 const TOUR_MENTORES = {
-  titulo: "Distribuir as startups",
+  titulo: "Quem mentora, e com o quê",
   passos: [
     {
       titulo: "Mentores",
       texto:
-        "Esta tela existe para uma decisão só: quais startups cada mentor acompanha. É esse vínculo que recorta a fila de avaliação de cada um.",
+        "Duas perguntas na mesma tela: do que cada mentor dá conta (vínculo, especialidades, demandas, disponibilidade) e quais startups ele acompanha. É esse vínculo que recorta a fila de avaliação de cada um.",
     },
     {
       seletor: '[data-tour="mentores-resumo"]',
-      posicao: "direita",
+      posicao: "baixo",
       titulo: "Quantos e quem está livre",
       texto:
         "O aviso laranja mostra os mentores sem nenhuma startup — normalmente é aí que a próxima startup deve ir.",
     },
     {
       seletor: '[data-tour="mentores-busca"]',
-      posicao: "direita",
+      posicao: "baixo",
       titulo: "Procurar um mentor",
-      texto: "Busca por nome ou e-mail.",
+      texto: "Busca por nome, e-mail, especialidade ou tipo de demanda.",
       permitirInteracao: true,
     },
     {
-      seletor: '[data-tour="mentores-lista"]',
-      posicao: "direita",
-      titulo: "A carga de cada um",
+      seletor: '[data-tour="mentores-filtros"]',
+      posicao: "baixo",
+      titulo: "Filtrar",
       texto:
-        "A lista mostra quantas startups o mentor acompanha e quantas entregas dele estão paradas — é a carga, não o cadastro (esse fica em Usuários).",
+        "Abre um painel com status, formato, carga, disponibilidade e a última mentoria — mais uma lista de especialidades, demandas, vínculos e áreas montada a partir do que a sua incubadora de fato cadastrou.",
     },
     {
-      seletor: '[data-tour="mentores-painel"]',
-      posicao: "esquerda",
-      titulo: "Vincular e desvincular",
+      seletor: '[data-tour="mentores-periodo"]',
+      posicao: "baixo",
+      titulo: "O período das mentorias",
       texto:
-        "À direita ficam as startups que o mentor selecionado acompanha e as disponíveis. Mover uma startup daqui muda a fila de avaliação dele na hora.",
+        "A coluna \"Mentorias\" conta as atividades de Mentoria da agenda que já aconteceram e têm aquele mentor como responsável. Aqui você escolhe a janela — e o título da coluna acompanha.",
+    },
+    {
+      seletor: '[data-tour="mentores-lista"]',
+      posicao: "auto",
+      titulo: "Uma linha por mentor",
+      texto:
+        "Clique na linha para abrir o painel dele na aba Startups, que é onde se vincula e desvincula — mover uma startup ali muda a fila de avaliação na hora. O lápis abre a mesma janela na aba Cadastro. Clique no cabeçalho para ordenar, arraste-o para reordenar as colunas, e use o botão de ajustes para escolher quais aparecem (contato e observações da coordenação vêm desligados). Marcando as caixas você altera o status de vários de uma vez.",
+    },
+    {
+      seletor: '[data-tour="mentores-novo"]',
+      posicao: "esquerda",
+      titulo: "Cadastrar um mentor",
+      texto:
+        "Abre o mesmo painel, em branco: a pessoa (nome, e-mail, celular e uma senha provisória que ela troca no primeiro acesso) e, junto, o que ela atende. Ela entra na incubadora já com o papel de mentor. Quem já está aqui como usuário vira mentor em Usuários, trocando o papel.",
+      permitirInteracao: true,
     },
     fim("A distribuição é o que define a fila de cada mentor."),
   ],
