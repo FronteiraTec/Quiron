@@ -222,6 +222,24 @@ async function atualizarConfigEmail(idTenant, { nome, remetente, replyTo }) {
 }
 
 /**
+ * O id da pagina da incubadora no LinkedIn (migracao 017).
+ *
+ * Usado so pela credencial publica de selo: com ele, o "Adicionar ao perfil"
+ * liga a certificacao a organizacao REAL (com logo e link); sem ele, o
+ * LinkedIn guarda apenas o nome como texto. Por isso e opcional, e por isso a
+ * tela que o edita e a de engajamento, e nao a de dados cadastrais.
+ */
+async function atualizarLinkedin(idTenant, orgId) {
+  const { rows } = await query(
+    `UPDATE tenant SET linkedin_org_id = $2, atualizado_ts = NOW()
+      WHERE id_tenant = $1
+      RETURNING id_tenant, linkedin_org_id`,
+    [idTenant, orgId || null]
+  )
+  return rows[0]
+}
+
+/**
  * Lista as configuracoes de e-mail dos tenants ATIVOS aos quais o usuario
  * pertence (vinculo ativo). Usado para resolver o remetente na recuperacao
  * de senha: se houver exatamente um, usamos o dele.
@@ -254,5 +272,6 @@ module.exports = {
   buscarPapel,
   buscarUsuarioVinculado,
   atualizarConfigEmail,
+  atualizarLinkedin,
   listarConfigEmailPorUsuario,
 }

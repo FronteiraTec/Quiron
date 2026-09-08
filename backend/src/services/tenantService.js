@@ -8,6 +8,8 @@ const rbacRepository = require("../repositories/rbacRepository")
 const agendaConfigRepository = require("../repositories/agendaConfigRepository")
 const startupConfigRepository = require("../repositories/startupConfigRepository")
 const tarefaConfigRepository = require("../repositories/tarefaConfigRepository")
+const engajamentoRepository = require("../repositories/engajamentoRepository")
+const engajamentoPadroes = require("../engajamento/padroes")
 const { gerarHash } = require("../utils/senha")
 const { withTransaction } = require("../config/db")
 const { erroNegocio } = require("../utils/erros")
@@ -68,6 +70,22 @@ async function criar(dados) {
   // (id_tenant, status) exige uma coluna antes da primeira tarefa, entao sem
   // esta linha a incubadora nasceria com o quadro travado.
   await tarefaConfigRepository.semearStatusPadrao(tenant.id_tenant)
+  // Engajamento: a temporada do semestre, as acoes que pontuam e as duas
+  // escadas de nivel. DEPOIS das categorias de agenda, porque as acoes de
+  // presenca tem FK para `evento_categoria` — sem elas nao ha o que pontuar.
+  //
+  // Ao contrario das anteriores, esta semeadura nao destrava nada: um tenant
+  // sem ela so fica com o placar vazio. Existe porque um modulo que nasce em
+  // branco nao ensina o que ele faz, e reprecificar o padrao e mais facil do
+  // que inventar a tabela inteira do zero.
+  await engajamentoRepository.semearPadroes(tenant.id_tenant, {
+    temporada: engajamentoPadroes.temporadaDoSemestre(),
+    pontosPorCategoria: engajamentoPadroes.PONTOS_POR_CATEGORIA,
+    prefixoPresenca: engajamentoPadroes.PREFIXO_PRESENCA,
+    acaoMentoria: engajamentoPadroes.ACAO_MENTORIA,
+    acoesManuais: engajamentoPadroes.ACOES_MANUAIS,
+    niveis: engajamentoPadroes.NIVEIS_PADRAO,
+  })
   return tenant
 }
 

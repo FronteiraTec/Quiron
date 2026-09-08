@@ -2,8 +2,10 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# `npm ci` pelo mesmo motivo do backend: a build tem de ser reproduzivel, e o
+# lock e quem garante isso.
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
 

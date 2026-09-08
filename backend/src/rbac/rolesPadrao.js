@@ -70,6 +70,15 @@ const PERMISSOES_MENTOR = [
   // sempre pode, com ou sem chave (ver o catalogo).
   "tarefas.tarefas.visualizar",
   "tarefas.tarefas.criar",
+
+  // Engajamento (migracao 017): o mentor DISPUTA a liga dele, entao ver o
+  // placar e o catalogo de selos e parte de participar — esconder o ranking de
+  // quem esta nele nao faz sentido. Lancar participacao, configurar temporada e
+  // conceder selo ficam com o admin, que pode conceder depois: conceder selo e
+  // um julgamento em nome da incubadora, e ha incubadora que vai querer dar
+  // isso ao mentor e ha incubadora que nao vai.
+  "engajamento.ranking.visualizar",
+  "engajamento.selos.visualizar",
 ]
 
 /**
@@ -110,6 +119,13 @@ const PERMISSOES_COLABORADOR = [
   // falou com ele, mas nao inicia conversa nem dispara aviso para os outros.
   // Para dar a ele o direito de iniciar, marque `comunicacao.mensagens.enviar`.
   "comunicacao.mensagens.responder",
+
+  // Engajamento (migracao 017): o incubado e o principal disputante, e o
+  // placar existe para ser visto por ele. O painel proprio (nivel, extrato,
+  // meus selos) nao depende destas chaves — nao passa por RBAC —, mas ver o
+  // placar dos outros e o catalogo de selos da incubadora, sim.
+  "engajamento.ranking.visualizar",
+  "engajamento.selos.visualizar",
 ]
 
 const ROLES_PADRAO = [

@@ -1,50 +1,40 @@
 /**
- * Ponto de entrada da API (camada de aplicacao).
+ * Ponto de entrada da API.
  *
- * Monta os middlewares globais, registra o agregador de rotas e o middleware
- * de erros, e sobe o servidor. As responsabilidades ficam distribuidas nas
- * camadas: routes -> controllers -> services -> repositories -> banco.
+ * A MONTAGEM do app (middlewares, rotas, erro) mora no app.js; aqui ficam a
+ * escuta da porta e o trabalho de subida — sincronizar o catalogo RBAC e
+ * garantir o diretorio de uploads. A divisao existe para o teste conseguir
+ * importar o app sem ligar um servidor de verdade (ver o cabecalho do app.js).
  */
-const express = require("express")
-const cors = require("cors")
-const helmet = require("helmet")
-
-const routes = require("./routes")
-const { autenticar } = require("./middlewares/auth")
-const { errorHandler } = require("./middlewares/errorHandler")
+const app = require("./app")
 const { sincronizarCatalogo } = require("./rbac/sincronizarCatalogo")
 const { repararRolesTenants } = require("./rbac/repararRoles")
 const arquivoService = require("./services/arquivoService")
 
-const app = express()
+// Segredo obrigatorio. Antes o `utils/jwt` caia num literal conhecido quando a
+// variavel faltava — e como esse literal estava no docker-compose versionado,
+// qualquer pessoa com acesso ao repositorio assinava um token de root. Falhar
+// na subida e mais barato que subir aceitando token forjado.
+if (!process.env.JWT_SECRET) {
+  console.error(
+    "FATAL: JWT_SECRET nao definido. Gere um com `openssl rand -base64 48` " +
+      "e coloque no .env do ambiente. A API nao sobe sem ele."
+  )
+  process.exit(1)
+}
 
-// --- Middlewares globais ---
-app.use(helmet()) // Cabecalhos de seguranca.
-app.use(cors()) // Libera requisicoes do frontend.
-app.use(express.json({ limit: "4mb" })) // Faz o parse do corpo JSON (limite maior por causa da foto de perfil em base64).
+if (process.env.NODE_ENV === "production" && !process.env.SECRET_KEY) {
+  console.error(
+    "FATAL: SECRET_KEY nao definida. Ela cifra os refresh tokens do Google no " +
+      "banco. Sem ela o codigo cairia no JWT_SECRET, e rodar o JWT_SECRET " +
+      "(que se faz a qualquer momento) tornaria ilegivel todo token ja gravado."
+  )
+  process.exit(1)
+}
 
-// --- Health check (usado pelo Docker) ---
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", message: "API is running" })
-})
-
-// --- Rotas da aplicacao ---
-app.use("/", routes)
-
-/**
- * Exemplo de rota protegida (modelo para rotas que exigem Bearer Token).
- */
-app.get("/protegido", autenticar, (req, res) => {
-  res.json({ mensagem: "Voce acessou uma rota protegida!", usuario: req.usuario })
-})
-
-// --- Tratamento central de erros (deve ser o ultimo middleware) ---
-app.use(errorHandler)
-
-// --- Sobe o servidor ---
 const PORT = process.env.PORT || 3000
 
-app.listen(PORT, () => {
+const servidor = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 
   // Mantem a tabela de permissoes em dia com o catalogo definido em codigo, e
@@ -66,3 +56,16 @@ app.listen(PORT, () => {
     console.error("Falha ao preparar o diretorio de uploads:", err)
   }
 })
+
+// O Docker manda SIGTERM no `stop` e no `up -d` que recria o container. Sem
+// tratar, o processo morre na hora e derruba requisicao em voo — inclusive um
+// upload de 15MB no meio da gravacao.
+for (const sinal of ["SIGTERM", "SIGINT"]) {
+  process.on(sinal, () => {
+    console.log(`${sinal} recebido, encerrando o servidor...`)
+    servidor.close(() => process.exit(0))
+    // Rede de seguranca: se alguma conexao pendurada nao fechar, nao ficamos
+    // presos ate o timeout do Docker (10s) matar o processo de qualquer jeito.
+    setTimeout(() => process.exit(0), 8000).unref()
+  })
+}

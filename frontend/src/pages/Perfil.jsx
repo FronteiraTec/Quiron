@@ -23,9 +23,10 @@ import {
   CircularProgress,
   IconButton,
 } from "@mui/material"
-import { Person, PhotoCamera } from "@mui/icons-material"
+import { MilitaryTech, Person, PhotoCamera } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import GoogleAgendaCard from "../components/perfil/GoogleAgendaCard"
+import MeusSelos from "../components/perfil/MeusSelos"
 import { useAuthStore } from "../store/authStore"
 import { MAX_CELULAR, celularValido, mascararCelular, somenteDigitos } from "../utils/mascaras"
 
@@ -230,6 +231,25 @@ export default function Perfil() {
         {/* Fora do <form> acima de proposito: sao acoes proprias, e um clique
             em "Sincronizar agora" dentro do formulario o submeteria junto. */}
         <GoogleAgendaCard onAviso={setAviso} />
+
+        {/* As conquistas moram NO PERFIL, e nao na tela de Engajamento, porque
+            o que se faz aqui e uma decisao pessoal: gerar (ou nao) a credencial
+            publica com o proprio nome e leva-la para o LinkedIn. A tela de
+            Engajamento mostra o mural de todo mundo; esta secao e a sua. */}
+        {usuario?.id_tenant && (
+          <Paper sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mt: 3 }}>
+            <SecaoTitulo icone={<MilitaryTech />} titulo="Minhas conquistas" />
+            <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
+              Selos que a incubadora concedeu a você. Eles reconhecem evolução e protagonismo —
+              não somam pontos no ranking. Ative a credencial pública para poder publicá-los no
+              LinkedIn.
+            </Typography>
+            <MeusSelos
+              idTenant={usuario.id_tenant}
+              incubadora={usuario.tenants?.[0]?.nome}
+            />
+          </Paper>
+        )}
       </Box>
     </AppLayout>
   )

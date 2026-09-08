@@ -1,83 +1,113 @@
+# ===========================================================================
+# Stack do Quiron — um ambiente.
+#
+# O MESMO arquivo sobe producao e desenvolvimento. O que muda entre os dois e
+# o `.env` ao lado, e nada mais: nome do stack, dominio, segredos, e quais
+# arquivos de override entram (via COMPOSE_FILE, ver .env.exemplo).
+#
+# O QUE MUDOU EM RELACAO A VERSAO DE UMA MAQUINA SO
+#
+#   sem `container_name`   nomes fixos ("postgres_db", "node_api") colidiriam
+#                          entre os dois stacks no mesmo servidor. O Compose
+#                          nomeia sozinho a partir de COMPOSE_PROJECT_NAME.
+#   sem `ports` no banco   o Postgres so e alcancavel pela rede interna. A
+#                          porta 2060 publicada no host, com admin/admin, era
+#                          o achado QRN-03 da auditoria.
+#   sem porta 80           quem termina TLS e escuta na internet e o Caddy do
+#                          diretorio proxy/, compartilhado pelos ambientes.
+#   segredos do .env       nada de JWT_SECRET escrito aqui dentro. Este arquivo
+#                          e versionado; o .env nao.
+#   servico `migracao`     roda antes do backend e aplica o que falta no banco.
+#                          Ver backend/scripts/migrar.js.
+# ===========================================================================
+
+name: ${STACK:?defina STACK no .env, ex. quiron-prod}
+
 services:
 
   postgres:
     image: postgres:17
-    container_name: postgres_db
     restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: incubadora
-    ports:
-      - "2060:5432"
+      POSTGRES_USER: ${DB_USER:?}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
+      POSTGRES_DB: ${DB_NAME:?}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # So no primeiro boot do volume. Depois disso, quem evolui o banco e o
+      # servico `migracao` — o schema.sql nunca mais e lido.
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      # O seed de demonstracao NAO entra aqui: ele cria contas com senha
+      # conhecida (QRN-02). Quem o monta e o docker-compose.dev.yml.
     networks:
-      - quiron
+      - interna
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d incubadora"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # Um passo, nao um servico: sobe, aplica as migracoes pendentes e sai. O
+  # backend so comeca depois que ele termina com exito, entao um erro de
+  # migracao trava o deploy em vez de deixar a API subir contra um banco no
+  # formato errado.
+  migracao:
+    image: ${IMAGEM_BACKEND:?}
+    command: ["node", "scripts/migrar.js"]
+    restart: "no"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      # Lida SO na primeira execucao contra um banco sem registro de migracao.
+      # Num ambiente novo o volume nasce do schema.sql, que ja e o baseline
+      # completo: carimbar e o certo, aplicar quebraria em "ja existe".
+      MIGRACAO_PRIMEIRA_VEZ: ${MIGRACAO_PRIMEIRA_VEZ:-baseline}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - interna
+
   backend:
-    build: ./backend
-    container_name: node_api
+    image: ${IMAGEM_BACKEND:?}
     restart: always
     environment:
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
       DB_HOST: postgres
-      DB_USER: admin
-      DB_PASSWORD: admin
-      DB_NAME: incubadora
       DB_PORT: 5432
-      JWT_SECRET: troque-este-segredo-em-producao
-      JWT_EXPIRES: 8h
-      # Base dos links dentro dos emails (reset de senha, "ver na jornada").
-      # Precisa ser um endereco que o DESTINATARIO consiga abrir: com emails
-      # reais, "localhost" aponta para a maquina de quem recebe.
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      # SMTP. Os valores vem do arquivo .env (fora do git) — ver .env.example.
-      # Com SMTP_HOST vazio, cai na conta de teste Ethereal e nada e enviado
-      # de verdade: e o modo de desenvolvimento.
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      # Sem fallback no codigo: a API recusa subir sem estes dois.
+      JWT_SECRET: ${JWT_SECRET:?gere com openssl rand -base64 48}
+      SECRET_KEY: ${SECRET_KEY:?gere com openssl rand -base64 32}
+      JWT_EXPIRES: ${JWT_EXPIRES:-8h}
+      FRONTEND_URL: "${FRONTEND_URL:?ex. https://app.seudominio.com}"
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
-      # Google Agenda (OAuth 2.0). Sem GOOGLE_CLIENT_ID/SECRET a integracao
-      # fica invisivel: o cartao nao aparece no Perfil e nada e enviado.
-      # Ver docs/google-agenda.md para criar as credenciais.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      # Precisa ser IDENTICO ao "URI de redirecionamento autorizado" cadastrado
-      # no Google Cloud. O padrao serve para o Nginx deste projeto.
-      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost/api/google-agenda/callback}
-      # Escopo de calendario. Vazio = calendar.app.created (menor privilegio).
-      # So mexa se o Console recusar esse escopo — ver docs/google-agenda.md.
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       GOOGLE_SCOPE_CALENDAR: ${GOOGLE_SCOPE_CALENDAR:-}
-      # Fuso declarado ao Google em cada evento. As colunas inicio_ts/fim_ts
-      # guardam hora de parede, sem fuso: alguem precisa dizer "14h onde".
       TZ_AGENDA: ${TZ_AGENDA:-America/Sao_Paulo}
-      # Chave que cifra os tokens do Google no banco (AES-256-GCM). Separada do
-      # JWT_SECRET de proposito: trocar o JWT_SECRET derruba as sessoes e se faz
-      # sem drama, mas trocar ESTA chave torna ilegivel todo refresh token ja
-      # gravado e obriga todo mundo a reconectar a agenda.
-      SECRET_KEY: ${SECRET_KEY:-}
-      # Onde os arquivos enviados ficam DENTRO do container (volume `uploads`).
       UPLOAD_DIR: /app/uploads
     volumes:
-      # Volume nomeado, nao bind mount: os arquivos precisam sobreviver ao
-      # `--force-recreate` do container, que e rotina aqui a cada rebuild.
       - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
+      migracao:
+        condition: service_completed_successfully
     networks:
-      - quiron
+      - interna
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
       interval: 10s
@@ -85,31 +115,37 @@ services:
       retries: 5
 
   frontend:
-    build: ./frontend
-    container_name: react_app
+    image: ${IMAGEM_FRONTEND:?}
     restart: always
-    depends_on:
-      - backend
     networks:
-      - quiron
+      - interna
 
+  # O roteamento interno do ambiente: /api para o backend, /credencial para a
+  # pagina publica de selo, o resto para o SPA. Nao escuta na internet — quem
+  # faz isso e o Caddy do proxy/, que chega aqui pelo alias na rede `borda`.
   nginx:
     image: nginx:alpine
-    container_name: nginx_proxy
     restart: always
-    ports:
-      - "80:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - frontend
       - backend
     networks:
-      - quiron
+      interna:
+      borda:
+        aliases:
+          # E por este nome que o Caddy encontra o ambiente.
+          - ${STACK}-web
 
 networks:
-  quiron:
+  interna:
     driver: bridge
+  # Criada uma vez no servidor, fora do ciclo de vida dos stacks:
+  #   docker network create quiron-borda
+  borda:
+    external: true
+    name: quiron-borda
 
 volumes:
   pgdata:

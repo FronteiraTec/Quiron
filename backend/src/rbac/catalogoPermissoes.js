@@ -367,6 +367,83 @@ const CATALOGO_PERMISSOES = [
       },
     ],
   },
+  {
+    // NAO CONFUNDIR com `relatorios.engajamento` acima: aquele e o RELATORIO de
+    // presenca em eventos; este e o modulo de pontuacao, ranking e selos
+    // (migracao 017).
+    modulo: "engajamento",
+    rotulo: "Engajamento",
+    recursos: [
+      {
+        recurso: "ranking",
+        rotulo: "Ranking e níveis",
+        // Uma chave so, e de LEITURA: o placar da incubadora inteira, as duas
+        // ligas e o placar por startup.
+        //
+        // O PROPRIO PAINEL NAO ESTA AQUI de proposito. Ver o proprio nivel, os
+        // proprios pontos e o proprio extrato e dado do usuario, como /jornada
+        // e o Perfil — exigir chave para alguem ver o proprio progresso so
+        // criaria mais um jeito de tranca-lo fora do sistema. Esta chave
+        // controla ver O DOS OUTROS.
+        //
+        // Ela tambem libera LER a configuracao (acoes e niveis): sao AS REGRAS
+        // DO JOGO, e um placar sem elas e um numero sem explicacao.
+        acoes: [{ acao: "visualizar", rotulo: "Visualizar" }],
+      },
+      {
+        recurso: "pontos",
+        rotulo: "Pontos",
+        // `lancar` e o registro manual do que o sistema nao tem como saber
+        // sozinho (coworking, indicacao, acao da INNE). Nao serve para
+        // pontuar presenca a mao: essa vem do check-in, e o service recusa.
+        //
+        // `visualizar` e o extrato DE OUTRA PESSOA (o proprio nao passa por
+        // RBAC). `estornar` e separado de `lancar` porque desfazer o
+        // lancamento de outra pessoa e uma decisao diferente de registrar o
+        // proprio: quem opera o coworking lanca todo dia; quem corrige o
+        // ranking as vesperas da premiacao e outro perfil.
+        acoes: [
+          { acao: "visualizar", rotulo: "Ver extrato de outras pessoas" },
+          { acao: "lancar", rotulo: "Lançar participação" },
+          { acao: "estornar", rotulo: "Estornar lançamento" },
+        ],
+      },
+      {
+        recurso: "configuracao",
+        rotulo: "Configuração do engajamento",
+        // Temporadas, quanto vale cada acao e os degraus de nivel. Uma chave
+        // so porque as tres decisoes sao a mesma decisao — desenhar a
+        // temporada — e quem faz uma faz as outras.
+        acoes: [{ acao: "gerenciar", rotulo: "Gerenciar" }],
+      },
+      {
+        recurso: "selos",
+        rotulo: "Selos",
+        // CONCEDER E SEPARADO DE CRIAR/EDITAR, e essa e a separacao que
+        // importa neste recurso: desenhar o catalogo de selos da incubadora e
+        // ato de coordenacao; dizer que UMA PESSOA merece um deles e um
+        // julgamento, e costuma ser outra gente (quem acompanha as startups de
+        // perto). Dar os dois juntos deixaria quem so precisa reconhecer
+        // alguem podendo reescrever o criterio antes de reconhecer.
+        //
+        // `revogar` tambem e proprio: desfazer um reconhecimento publico —
+        // que pode ja estar no LinkedIn de alguem — nao e o mesmo ato que
+        // conceder.
+        //
+        // `visualizar` cobre o catalogo e o mural. Os PROPRIOS selos nao
+        // passam por RBAC: sao conquistas da pessoa, e a decisao de torna-las
+        // publicas e dela.
+        acoes: [
+          { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "criar", rotulo: "Criar" },
+          { acao: "editar", rotulo: "Editar" },
+          { acao: "excluir", rotulo: "Excluir" },
+          { acao: "conceder", rotulo: "Conceder a pessoas" },
+          { acao: "revogar", rotulo: "Revogar" },
+        ],
+      },
+    ],
+  },
 ]
 
 /** Achata o catalogo em uma lista de permissoes com a chave calculada. */

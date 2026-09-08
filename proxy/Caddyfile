@@ -1,0 +1,74 @@
+# ===========================================================================
+# Roteamento por dominio + TLS automatico.
+#
+# Cada bloco manda para o alias que o nginx daquele stack registra na rede
+# `quiron-borda` (ver o servico `nginx` no docker-compose.yml da raiz).
+# Se um stack estiver parado, o dominio dele devolve 502 e o outro segue de pe.
+# ===========================================================================
+
+{
+	email {$EMAIL_ACME}
+
+	# Descomente para emitir contra o ambiente de teste do Let's Encrypt
+	# enquanto estiver acertando o DNS. O limite de 5 certificados por dominio
+	# por semana e facil de estourar em dia de configuracao, e estourado ele
+	# so libera na semana seguinte.
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# --- Cabecalhos de seguranca aplicados aos DOIS ambientes -------------------
+#
+# Ficam aqui, e nao no nginx de dentro, porque o app e servido pelo container
+# do frontend, que nao passa pelo Express: o helmet protegia so a API, e o
+# HTML que roda o codigo e guarda o token saia sem cabecalho nenhum (QRN-11).
+# Na borda, um lugar so cobre tudo que sai para a internet.
+(seguranca) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# `unsafe-inline` em style-src e exigencia do Emotion/MUI, que injeta
+		# <style> em tempo de execucao. Em script-src NAO ha excecao: e o que
+		# transforma um XSS em erro de console em vez de token roubado.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+
+		# Nao anuncie a versao do servidor.
+		-Server
+	}
+}
+
+# --- PRODUCAO --------------------------------------------------------------
+{$DOMINIO_PROD} {
+	import seguranca
+	encode zstd gzip
+
+	reverse_proxy quiron-prod-web:80 {
+		# O nginx de dentro repassa estes valores ao backend. Sem eles a
+		# credencial publica montaria a propria URL com o host interno.
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+}
+
+# --- DESENVOLVIMENTO -------------------------------------------------------
+{$DOMINIO_DEV} {
+	import seguranca
+	encode zstd gzip
+
+	# Um ambiente de teste na internet aberta e uma copia do seu produto que
+	# ninguem esta olhando. Descomente para exigir usuario e senha na porta —
+	# gere o hash com:  docker run --rm caddy:2-alpine caddy hash-password
+	# basic_auth {
+	# 	equipe $2a$14$troque-por-um-hash-de-verdade
+	# }
+
+	# Buscador nao indexa ambiente de teste.
+	header X-Robots-Tag "noindex, nofollow"
+
+	reverse_proxy quiron-dev-web:80 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+}

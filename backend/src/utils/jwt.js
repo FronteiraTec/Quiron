@@ -11,7 +11,14 @@
 const jwt = require("jsonwebtoken")
 
 // Segredo usado para assinar/verificar os tokens (vem do ambiente).
-const JWT_SECRET = process.env.JWT_SECRET || "troque-este-segredo-em-producao"
+//
+// SEM FALLBACK, de proposito. Ate 30/08/2026 havia um literal aqui
+// ("troque-este-segredo-em-producao") que tambem estava escrito no
+// docker-compose.yml versionado: quem lesse o repositorio assinava um token
+// com `root: true` e um id de usuario inexistente, e o middleware aceitava —
+// ele so confere a assinatura, nunca consulta a tabela de usuarios.
+// O server.js recusa subir sem esta variavel.
+const JWT_SECRET = process.env.JWT_SECRET
 // Tempo de expiracao do token.
 const JWT_EXPIRES = process.env.JWT_EXPIRES || "8h"
 

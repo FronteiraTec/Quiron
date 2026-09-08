@@ -21,6 +21,7 @@ const rbacService = require("./rbacService")
 const auditLogService = require("./auditLogService")
 const notificacaoService = require("./notificacaoService")
 const googleAgendaService = require("./googleAgendaService")
+const engajamentoService = require("./engajamentoService")
 const { CATEGORIA_FALLBACK } = require("../eventos/categoriasPadrao")
 const { erroNegocio } = require("../utils/erros")
 
@@ -201,6 +202,19 @@ async function atualizar(id, dados, usuarioAutenticado) {
   // startups direcionadas, o compromisso de quem ja recebeu precisa acompanhar.
   googleAgendaService.eventoAtualizado(evento)
 
+  // Tres campos deste formulario mudam quanto o evento vale: a CATEGORIA (e
+  // dela que sai a pontuacao), a DATA (que escolhe a temporada e a janela do
+  // teto) e o MENTOR responsavel (que recebe o ponto de mentoria realizada).
+  // Sem este recalculo, trocar "Workshop" por "Prazo" deixaria para sempre no
+  // placar os pontos de uma categoria que a incubadora nao pontua.
+  if (
+    antes.categoria !== evento.categoria ||
+    String(antes.inicio_ts) !== String(evento.inicio_ts) ||
+    antes.id_usuario_mentor !== evento.id_usuario_mentor
+  ) {
+    await engajamentoService.recalcularEvento(id)
+  }
+
   return evento
 }
 
@@ -233,6 +247,11 @@ async function excluir(id, usuarioAutenticado) {
   })
 
   googleAgendaService.eventoExcluido(id, espelhosGoogle)
+
+  // O evento saiu da agenda (soft delete): os pontos que ele deu saem junto.
+  // Deixa-los seria um placar sustentado por uma atividade que ninguem mais
+  // consegue abrir para conferir — e conferir e o ponto do extrato.
+  await engajamentoService.removerPontosDoEvento(id)
 }
 
 // ---------------------------------------------------------------------------
@@ -320,6 +339,18 @@ async function marcarPresenca(idEvento, idsUsuarios, presente, usuario) {
       `Marcou ${ids.length} ${ids.length === 1 ? "pessoa" : "pessoas"} como ` +
       `${presente ? "presente" : "ausente"} no evento "${evento.titulo}".`,
   })
+
+  // Pontuacao de engajamento (migracao 017). A lista de chamada e a UNICA
+  // fonte de ponto de presenca: ninguem se declara participante.
+  //
+  // Marcar presenca e o trabalho da coordenacao; pontuar e consequencia. Por
+  // isso o motor engole o proprio erro e apenas loga — um ranking
+  // desatualizado se conserta com um recalculo, uma lista de chamada que
+  // falhou no meio nao. E por isso tambem o `await`: sem ele, a tela
+  // recarregaria o placar antes de o ponto existir.
+  //
+  // Desmarcar tambem passa por aqui: a chamada e simetrica e apaga o ponto.
+  await engajamentoService.sincronizarPresenca(idEvento, ids, presente)
 
   return marcados
 }

@@ -52,6 +52,7 @@ import {
   TrendingUp,
   HourglassBottom,
   TaskAlt,
+  EmojiEvents,
 } from "@mui/icons-material"
 
 // Larguras do menu (compartilhadas com a Navbar e o conteudo).
@@ -114,6 +115,13 @@ const MENU_ADMIN = [
       { id: "eventos-presenca", texto: "Presença", icone: <HowToReg />, rota: "/eventos/presenca", permissao: "eventos.presenca.visualizar" },
     ],
   },
+  // Engajamento (migracao 017). NAO leva `permissao`, pelo mesmo motivo de
+  // Mensagens e Tarefas: a tela abre no painel da PROPRIA pessoa (nivel,
+  // pontos, extrato, selos), que e dado dela e nao passa por RBAC. Esconder o
+  // item de quem nao tem `engajamento.ranking.visualizar` deixaria a pessoa
+  // sem caminho ate o proprio progresso — e o placar dos outros, esse sim, e
+  // podado dentro da tela.
+  { id: "engajamento", texto: "Engajamento", icone: <EmojiEvents />, rota: "/engajamento", novo: true },
   {
     id: "avaliacoes",
     texto: "Avaliações",
@@ -182,6 +190,7 @@ const MENU_MENTOR = [
     ],
   },
   { id: "eventos", texto: "Eventos", icone: <Event />, rota: "/eventos", badgeKey: "eventos" },
+  { id: "engajamento", texto: "Engajamento", icone: <EmojiEvents />, rota: "/engajamento", novo: true },
 ]
 
 // ---------------------------------------------------------------------------
@@ -206,6 +215,7 @@ const MENU_USUARIO = [
   // eram a visao administrativa dela e saíram.
   { id: "questionarios", texto: "Questionários", icone: <Quiz />, rota: "/questionarios" },
   { id: "eventos", texto: "Eventos", icone: <Event />, rota: "/eventos", badgeKey: "eventos" },
+  { id: "engajamento", texto: "Engajamento", icone: <EmojiEvents />, rota: "/engajamento", novo: true },
 ]
 
 // ---------------------------------------------------------------------------

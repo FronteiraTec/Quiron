@@ -1432,6 +1432,52 @@ const TOUR_ENVIAR_FEEDBACK = {
   ],
 }
 
+/**
+ * O tour do Engajamento existe principalmente para explicar UMA coisa: por que
+ * o trabalho empreendedor nao vira ponto. Sem essa explicacao, o primeiro
+ * incubado que entregar um passo da trilha e nao vir pontuacao vai concluir
+ * que o sistema esta quebrado.
+ */
+const TOUR_ENGAJAMENTO = {
+  titulo: "Como funciona o engajamento",
+  passos: [
+    {
+      titulo: "Engajamento",
+      texto:
+        "O placar de participação da incubadora, por temporada. Mentores disputam com mentores e incubados com incubados — são volumes de participação diferentes, e um placar só faria um dos grupos nunca ganhar.",
+    },
+    {
+      seletor: '[data-tour="engajamento-temporada"]',
+      posicao: "baixo",
+      titulo: "A temporada",
+      texto:
+        "O período que está em disputa e o que está em jogo. A premiação é semestral: no fim, a coordenação encerra a temporada e o resultado congela.",
+    },
+    {
+      seletor: '[data-tour="engajamento-meu-painel"]',
+      posicao: "baixo",
+      titulo: "O seu nível",
+      texto:
+        "Antes do placar vem o seu progresso. O ranking é relativo — só um é o primeiro; o nível é absoluto, e todo mundo pode chegar ao topo. A frase 'faltam N pontos' é o que diz o que fazer a seguir.",
+    },
+    {
+      seletor: '[data-tour="engajamento-regras"]',
+      posicao: "cima",
+      titulo: "O que pontua, e o que não",
+      texto:
+        "Pontuam presença e relacionamento com a incubadora. NÃO pontuam experimentos, validação de hipótese, pivotagem, conclusão de momento formativo, ajudar outro empreendedor ou publicar conteúdo — e isso é de propósito: transformar esse trabalho em pontos faria você fazê-lo pelo ponto.",
+    },
+    {
+      seletor: '[data-tour="engajamento-selos"]',
+      posicao: "cima",
+      titulo: "Os selos",
+      texto:
+        "É aqui que aquele trabalho é reconhecido. Selo não vale ponto nenhum: vale uma credencial verificável, com o critério escrito e o nome de quem concedeu, que você publica no LinkedIn pelo seu Perfil.",
+    },
+    fim("Participe pelo que faz sentido — os pontos são consequência, não o objetivo."),
+  ],
+}
+
 export const TOURS = {
   "/": TOUR_DASHBOARD,
   "/perfil": TOUR_PERFIL,
@@ -1450,6 +1496,7 @@ export const TOURS = {
   "/entregas": TOUR_ENTREGAS,
   "/feedback": TOUR_FEEDBACK,
   "/avaliacoes": TOUR_AVALIACOES,
+  "/engajamento": TOUR_ENGAJAMENTO,
   "/relatorios/progresso": TOUR_REL_PROGRESSO,
   "/relatorios/entregas": TOUR_REL_ENTREGAS,
   "/relatorios/gargalos": TOUR_REL_GARGALOS,

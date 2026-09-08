@@ -1,0 +1,37 @@
+# ===========================================================================
+# Override: CONSTRUIR as imagens em vez de baixar do registro.
+#
+# Para a maquina de desenvolvimento. No servidor as imagens vem do GHCR,
+# ja construidas e testadas pela CI — construir la seria lento, exigiria mais
+# RAM e, pior, poria no ar um binario que nenhum teste viu.
+#
+# Ativado pelo COMPOSE_FILE do .env local (ver .env.exemplo).
+#
+# Lembrete que vale repetir: o fonte e COPIADO para dentro da imagem, nao
+# montado. `docker compose restart` reinicia com o codigo ANTIGO. Para aplicar
+# mudanca de codigo:
+#     docker compose up -d --build
+# ===========================================================================
+
+services:
+  # A porta do banco, publicada SO na maquina local — presa em 127.0.0.1, para
+  # nao repetir o achado QRN-03 (que era `2060:5432`, escutando em todas as
+  # interfaces com a senha admin/admin).
+  #
+  # Serve para duas coisas: abrir o banco num cliente grafico e rodar
+  # `npm test`, que precisa alcancar o Postgres de fora do container.
+  postgres:
+    ports:
+      - "127.0.0.1:${DB_PORTA_LOCAL:-2060}:5432"
+
+  backend:
+    build: ./backend
+    image: ${IMAGEM_BACKEND:-quiron-backend:local}
+
+  migracao:
+    build: ./backend
+    image: ${IMAGEM_BACKEND:-quiron-backend:local}
+
+  frontend:
+    build: ./frontend
+    image: ${IMAGEM_FRONTEND:-quiron-frontend:local}

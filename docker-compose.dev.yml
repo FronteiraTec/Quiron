@@ -1,0 +1,22 @@
+# ===========================================================================
+# Override: ambiente de DESENVOLVIMENTO.
+#
+# A unica diferenca real e o seed de demonstracao — a incubadora, a startup e
+# as quatro contas de teste. Ele NAO entra em producao: as senhas estao
+# escritas no proprio arquivo, versionadas no git (achado QRN-02).
+#
+# Continua valendo para o dev do servidor: `dev.seudominio.com` esta na
+# internet como qualquer outro endereco, e um buscador ou um scanner acha a
+# tela de login dele igual. Trocar `Admin@123` no ambiente de dev tambem e
+# trabalho — o seed serve para o banco nascer navegavel, nao para ficar assim.
+#
+# Ativado pelo COMPOSE_FILE do .env de dev (ver .env.exemplo).
+# ===========================================================================
+
+services:
+  postgres:
+    volumes:
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      # O seed maior, com trilha e conteudo de exemplo. Comente se quiser a
+      # incubadora vazia.
+      - ./database/seed_exemplo.sql:/docker-entrypoint-initdb.d/03-seed-exemplo.sql:ro

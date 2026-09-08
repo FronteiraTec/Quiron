@@ -68,7 +68,7 @@ const DIAS_PARA_FRENTE = 180
 // sessao vazado nao serve de state.
 // ---------------------------------------------------------------------------
 const SEGREDO_STATE = crypto
-  .createHmac("sha256", process.env.JWT_SECRET || "troque-este-segredo-em-producao")
+  .createHmac("sha256", process.env.JWT_SECRET || "")
   .update("google-oauth-state")
   .digest("hex")
 

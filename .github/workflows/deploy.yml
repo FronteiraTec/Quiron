@@ -1,0 +1,169 @@
+# ===========================================================================
+# DEPLOY.
+#
+#   push em develop  ->  dev.seudominio.com
+#   push em main     ->  app.seudominio.com
+#
+# SEMPRE depois da CI. O job `deploy` declara `needs: ci`, e o `ci` e o
+# workflow inteiro de testes reusado — nao ha como subir com o portao vermelho.
+#
+# A IMAGEM E CONSTRUIDA AQUI, NAO NO SERVIDOR. Tres motivos: o servidor nao
+# precisa de RAM para um build de Vite; o deploy vira um `pull` de segundos em
+# vez de um build de minutos; e o rollback e trocar uma tag, porque cada imagem
+# fica marcada com o SHA do commit que a gerou.
+#
+# SEGREDOS NECESSARIOS (Settings > Secrets and variables > Actions):
+#   VPS_HOST         ip ou dominio do servidor
+#   VPS_USUARIO      usuario de deploy (nao use root)
+#   VPS_SSH_CHAVE    a chave PRIVADA, conteudo inteiro do arquivo
+#   VPS_SSH_PORTA    opcional, o padrao e 22
+#
+# O GITHUB_TOKEN que publica no GHCR o proprio Actions fornece; nao precisa
+# criar nada para ele.
+# ===========================================================================
+name: Deploy
+
+on:
+  push:
+    branches: [main, develop]
+  # Permite subir uma versao a mao pela aba Actions — util para rollback.
+  workflow_dispatch:
+
+concurrency:
+  # Dois pushes seguidos na mesma branch nao podem deployar em paralelo: o
+  # segundo esperaria o primeiro e os dois brigariam pelo mesmo diretorio no
+  # servidor. `cancel-in-progress: false` porque cancelar um deploy no meio
+  # deixa o ambiente num estado pior que deixar terminar.
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publicar:
+    name: Construir e publicar imagens
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.versao.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Definir a tag
+        id: versao
+        # O SHA curto do commit. Nunca `latest`: uma tag movel torna impossivel
+        # dizer o que esta rodando e impossivel voltar para a versao anterior.
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/quiron-backend:${{ steps.versao.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/quiron-frontend:${{ steps.versao.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  subir:
+    name: Subir no servidor
+    needs: publicar
+    runs-on: ubuntu-latest
+    # O `environment` faz o GitHub registrar o historico de deploys por
+    # ambiente e permite exigir aprovacao manual para producao (configuravel em
+    # Settings > Environments).
+    environment: ${{ github.ref_name == 'main' && 'producao' || 'desenvolvimento' }}
+    steps:
+      - name: Deploy por SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          TAG: ${{ needs.publicar.outputs.tag }}
+          DONO: ${{ github.repository_owner }}
+          AMBIENTE: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USUARIO }}
+          key: ${{ secrets.VPS_SSH_CHAVE }}
+          port: ${{ secrets.VPS_SSH_PORTA || 22 }}
+          envs: TAG,DONO,AMBIENTE
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "/opt/quiron/$AMBIENTE"
+
+            # O repositorio no servidor existe pelos arquivos que NAO estao na
+            # imagem: os compose, o nginx/default.conf e o database/schema.sql
+            # que o Postgres monta no primeiro boot.
+            git fetch --quiet origin
+            git checkout --quiet "$GITHUB_SHA" 2>/dev/null || git reset --hard --quiet "origin/$(git rev-parse --abbrev-ref HEAD)"
+
+            # A tag da versao entra no .env; o resto (segredos) ja esta la e
+            # nao e tocado.
+            sed -i "s|^IMAGEM_BACKEND=.*|IMAGEM_BACKEND=ghcr.io/$DONO/quiron-backend:$TAG|"   .env
+            sed -i "s|^IMAGEM_FRONTEND=.*|IMAGEM_FRONTEND=ghcr.io/$DONO/quiron-frontend:$TAG|" .env
+
+            docker compose pull --quiet
+
+            # Sobe o banco e ESPERA ficar saudavel antes de mexer no resto: a
+            # migracao precisa de um banco de pe.
+            docker compose up -d --wait postgres
+
+            # O passo que pode reprovar o deploy. Se uma migracao falhar, o
+            # `script_stop` interrompe aqui e a versao ANTIGA do backend
+            # continua no ar — nada foi trocado ainda.
+            docker compose run --rm migracao
+
+            docker compose up -d --wait
+
+            # Fumaca: a API precisa responder de dentro da rede do ambiente.
+            docker compose exec -T backend wget -q --spider http://localhost:3000/health
+            echo "deploy de $AMBIENTE concluido na versao $TAG"
+
+            # Imagens antigas se acumulam e enchem o disco do servidor.
+            docker image prune -f --filter "until=168h"
+
+  fumaca:
+    name: Conferir pela internet
+    needs: subir
+    runs-on: ubuntu-latest
+    steps:
+      - name: A aplicacao responde no dominio publico
+        env:
+          URL: ${{ github.ref_name == 'main' && vars.URL_PROD || vars.URL_DEV }}
+        run: |
+          if [ -z "${URL:-}" ]; then
+            echo "Defina as variaveis URL_PROD e URL_DEV em Settings > Variables para ligar esta conferencia."
+            exit 0
+          fi
+          # O deploy ja conferiu por dentro; isto confere o caminho inteiro —
+          # DNS, certificado, Caddy e nginx.
+          for tentativa in 1 2 3 4 5; do
+            if curl -fsS --max-time 10 "$URL/api/health" | grep -q '"status":"ok"'; then
+              echo "$URL respondeu."
+              exit 0
+            fi
+            echo "tentativa $tentativa falhou, esperando..."
+            sleep 10
+          done
+          echo "A aplicacao nao respondeu em $URL apos o deploy."
+          exit 1

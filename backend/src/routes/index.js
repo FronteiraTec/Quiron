@@ -65,6 +65,20 @@ router.use("/tarefas", require("./tarefaRoutes"))
 // incubadora). Fora de /tarefas porque /tarefas/:id capturaria "config" como id.
 router.use("/tarefas-config", require("./tarefaConfigRoutes"))
 
+// Engajamento: o placar de participacao (pontos, temporadas e niveis) que se
+// alimenta do que os outros modulos ja registram — presenca em evento e
+// mentoria realizada — mais os lancamentos manuais da coordenacao.
+router.use("/engajamento", require("./engajamentoRoutes"))
+// Vocabulario configuravel do engajamento (temporadas, acoes que pontuam e
+// niveis). Fora de /engajamento porque /engajamento/:algo capturaria "config".
+router.use("/engajamento-config", require("./engajamentoConfigRoutes"))
+// Selos: a OUTRA moeda do engajamento — reconhecimento de evolucao e
+// protagonismo, que vale credencial publica e zero ponto.
+router.use("/selos", require("./seloRoutes"))
+// A credencial publica de um selo. Definida na RAIZ e SEM autenticacao: e a
+// pagina que a pessoa cola no LinkedIn, aberta a quem nao tem login.
+router.use("/", require("./credencialRoutes"))
+
 // Relatorios: leituras agregadas do que os outros modulos ja registram
 // (progresso na trilha, fila de avaliacao, gargalos, presenca em eventos).
 router.use("/relatorios", require("./relatorioRoutes"))

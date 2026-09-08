@@ -1,0 +1,56 @@
+# ===========================================================================
+# A BORDA — o unico container que escuta na internet.
+#
+# Sobe UMA vez no servidor e serve os dois ambientes. Fica em `proxy/` e nao
+# junto dos stacks de propria: ele nao pertence a nenhum dos dois, e um deploy
+# de producao nao pode derrubar o TLS do dev nem vice-versa.
+#
+# POR QUE CADDY E NAO NGINX AQUI
+# O certificado. O Caddy pede o Let's Encrypt sozinho no primeiro acesso a cada
+# dominio e renova sem cron, sem certbot e sem hook de reload. Com nginx isso
+# seriam tres pecas a mais para manter — e a peca que, quando falha, derruba o
+# site num domingo de madrugada porque o certificado venceu.
+#
+# O nginx continua existindo DENTRO de cada stack, fazendo o roteamento
+# interno (/api, /credencial, o SPA) que ja estava escrito e testado.
+#
+#   subir:   docker compose up -d
+#   logs:    docker compose logs -f caddy
+# ===========================================================================
+
+name: quiron-proxy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Os certificados moram aqui. Se este volume sumir, o Caddy pede tudo de
+      # novo — e o Let's Encrypt limita a 5 certificados por dominio por
+      # semana. Entra no backup junto com o banco.
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      # O e-mail que o Let's Encrypt usa para avisar de problema no
+      # certificado. Vem do .env deste diretorio.
+      EMAIL_ACME: ${EMAIL_ACME:?informe um e-mail para o Let's Encrypt}
+      DOMINIO_PROD: ${DOMINIO_PROD:?ex. app.seudominio.com}
+      DOMINIO_DEV: ${DOMINIO_DEV:?ex. dev.seudominio.com}
+    networks:
+      - borda
+
+networks:
+  # A mesma rede que os stacks declaram como externa. Criada a mao, uma vez:
+  #   docker network create quiron-borda
+  borda:
+    external: true
+    name: quiron-borda
+
+volumes:
+  caddy_data:
+  caddy_config:

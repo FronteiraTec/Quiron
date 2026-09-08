@@ -34,6 +34,7 @@ import ConfiguracaoEmail from "./pages/ConfiguracaoEmail"
 import ConfiguracaoAgenda from "./pages/ConfiguracaoAgenda"
 import ConfiguracaoStartups from "./pages/ConfiguracaoStartups"
 import ConfiguracaoTarefas from "./pages/ConfiguracaoTarefas"
+import ConfiguracaoEngajamento from "./pages/ConfiguracaoEngajamento"
 import Auditoria from "./pages/Auditoria"
 import RelatorioProgresso from "./pages/RelatorioProgresso"
 import RelatorioEntregas from "./pages/RelatorioEntregas"
@@ -48,6 +49,7 @@ import StartupDetail from "./pages/StartupDetail"
 import Entregas from "./pages/Entregas"
 import Feedback from "./pages/Feedback"
 import Mentores from "./pages/Mentores"
+import Engajamento from "./pages/Engajamento"
 import PresencaEventos from "./pages/PresencaEventos"
 import Membros from "./pages/Membros"
 import Mensagens from "./pages/Mensagens"
@@ -315,6 +317,20 @@ export default function App() {
               }
             />
 
+            {/* Engajamento: o placar de participacao (duas ligas + startups) e o
+                mural de selos. Protegida so por token, e nao por permissao: o
+                painel da propria pessoa (nivel, pontos, extrato) e dado dela e
+                nao passa por RBAC, como a Jornada. O que exige chave e o placar
+                DOS OUTROS, e quem poda isso e a propria tela. */}
+            <Route
+              path="/engajamento"
+              element={
+                <ProtectedRoute>
+                  <Engajamento />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Avaliacao de entregas (mentor/admin): a fila do que foi enviado
                 e o historico das devolutivas ja dadas. O recorte por startup
                 acompanhada e feito no backend (entregaService.listarFila). */}
@@ -420,6 +436,7 @@ export default function App() {
               <Route path="agenda" element={<ConfiguracaoAgenda />} />
               <Route path="startups" element={<ConfiguracaoStartups />} />
               <Route path="tarefas" element={<ConfiguracaoTarefas />} />
+              <Route path="engajamento" element={<ConfiguracaoEngajamento />} />
               <Route path="auditoria" element={<Auditoria />} />
             </Route>
 

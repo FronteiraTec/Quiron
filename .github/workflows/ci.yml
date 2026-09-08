@@ -1,0 +1,113 @@
+# ===========================================================================
+# O PORTAO. Roda em todo push e em todo pull request.
+#
+# Nenhum deploy acontece sem este workflow verde: o deploy.yml o chama como
+# dependencia (`workflow_call`) em vez de repetir os passos, entao nao existe
+# caminho que suba codigo sem passar por aqui.
+# ===========================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  # Permite que o deploy.yml reuse este workflow inteiro.
+  workflow_call:
+
+jobs:
+  teste:
+    name: Testes do backend
+    runs-on: ubuntu-latest
+
+    services:
+      # Postgres descartavel, so para esta execucao. O nome do banco termina em
+      # `_teste` porque o helper de teste RECUSA rodar contra qualquer outro —
+      # ele derruba o schema public inteiro (ver backend/test/ajuda/banco.js).
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: quiron
+          POSTGRES_PASSWORD: senha_de_ci
+          POSTGRES_DB: quiron_teste
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U quiron -d quiron_teste"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: quiron
+      DB_PASSWORD: senha_de_ci
+      DB_NAME: quiron_teste
+      JWT_SECRET: segredo-efemero-da-ci-nao-usar-em-lugar-nenhum
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # `npm ci` e nao `install`: falha se o lock estiver fora de sincronia com
+      # o package.json, que e exatamente o que queremos saber antes do deploy.
+      - name: Instalar dependencias
+        working-directory: backend
+        run: npm ci
+
+      - name: Testes
+        working-directory: backend
+        run: npm test
+
+  imagens:
+    name: As imagens constroem
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # So constroi, nao publica. Um Dockerfile quebrado tem de aparecer no PR,
+      # e nao no deploy — e o build do frontend e onde um import errado que o
+      # Vite so resolve em tempo de build costuma se revelar.
+      - name: Backend
+        run: docker build -t quiron-backend:ci ./backend
+
+      - name: Frontend
+        run: docker build -t quiron-frontend:ci ./frontend
+
+  compose:
+    name: Os compose files sao validos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Erro de YAML ou variavel obrigatoria faltando no compose so apareceria
+      # no servidor, com o deploy pela metade. Aqui aparece em 10 segundos.
+      - name: Validar perfil de producao
+        run: |
+          cat > .env <<'EOF'
+          STACK=quiron-validacao
+          COMPOSE_FILE=docker-compose.yml
+          COMPOSE_PATH_SEPARATOR=:
+          IMAGEM_BACKEND=exemplo/backend:teste
+          IMAGEM_FRONTEND=exemplo/frontend:teste
+          DB_USER=x
+          DB_PASSWORD=x
+          DB_NAME=x
+          JWT_SECRET=x
+          SECRET_KEY=x
+          FRONTEND_URL=https://exemplo.test
+          EOF
+          docker compose config --quiet
+          echo "perfil de producao valido"
+
+      - name: Validar perfil de dev
+        run: |
+          sed -i 's|^COMPOSE_FILE=.*|COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml|' .env
+          docker compose config --quiet
+          echo "perfil de dev valido"
