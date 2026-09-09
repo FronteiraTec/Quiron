@@ -40,7 +40,15 @@ const path = require("path")
 const crypto = require("crypto")
 const { Client } = require("pg")
 
-const DIR_MIGRACOES = path.resolve(__dirname, "../../database/migrations")
+// Onde estao os arquivos .sql.
+//
+// O padrao serve para rodar do repositorio (backend/scripts -> ../../database).
+// DENTRO DO CONTAINER esse caminho nao existe: o Dockerfile copia apenas
+// `./backend`, entao `database/` nao entra na imagem — e nem deve, porque as
+// migracoes sao dado do repositorio, nao codigo da aplicacao. Ali o
+// docker-compose monta o diretorio em /migracoes e define esta variavel.
+const DIR_MIGRACOES =
+  process.env.MIGRACOES_DIR || path.resolve(__dirname, "../../database/migrations")
 
 const SOMENTE_CONFERIR = process.argv.includes("--conferir")
 

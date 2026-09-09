@@ -24,6 +24,14 @@ services:
     ports:
       - "127.0.0.1:${DB_PORTA_LOCAL:-2060}:5432"
 
+  # A porta da aplicacao. No servidor quem escuta na internet e o Caddy, que
+  # alcanca o nginx pela rede `borda` — por isso a compose base nao publica
+  # porta nenhuma. Na maquina local nao ha Caddy, entao sem esta linha o
+  # `docker compose up` sobe tudo saudavel e nada responde em localhost.
+  nginx:
+    ports:
+      - "${PORTA_LOCAL:-80}:80"
+
   backend:
     build: ./backend
     image: ${IMAGEM_BACKEND:-quiron-backend:local}

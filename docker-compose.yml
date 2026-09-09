@@ -76,7 +76,14 @@ services:
     image: ${IMAGEM_BACKEND:?}
     command: ["node", "scripts/migrar.js"]
     restart: "no"
+    volumes:
+      # As migracoes NAO estao na imagem: o Dockerfile do backend copia so
+      # `./backend`, e `database/` fica fora desse contexto — corretamente, por
+      # serem dado do repositorio e nao codigo da aplicacao. Sao montadas aqui,
+      # pelo mesmo caminho que ja traz o schema.sql para o Postgres.
+      - ./database/migrations:/migracoes:ro
     environment:
+      MIGRACOES_DIR: /migracoes
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: ${DB_USER}
