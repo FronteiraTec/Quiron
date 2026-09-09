@@ -9,7 +9,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, dev]
   pull_request:
   # Permite que o deploy.yml reuse este workflow inteiro.
   workflow_call:

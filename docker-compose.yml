@@ -28,6 +28,27 @@ services:
   postgres:
     image: postgres:17
     restart: always
+    # Numa VPS pequena os DOIS ambientes dividem a mesma RAM, e sem teto o
+    # kernel e quem escolhe a vitima do OOM — podendo ser o banco de PRODUCAO
+    # por causa de um relatorio pesado rodado em dev. O limite transforma isso
+    # num erro dentro do container que estourou.
+    #
+    # Medido em 30/08/2026 com a base de demonstracao: 61MB no pico (recriacao
+    # de schema + fixture completo). Os tetos abaixo sao folga de varias vezes
+    # isso; nao devem ser alcancados em uso normal.
+    deploy:
+      resources:
+        limits:
+          memory: ${LIMITE_POSTGRES:-512m}
+    # shared_buffers em ~25% do teto do container, que e a proporcao que o
+    # Postgres recomenda. O padrao da imagem (128MB) e certo para 512m e
+    # exagerado para um dev limitado a 256m.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-128MB}
+      - -c
+      - max_connections=${PG_MAX_CONNECTIONS:-50}
     environment:
       POSTGRES_USER: ${DB_USER:?}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?}
@@ -74,6 +95,12 @@ services:
   backend:
     image: ${IMAGEM_BACKEND:?}
     restart: always
+    # Medido: 60MB em repouso. O teto cobre o heap do Node mais o pool de
+    # conexoes crescendo sob carga.
+    deploy:
+      resources:
+        limits:
+          memory: ${LIMITE_BACKEND:-384m}
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
@@ -117,6 +144,11 @@ services:
   frontend:
     image: ${IMAGEM_FRONTEND:?}
     restart: always
+    # So serve arquivo estatico: medido em 11MB.
+    deploy:
+      resources:
+        limits:
+          memory: ${LIMITE_NGINX:-64m}
     networks:
       - interna
 
@@ -126,6 +158,11 @@ services:
   nginx:
     image: nginx:alpine
     restart: always
+    # So encaminha: medido em 10MB.
+    deploy:
+      resources:
+        limits:
+          memory: ${LIMITE_NGINX:-64m}
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:

@@ -27,18 +27,52 @@ compartilhado entre eles a não ser o Caddy e o kernel.
 
 ## 1. O que contratar
 
-**2 vCPU · 4 GB RAM · 80 GB SSD.** As imagens são construídas no GitHub
-Actions, não no servidor, então a RAM é só para rodar: dois Postgres, dois
-Node, três nginx e o Caddy cabem em 4 GB com folga para o cache de disco. Com
-2 GB funciona, mas o primeiro `pg_dump` simultâneo a um pico de acesso vai
-doer.
+**2 GB de RAM bastam.** Medido em 30/08/2026 com a base de demonstração, por
+ambiente:
 
-Para usuário no Brasil, prefira uma região em São Paulo — a diferença para a
-Europa é de ~200 ms em cada requisição, e o app faz várias por tela. Vultr,
-DigitalOcean e Magalu Cloud têm SP; Hetzner é mais barato mas só tem
-Europa/EUA.
+| Container | Em uso |
+|---|---|
+| postgres | 61 MB (pico: recriação de schema + fixture) |
+| backend (Node) | 60 MB |
+| frontend (nginx) | 11 MB |
+| nginx interno | 10 MB |
+| **por ambiente** | **~145 MB** |
 
-Ubuntu 24.04 LTS. Não precisa de painel, nem de banco gerenciado nesta escala.
+Dois ambientes ≈ 290 MB, mais ~40 MB de Caddy e ~400 MB de Ubuntu + daemon do
+Docker. Sobra mais de 1 GB numa máquina de 2 GB.
+
+Isso só é verdade porque **as imagens são construídas no GitHub Actions, não no
+servidor**. Um `npm run build` do Vite sozinho passa de 1 GB e derrubaria a
+máquina — se algum dia você construir no servidor, 2 GB não serve mais.
+
+Duas condições que não são opcionais em 2 GB:
+
+- **Swap de 4 GB** (passo 2). É o que transforma um pico em lentidão em vez de
+  um processo morto.
+- **Tetos de memória por container** (já no `docker-compose.yml`, valores no
+  `.env.exemplo`). Sem eles, os dois ambientes disputam a mesma RAM e quem
+  escolhe a vítima do OOM é o kernel — que pode matar o Postgres de produção
+  por causa de um relatório rodado em dev.
+
+**Disco: 50 GB é o mínimo confortável.** As imagens base somam ~790 MB
+(postgres 453, backend 146, frontend 65, nginx 62, caddy 63) e cada deploy
+traz um backend e um frontend novos, ~211 MB o par. O `deploy.yml` roda
+`docker image prune -af --filter until=168h`, que mantém uma semana de versões
+para rollback e recolhe o resto.
+
+**HostGator** serve: os planos NVMe usam **KVM** com acesso root e disco a
+partir de 50 GB, então Docker roda sem adaptação. O plano NVMe 2 (2 GB) é
+suficiente para começar. Se preferir folga para não pensar no assunto, o de
+4 GB dobra tudo e permite subir os tetos do `.env`.
+
+Qualquer que seja o provedor, prefira uma região no **Brasil**: a diferença
+para a Europa é de ~200 ms por requisição, e o app faz várias por tela.
+
+**Ubuntu 22.04 ou 24.04 LTS**, tanto faz para este projeto — os passos abaixo
+são idênticos nos dois, e ambos já usam cgroup v2, de que os tetos de memória
+por container dependem. O 24.04 tem suporte até 2029 contra 2027 do 22.04;
+se os dois estiverem na lista do provedor, pegue o 24.04. Não precisa de painel
+nem de banco gerenciado nesta escala.
 
 ---
 
@@ -109,9 +143,10 @@ dig +short app.seudominio.com   # tem que devolver o IP da VPS
 sudo mkdir -p /opt/quiron && sudo chown deploy:deploy /opt/quiron
 cd /opt/quiron
 
-git clone https://github.com/FronteiraTec/Quiron.git prod
-git clone https://github.com/FronteiraTec/Quiron.git dev
-cd dev && git checkout develop && cd ..
+# Um clone por ambiente. O nome do diretório é o ambiente; a branch dentro
+# dele é o que decide o que roda ali.
+git clone https://github.com/FronteiraTec/Quiron.git prod          # fica na main
+git clone -b dev https://github.com/FronteiraTec/Quiron.git dev    # fica na dev
 
 # A rede por onde o Caddy alcança os dois ambientes.
 docker network create quiron-borda
@@ -208,10 +243,10 @@ ssh-copy-id -i ~/.ssh/quiron_deploy.pub deploy@IP_DA_VPS
 | `URL_PROD` | `https://app.seudominio.com` |
 | `URL_DEV` | `https://dev.seudominio.com` |
 
-**Branches** — crie a `develop` e proteja a `main`:
+**Branches** — crie a `dev` e proteja a `main`:
 
 ```bash
-git checkout -b develop && git push -u origin develop
+git checkout -b dev && git push -u origin dev
 ```
 
 Em Settings › Branches, exija que a CI passe antes de qualquer merge na `main`.
@@ -244,7 +279,7 @@ Abra `https://app.seudominio.com`. Depois repita em `/opt/quiron/dev`.
 
 A partir daqui:
 
-- **push na `develop`** → CI → imagem → `dev.seudominio.com`
+- **push na `dev`** → CI → imagem → `dev.seudominio.com`
 - **merge na `main`** → CI → imagem → (aprovação) → `app.seudominio.com`
 
 ---

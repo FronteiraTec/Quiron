@@ -1,7 +1,7 @@
 # ===========================================================================
 # DEPLOY.
 #
-#   push em develop  ->  dev.seudominio.com
+#   push em dev  ->  dev.seudominio.com
 #   push em main     ->  app.seudominio.com
 #
 # SEMPRE depois da CI. O job `deploy` declara `needs: ci`, e o `ci` e o
@@ -25,7 +25,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, dev]
   # Permite subir uma versao a mao pela aba Actions — util para rollback.
   workflow_dispatch:
 
@@ -139,8 +139,19 @@ jobs:
             docker compose exec -T backend wget -q --spider http://localhost:3000/health
             echo "deploy de $AMBIENTE concluido na versao $TAG"
 
-            # Imagens antigas se acumulam e enchem o disco do servidor.
-            docker image prune -f --filter "until=168h"
+            # Imagens antigas enchem o disco: cada deploy traz um backend
+            # (~146MB) e um frontend (~65MB) novos, com tag propria.
+            #
+            # O `-a` nao e opcional aqui. Sem ele o prune so recolhe imagens
+            # SEM TAG, e as do GHCR chegam todas com tag — o disco encheria em
+            # silencio ate o deploy falhar por falta de espaco. Com `-a`, sai
+            # tudo que nao esta em uso por um container; as sete no ar
+            # continuam, porque estao referenciadas.
+            #
+            # `until=168h` guarda uma semana de versoes antigas, que sao os
+            # alvos possiveis de rollback.
+            docker image prune -af --filter "until=168h"
+            df -h / | tail -1
 
   fumaca:
     name: Conferir pela internet
