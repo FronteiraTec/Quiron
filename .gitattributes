@@ -1,0 +1,36 @@
+# Fim de linha, decidido pelo repositorio e nao pela configuracao de cada
+# maquina.
+#
+# O motivo concreto: `scripts/backup.sh` roda no Linux da VPS. Se ele for
+# gravado com CRLF, o shebang vira "/usr/bin/env bash\r" e o servidor responde
+#     bad interpreter: /usr/bin/env bash^M: no such file or directory
+# — um erro que nao diz o que aconteceu e some quando voce olha o arquivo.
+#
+# Hoje isso funciona porque o core.autocrlf esta ligado nesta maquina. As
+# regras abaixo tiram a sorte da equacao: valem para qualquer clone, com
+# qualquer configuracao.
+
+# Normaliza no repositorio; no disco cada um recebe o que seu sistema usa.
+* text=auto
+
+# LF obrigatorio: sao lidos por Linux ou por ferramenta que nao tolera CR.
+*.sh            text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.conf          text eol=lf
+Caddyfile       text eol=lf
+Dockerfile      text eol=lf
+.dockerignore   text eol=lf
+.env.exemplo    text eol=lf
+*.sql           text eol=lf
+
+# Binarios: nunca converter.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
