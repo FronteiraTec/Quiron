@@ -644,6 +644,13 @@ CREATE TABLE IF NOT EXISTS conteudo (
     -- sem ela o card usa o icone do tipo. Ver migrations/003_conteudo_logo.sql.
     logo_url     TEXT,
 
+    -- Corpo da AULA no formato do editor de blocos (BlockNote): lista de
+    -- blocos com tipo, props, conteudo inline e filhos. E a fonte de verdade
+    -- do corpo — o HTML e so renderizacao, gerada na leitura.
+    -- NULL = aula ainda no formato antigo (conteudo_bloco, logo abaixo); a
+    -- API converte na leitura. Ver migrations/018_conteudo_documento.sql.
+    documento    JSONB,
+
     criado_por    INTEGER,
     criado_ts     TIMESTAMP NOT NULL DEFAULT NOW(),
     atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -671,7 +678,14 @@ CREATE INDEX IF NOT EXISTS ix_conteudo_tenant_tipo ON conteudo (id_tenant, tipo)
 CREATE INDEX IF NOT EXISTS ix_conteudo_tags        ON conteudo USING GIN (tags);
 
 
--- Corpo da AULA: lista ordenada de blocos (editor estilo Notion).
+-- Corpo da AULA no formato ANTIGO: uma linha por bloco, um TEXT plano em cada.
+--
+-- Substituido por conteudo.documento (JSONB, formato BlockNote), que guarda
+-- estrutura de verdade — negrito no meio da frase, lista aninhada, checklist,
+-- codigo com linguagem. A tabela continua aqui porque as aulas escritas antes
+-- da migracao 018 ainda vivem nela: a API converte estes blocos para documento
+-- na LEITURA, e so grava a conversao quando o autor salva a aula no editor
+-- novo (ai estas linhas sao removidas). Nada novo e escrito aqui.
 CREATE TABLE IF NOT EXISTS conteudo_bloco (
     id_bloco    INTEGER GENERATED ALWAYS AS IDENTITY,
     id_conteudo INTEGER NOT NULL,

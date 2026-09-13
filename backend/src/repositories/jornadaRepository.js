@@ -88,7 +88,7 @@ async function conteudosPorPasso(idPrograma) {
     `${SUBARVORE}
      SELECT tc.id_no,
             c.id_conteudo, c.tipo, c.titulo, c.resumo, c.tags,
-            c.url, c.nome_arquivo, c.duracao
+            c.url, c.nome_arquivo, c.duracao, c.documento
        FROM trilha_conteudo tc
        JOIN conteudo c ON c.id_conteudo = tc.id_conteudo
       WHERE tc.id_no IN (SELECT id_no FROM arv)
@@ -98,7 +98,13 @@ async function conteudosPorPasso(idPrograma) {
   return rows
 }
 
-/** Blocos das aulas referenciadas — para o incubado ler sem outra chamada. */
+/**
+ * Blocos das aulas referenciadas, no formato ANTIGO.
+ *
+ * Aula ja salva no editor novo tem o corpo em `conteudo.documento` e nenhuma
+ * linha aqui; esta consulta so ainda traz alguma coisa para as aulas que
+ * ficaram para tras, que o jornadaService converte antes de responder.
+ */
 async function blocosDosConteudos(idPrograma) {
   const { rows } = await query(
     `${SUBARVORE}

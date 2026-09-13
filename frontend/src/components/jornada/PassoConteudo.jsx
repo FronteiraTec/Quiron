@@ -2,14 +2,20 @@
  * Coluna central: a "aula" do passo. NAO e um formulario — e uma pagina de
  * curso com objetivo, por que, o conteudo ensinado (vindo da Biblioteca) e, so
  * no fim, o espaco de entrega. Inclui o feedback do mentor quando ha ajuste.
+ *
+ * A cara e de PAGINA, no espirito do Notion: coluna de leitura estreita e
+ * centrada, titulo grande, as propriedades do passo logo abaixo dele e secoes
+ * separadas por espaco em branco — nao por cartoes empilhados. O que antes era
+ * caixa (a aula vinda da biblioteca, os materiais, a area de resposta) virou
+ * conteudo correndo na pagina: cada borda a mais rouba largura util, empilha
+ * quinas arredondadas umas dentro das outras e quebra o ritmo vertical.
  */
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react"
 import {
   Box,
   Typography,
   Chip,
   Button,
-  Divider,
   TextField,
   Alert,
   Avatar,
@@ -18,6 +24,7 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  useTheme,
 } from "@mui/material"
 import {
   Flag,
@@ -32,10 +39,14 @@ import {
   OpenInNew,
   PictureAsPdf,
   Close,
+  SellOutlined,
+  CircleOutlined,
+  FormatListNumbered,
 } from "@mui/icons-material"
 import { motion } from "framer-motion"
 import StatusPasso from "./StatusPasso"
 import BlocoView from "./BlocoView"
+import { documentoVazio } from "../editor/documento"
 import PlayerYoutube from "../biblioteca/PlayerYoutube"
 import { ehYoutube } from "../../utils/youtube"
 import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
@@ -48,8 +59,32 @@ import {
 } from "../../services/arquivos"
 import { useAuthStore } from "../../store/authStore"
 
+// O leitor de aulas carrega o BlockNote junto, que nao e pequeno. Em pedaco
+// separado ele so chega quando o incubado abre um passo que ensina uma AULA —
+// passo de video, material ou link nao paga por ele.
+const VisualizadorDocumento = lazy(() => import("../editor/VisualizadorDocumento"))
+
 // Estados em que o incubado ainda pode editar a entrega.
 const EDITAVEL = ["NAO_INICIADA", "RASCUNHO", "AJUSTE"]
+
+/**
+ * Largura da coluna de leitura. O Notion para em ~700px pelo mesmo motivo:
+ * acima disso a linha fica longa demais e o olho perde a linha seguinte. A
+ * coluna central da Jornada e `flex: 1`, ou seja, ia ate onde a tela desse —
+ * em monitor largo o texto atravessava 1300px de ponta a ponta.
+ */
+const LARGURA_LEITURA = 740
+
+/**
+ * Raio de borda desta pagina.
+ *
+ * O raio e preferencia do usuario (theme.js, padrao 12px) e cai bem nos
+ * paineis do resto do sistema. Numa superficie de LEITURA ele atrapalha: com
+ * 12px cada bloco vira uma bolha e as quinas competem com o texto. Aqui o
+ * valor e LIMITADO a 4px — quem configurou quinas retas (0) continua vendo
+ * quinas retas; quem configurou 20 ve 4.
+ */
+const raioPlano = (theme) => `${Math.min(theme.shape.borderRadius, 4)}px`
 
 export default function PassoConteudo({
   passo,
@@ -62,6 +97,8 @@ export default function PassoConteudo({
   temAnterior,
   temProximo,
 }) {
+  const theme = useTheme()
+  const raio = raioPlano(theme)
   const [resposta, setResposta] = useState(passo.entrega.resposta || "")
   // `entrega.anexos` e TEXT[]: cada item pode chegar como objeto, como JSON em
   // string ou como nome solto. Normaliza na entrada para o resto da tela (e o
@@ -147,65 +184,97 @@ export default function PassoConteudo({
     <Box
       component={motion.div}
       key={passo.id}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22 }}
-      sx={{ width: "100%", px: { xs: 2, md: 5, lg: 6 }, py: 4 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18 }}
+      sx={{
+        width: "100%",
+        maxWidth: LARGURA_LEITURA,
+        mx: "auto",
+        px: { xs: 3, md: 4 },
+        pt: { xs: 4, md: 7 },
+        // Respiro grande no fim, como o de uma pagina de documento: a ultima
+        // acao nunca encosta na beirada da area de rolagem.
+        pb: 12,
+      }}
     >
-      {/* Cabecalho */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1 }}>
-        <Chip label={passo.frente} size="small" variant="outlined" />
-        <StatusPasso status={status} variant="chip" />
-        <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
-          Passo {posicao.atual} de {posicao.total}
-        </Typography>
-      </Box>
-      <Typography variant="h4" sx={{ fontWeight: 800, mb: 3 }}>
+      {/* Cabecalho: o titulo vem PRIMEIRO e as propriedades abaixo dele — a
+          ordem de uma pagina de documento. Antes os chips vinham em cima e o
+          titulo aparecia como legenda de uma barra de metadados. */}
+      <Typography
+        component="h1"
+        sx={{
+          fontSize: { xs: 30, md: 40 },
+          fontWeight: 800,
+          letterSpacing: "-0.022em",
+          lineHeight: 1.15,
+          mb: 2.5,
+        }}
+      >
         {passo.titulo}
       </Typography>
 
-      {/* Objetivo */}
-      <SecaoBloco icone={<Flag />} titulo="Objetivo">
-        <Typography sx={{ fontSize: 15.5, lineHeight: 1.6 }}>{passo.objetivo}</Typography>
-      </SecaoBloco>
-
-      {/* Por que */}
-      <Box
-        sx={{
-          display: "flex",
-          gap: 1.5,
-          p: 2,
-          borderRadius: 2,
-          bgcolor: "action.hover",
-          mb: 3,
-        }}
-      >
-        <HelpOutline sx={{ color: "text.secondary", mt: 0.25 }} />
-        <Box>
-          <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary" }}>
-            POR QUE ISSO IMPORTA
+      <Stack spacing={0.25}>
+        <Propriedade icone={<SellOutlined />} rotulo="Frente">
+          <Typography sx={{ fontSize: 14 }}>{passo.frente}</Typography>
+        </Propriedade>
+        <Propriedade icone={<CircleOutlined />} rotulo="Status">
+          <StatusPasso status={status} variant="chip" />
+        </Propriedade>
+        <Propriedade icone={<FormatListNumbered />} rotulo="Posição">
+          <Typography sx={{ fontSize: 14 }}>
+            Passo {posicao.atual} de {posicao.total}
           </Typography>
-          <Typography sx={{ fontSize: 14.5, lineHeight: 1.6 }}>{passo.porque}</Typography>
+        </Propriedade>
+      </Stack>
+
+      {/* Objetivo. Passo sem objetivo simplesmente nao mostra a secao: um
+          cabecalho com nada embaixo so anuncia que falta preencher algo. */}
+      {passo.objetivo && (
+        <SecaoBloco icone={<Flag />} titulo="Objetivo">
+          <Texto>{passo.objetivo}</Texto>
+        </SecaoBloco>
+      )}
+
+      {/* Por que — no formato de "callout": fundo suave, sem borda e sem
+          cabecalho de secao proprio. */}
+      {passo.porque && (
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1.75,
+            p: 2,
+            mt: 3,
+            borderRadius: raio,
+            bgcolor: "action.hover",
+          }}
+        >
+          <HelpOutline sx={{ color: "text.disabled", fontSize: 20, mt: 0.25, flexShrink: 0 }} />
+          <Box>
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, letterSpacing: "0.06em", color: "text.secondary" }}
+            >
+              POR QUE ISSO IMPORTA
+            </Typography>
+            <Texto sx={{ fontSize: 15 }}>{passo.porque}</Texto>
+          </Box>
         </Box>
-      </Box>
+      )}
 
       {/* Descricao */}
-      {passo.descricao && (
-        <Typography sx={{ fontSize: 15.5, lineHeight: 1.7, mb: 3 }}>{passo.descricao}</Typography>
-      )}
+      {passo.descricao && <Texto sx={{ mt: 3 }}>{passo.descricao}</Texto>}
 
       {/* Conteudo ensinado (da Biblioteca) */}
       {conteudos.length > 0 && (
         <SecaoBloco icone={<MenuBook />} titulo="Conteúdo da incubadora">
-          <Stack spacing={2}>
+          <Stack spacing={4}>
             {conteudos.map((c) => (
               <ConteudoEnsinado key={c.id_conteudo} conteudo={c} />
             ))}
           </Stack>
         </SecaoBloco>
       )}
-
-      <Divider sx={{ my: 3 }} />
 
       {/* Devolutiva do mentor (quando ja houve avaliacao) */}
       {passo.entrega.feedback && (
@@ -220,12 +289,12 @@ export default function PassoConteudo({
       {/* Entrega */}
       <SecaoBloco icone={<Send />} titulo="Sua entrega">
         {status === "APROVADO" && (
-          <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+          <Alert severity="success" variant="outlined" sx={{ mb: 2, borderRadius: raio }}>
             Entrega aprovada pelo mentor. Este passo está construído. ✓
           </Alert>
         )}
         {status === "AGUARDANDO" && (
-          <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+          <Alert severity="warning" variant="outlined" sx={{ mb: 2, borderRadius: raio }}>
             Enviado — aguardando a avaliação do mentor.
           </Alert>
         )}
@@ -239,13 +308,13 @@ export default function PassoConteudo({
               if (editavel && !enviandoAnexo) adicionarArquivos(e.dataTransfer.files)
             }}
             sx={{
-              border: "2px dashed",
+              border: "1px dashed",
               borderColor: "divider",
-              borderRadius: 2,
+              borderRadius: raio,
               p: 4,
               textAlign: "center",
               color: "text.secondary",
-              bgcolor: "background.default",
+              bgcolor: "action.hover",
               cursor: editavel ? "pointer" : "default",
               opacity: editavel ? 1 : 0.6,
               transition: "border-color .15s",
@@ -260,7 +329,7 @@ export default function PassoConteudo({
               </>
             ) : (
               <>
-                <UploadFile sx={{ fontSize: 32, opacity: 0.5 }} />
+                <UploadFile sx={{ fontSize: 30, opacity: 0.45 }} />
                 <Typography sx={{ mt: 1, fontWeight: 600 }}>
                   Arraste o PDF ou clique para enviar
                 </Typography>
@@ -277,6 +346,7 @@ export default function PassoConteudo({
             value={resposta}
             onChange={(e) => setResposta(e.target.value)}
             disabled={!editavel}
+            sx={campoDeTexto(raio, editavel)}
           />
         )}
 
@@ -296,11 +366,19 @@ export default function PassoConteudo({
         {/* Anexar PDF em qualquer passo (nao so nos do tipo anexo) */}
         {editavel && !ehAnexo && (
           <Button
-            variant="outlined"
+            variant="text"
+            disableElevation
             startIcon={enviandoAnexo ? <CircularProgress size={16} /> : <PictureAsPdf />}
             onClick={abrirSeletor}
             disabled={enviandoAnexo}
-            sx={{ mt: 1.5, textTransform: "none" }}
+            sx={{
+              mt: 1,
+              ml: -1,
+              textTransform: "none",
+              borderRadius: raio,
+              color: "text.secondary",
+              fontWeight: 600,
+            }}
           >
             {enviandoAnexo ? "Enviando…" : "Anexar PDF"}
           </Button>
@@ -314,7 +392,7 @@ export default function PassoConteudo({
 
         {/* Lista de PDFs anexados */}
         {anexos.length > 0 && (
-          <Stack spacing={1} sx={{ mt: 1.5 }}>
+          <Stack spacing={0.25} sx={{ mt: 1.5 }}>
             {anexos.map((a, i) => {
               const acessivel = anexoAcessivel(a)
               return (
@@ -324,10 +402,12 @@ export default function PassoConteudo({
                     display: "flex",
                     alignItems: "center",
                     gap: 1.5,
-                    p: 1,
-                    borderRadius: 1.5,
-                    border: "1px solid",
-                    borderColor: "divider",
+                    px: 1.25,
+                    py: 1,
+                    mx: -1.25,
+                    borderRadius: raio,
+                    transition: "background-color .12s",
+                    "&:hover": { bgcolor: "action.hover" },
                   }}
                 >
                   <PictureAsPdf sx={{ color: acessivel ? "#ef4444" : "text.disabled" }} />
@@ -379,27 +459,35 @@ export default function PassoConteudo({
             value={resposta}
             onChange={(e) => setResposta(e.target.value)}
             disabled={!editavel}
-            sx={{ mt: 2 }}
+            sx={{ mt: 2, ...campoDeTexto(raio, editavel) }}
           />
         )}
 
         {/* Acoes de entrega */}
         {editavel && (
-          <Box sx={{ display: "flex", gap: 1, mt: 2, flexWrap: "wrap" }}>
+          <Box sx={{ display: "flex", gap: 1, mt: 2.5, flexWrap: "wrap" }}>
             <Button
               variant="outlined"
+              disableElevation
               startIcon={<SaveOutlined />}
               onClick={() => onSalvarRascunho(resposta, anexos)}
-              sx={{ textTransform: "none" }}
+              sx={{
+                textTransform: "none",
+                borderRadius: raio,
+                borderColor: "divider",
+                color: "text.primary",
+                fontWeight: 600,
+              }}
             >
               Salvar rascunho
             </Button>
             <Button
               variant="contained"
+              disableElevation
               startIcon={status === "AJUSTE" ? <Autorenew /> : <Send />}
               disabled={!podeEnviar}
               onClick={() => onEnviar(resposta, anexos)}
-              sx={{ textTransform: "none" }}
+              sx={{ textTransform: "none", borderRadius: raio, fontWeight: 600 }}
             >
               {status === "AJUSTE" ? "Revisar e reenviar" : "Enviar para avaliação"}
             </Button>
@@ -407,14 +495,22 @@ export default function PassoConteudo({
         )}
       </SecaoBloco>
 
-      {/* Navegacao entre passos */}
-      <Divider sx={{ my: 3 }} />
-      <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+      {/* Navegacao entre passos — rodape da pagina, separado por um fio. */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          mt: 8,
+          pt: 2.5,
+          borderTop: "1px solid",
+          borderColor: "divider",
+        }}
+      >
         <Button
           disabled={!temAnterior}
           startIcon={<ArrowBack />}
           onClick={onAnterior}
-          sx={{ textTransform: "none" }}
+          sx={{ textTransform: "none", borderRadius: raio, color: "text.secondary" }}
         >
           Passo anterior
         </Button>
@@ -422,7 +518,7 @@ export default function PassoConteudo({
           disabled={!temProximo}
           endIcon={<ArrowForward />}
           onClick={onProximo}
-          sx={{ textTransform: "none" }}
+          sx={{ textTransform: "none", borderRadius: raio, color: "text.secondary" }}
         >
           Próximo passo
         </Button>
@@ -431,13 +527,88 @@ export default function PassoConteudo({
   )
 }
 
-// Secao com cabecalho de icone + titulo.
+/**
+ * A area de escrita da entrega.
+ *
+ * Um campo de formulario gritaria "preencha o cadastro" no meio de uma pagina
+ * de leitura. Aqui ele e um bloco de texto: fio de 1px na cor do divisor —
+ * inclusive com foco, onde o MUI engrossaria para 2px — e o texto no mesmo
+ * corpo do resto da pagina.
+ */
+const campoDeTexto = (raio, editavel) => ({
+  "& .MuiOutlinedInput-root": {
+    borderRadius: raio,
+    p: 2,
+    fontSize: 15.5,
+    lineHeight: 1.65,
+    bgcolor: editavel ? "transparent" : "action.hover",
+  },
+  "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" },
+  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderWidth: 1 },
+})
+
+// Paragrafo da pagina: um so corpo de texto para objetivo, descricao e callout.
+function Texto({ children, sx }) {
+  return <Typography sx={{ fontSize: 15.5, lineHeight: 1.7, ...sx }}>{children}</Typography>
+}
+
+/**
+ * Uma linha da lista de propriedades do topo: icone e rotulo apagados numa
+ * coluna fixa, valor na outra. E o bloco que o Notion poe entre o titulo e o
+ * corpo — aqui ele acomoda frente, status e posicao sem precisar da barra de
+ * chips que atravessava a tela acima do titulo.
+ */
+function Propriedade({ icone, rotulo, children }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, minHeight: 30 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          width: 132,
+          flexShrink: 0,
+          color: "text.disabled",
+          "& svg": { fontSize: 16 },
+        }}
+      >
+        {icone}
+        <Typography sx={{ fontSize: 13.5 }} color="text.secondary">
+          {rotulo}
+        </Typography>
+      </Box>
+      {children}
+    </Box>
+  )
+}
+
+/**
+ * Cabecalho de secao.
+ *
+ * Era icone colorido + 15px em negrito, do mesmo tamanho do texto que vinha
+ * embaixo — dava para confundir com rotulo de campo. Agora e um titulo de
+ * nivel 2 de verdade, com o icone apagado ao lado, e a separacao entre secoes
+ * vem do espaco acima (mt: 5) em vez de uma linha divisoria.
+ */
 function SecaoBloco({ icone, titulo, children }) {
   return (
-    <Box sx={{ mb: 3 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25, color: "primary.main" }}>
+    <Box sx={{ mt: 5 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          mb: 1.5,
+          color: "text.disabled",
+          "& svg": { fontSize: 18 },
+        }}
+      >
         {icone}
-        <Typography sx={{ fontWeight: 700, fontSize: 15 }} color="text.primary">
+        <Typography
+          component="h2"
+          sx={{ fontWeight: 700, fontSize: 20, letterSpacing: "-0.012em" }}
+          color="text.primary"
+        >
           {titulo}
         </Typography>
       </Box>
@@ -447,35 +618,42 @@ function SecaoBloco({ icone, titulo, children }) {
 }
 
 // Render de um conteudo referenciado: AULA aparece inline (leitura); video do
-// YouTube toca na propria pagina; os demais como cartao de material com link.
+// YouTube toca na propria pagina; os demais como linha de material com link.
 function ConteudoEnsinado({ conteudo }) {
+  const theme = useTheme()
+  const raio = raioPlano(theme)
   const meta = TIPO_CONTEUDO[conteudo.tipo]
   const Icone = meta.icon
 
   if (conteudo.tipo === "AULA") {
+    // Sem moldura: a aula E o corpo da pagina. A caixa com cabecalho tingido
+    // punha um documento inteiro dentro de um cartao dentro da coluna, e
+    // sobrava uma faixa colorida sem funcao no meio da leitura. Ficou so a
+    // credencial em cima, sobre um fio, dizendo de onde o texto veio.
     return (
-      <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
+      <Box>
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             gap: 1,
-            px: 2,
-            py: 1.25,
-            bgcolor: `${meta.cor}12`,
+            pb: 1,
+            mb: 2,
+            borderBottom: "1px solid",
+            borderColor: "divider",
           }}
         >
-          <Icone sx={{ fontSize: 18, color: meta.cor }} />
-          <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{conteudo.titulo}</Typography>
+          <Icone sx={{ fontSize: 16, color: meta.cor, flexShrink: 0 }} />
+          <Typography sx={{ fontWeight: 600, fontSize: 13.5 }} color="text.secondary" noWrap>
+            {conteudo.titulo}
+          </Typography>
           {conteudo.duracao && (
-            <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
+            <Typography variant="caption" color="text.disabled" sx={{ ml: "auto" }}>
               {conteudo.duracao}
             </Typography>
           )}
         </Box>
-        <Box sx={{ px: 2.5, py: 2 }}>
-          <BlocoView blocos={conteudo.blocos} />
-        </Box>
+        <CorpoDaAula conteudo={conteudo} />
       </Box>
     )
   }
@@ -489,7 +667,7 @@ function ConteudoEnsinado({ conteudo }) {
     return (
       <Box>
         <PlayerYoutube url={conteudo.url} duracao={conteudo.duracao} />
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1.25 }}>
           <Icone sx={{ fontSize: 18, color: meta.cor, flexShrink: 0 }} />
           <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{conteudo.titulo}</Typography>
           {conteudo.duracao && (
@@ -507,37 +685,42 @@ function ConteudoEnsinado({ conteudo }) {
     )
   }
 
-  // Material / Template / Link (e video que nao seja do YouTube) -> cartao.
-  const card = (
+  // Material / Template / Link (e video que nao seja do YouTube) -> linha
+  // clicavel, no lugar do cartao com borda. O realce e o fundo que acende no
+  // hover, e ele avanca alem da coluna de texto (mx negativo) para o item
+  // parecer parte da pagina, e nao um objeto apoiado sobre ela.
+  const linha = (
     <Box
       sx={{
         display: "flex",
         alignItems: "center",
         gap: 1.5,
-        p: 1.75,
-        borderRadius: 2,
-        border: "1px solid",
-        borderColor: "divider",
-        transition: "border-color .15s",
-        "&:hover": { borderColor: `${meta.cor}66` },
+        px: 1.25,
+        py: 1.25,
+        mx: -1.25,
+        borderRadius: raio,
+        transition: "background-color .12s",
+        "&:hover": { bgcolor: "action.hover" },
       }}
     >
       <Box
         sx={{
           display: "grid",
           placeItems: "center",
-          width: 38,
-          height: 38,
-          borderRadius: 1.5,
+          width: 32,
+          height: 32,
+          borderRadius: raio,
           bgcolor: `${meta.cor}1f`,
           color: meta.cor,
           flexShrink: 0,
         }}
       >
-        <Icone sx={{ fontSize: 20 }} />
+        <Icone sx={{ fontSize: 18 }} />
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{conteudo.titulo}</Typography>
+        <Typography sx={{ fontWeight: 600, fontSize: 14.5 }} color="text.primary">
+          {conteudo.titulo}
+        </Typography>
         <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
           {conteudo.resumo}
         </Typography>
@@ -548,10 +731,37 @@ function ConteudoEnsinado({ conteudo }) {
 
   return conteudo.url ? (
     <Link href={conteudo.url} target="_blank" rel="noopener" underline="none">
-      {card}
+      {linha}
     </Link>
   ) : (
-    card
+    linha
+  )
+}
+
+/**
+ * O corpo de uma aula.
+ *
+ * A API entrega toda aula como `documento` — inclusive as escritas no editor
+ * antigo, que ela converte na leitura (documentoAula.js, no backend). O
+ * caminho pelos `blocos` continua aqui como rede de seguranca: se por algum
+ * motivo o documento chegar vazio e os blocos nao, o incubado le a aula como
+ * lia antes, em vez de encontrar uma pagina em branco.
+ */
+function CorpoDaAula({ conteudo }) {
+  if (documentoVazio(conteudo.documento) && conteudo.blocos?.length) {
+    return <BlocoView blocos={conteudo.blocos} />
+  }
+
+  return (
+    <Suspense
+      fallback={
+        <Box sx={{ display: "grid", placeItems: "center", py: 4 }}>
+          <CircularProgress size={22} />
+        </Box>
+      }
+    >
+      <VisualizadorDocumento documento={conteudo.documento} />
+    </Suspense>
   )
 }
 
@@ -566,6 +776,7 @@ function ConteudoEnsinado({ conteudo }) {
  * abrir qualquer atividade ja avaliada.
  */
 function FeedbackMentor({ texto, autor, data, ajuste }) {
+  const theme = useTheme()
   const cor = ajuste ? "#f97316" : "#22c55e"
   const nome = autor || "Mentoria"
   // A data vem como "AAAA-MM-DD"; sem hora, entao formata sem passar por Date
@@ -577,16 +788,17 @@ function FeedbackMentor({ texto, autor, data, ajuste }) {
   return (
     <Box
       sx={{
-        mb: 3,
+        mt: 5,
         p: 2.25,
-        borderRadius: 2,
-        border: "1px solid",
-        borderColor: `${cor}55`,
+        borderRadius: raioPlano(theme),
+        // Sem borda em volta: o que marca o bloco e a faixa colorida a
+        // esquerda, do jeito que uma citacao se destaca numa pagina de texto.
+        borderLeft: `3px solid ${cor}`,
         bgcolor: `${cor}10`,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-        <Avatar sx={{ width: 36, height: 36, bgcolor: "secondary.main" }}>
+        <Avatar sx={{ width: 32, height: 32, bgcolor: "secondary.main", fontSize: 14 }}>
           {nome.charAt(0)}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -601,9 +813,7 @@ function FeedbackMentor({ texto, autor, data, ajuste }) {
           sx={{ bgcolor: `${cor}1f`, color: cor, fontWeight: 700 }}
         />
       </Box>
-      <Typography sx={{ fontSize: 15, lineHeight: 1.6, fontStyle: "italic" }}>
-        “{texto}”
-      </Typography>
+      <Typography sx={{ fontSize: 15, lineHeight: 1.65 }}>{texto}</Typography>
     </Box>
   )
 }

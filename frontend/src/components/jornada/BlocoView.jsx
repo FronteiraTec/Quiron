@@ -1,7 +1,14 @@
 /**
- * Render read-only dos blocos de uma AULA da Biblioteca — o incubado LE aqui o
- * que a incubadora autorou no editor de blocos (BlockEditor). Espelha os mesmos
- * tipos: titulo, subtitulo, texto, lista, destaque, video, anexo e divisor.
+ * Render read-only dos blocos de uma AULA no formato ANTIGO.
+ *
+ * O corpo das aulas passou a ser um documento do editor de blocos, e quem o
+ * exibe e o VisualizadorDocumento (components/editor/). A API converte o
+ * formato antigo na leitura, entao na pratica toda aula chega ja convertida
+ * — este arquivo e a rede de seguranca de PassoConteudo para o caso de o
+ * documento vir vazio e os blocos nao.
+ *
+ * Cobre os oito tipos do enum blocoTipo: titulo, subtitulo, texto, lista,
+ * destaque, video, anexo e divisor.
  */
 import { Box, Typography, Divider, Link } from "@mui/material"
 import { Lightbulb, PlayCircleOutline, InsertDriveFile, OpenInNew } from "@mui/icons-material"

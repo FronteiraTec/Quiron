@@ -39,6 +39,7 @@ router.delete("/:id/startups/:idStartup", ctrl.desmatricular)
 router.get("/:id/filhos", ctrl.listarFilhos)
 router.patch("/:id/filhos/ordem", ctrl.reordenarFilhos) // body: { ids: [...] }
 router.patch("/:id/mover", ctrl.mover) // body: { id_pai }
+router.post("/:id/duplicar", ctrl.duplicar) // body: { nome? } — leva a subarvore
 
 // Conteudos da Biblioteca vinculados ao passo
 router.get("/:id/conteudos", ctrl.listarConteudos)

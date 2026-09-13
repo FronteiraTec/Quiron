@@ -7,8 +7,8 @@
  * Programa) apenas o referenciam.
  *
  * Layout: cabecalho com "Novo conteudo" + busca, faixa de filtros (tipo + tag)
- * e uma grade de cards. Editar/criar abre um Drawer lateral (EditorConteudo)
- * que, nas aulas, usa o editor de blocos estilo Notion.
+ * e uma grade de cards. Editar/criar abre o editor em tela cheia (EditorConteudo)
+ * que, nas aulas, usa o editor de blocos (components/editor/, motor BlockNote).
  *
  * Os dados vem da API (/conteudos) via useBiblioteca.
  */
@@ -72,19 +72,22 @@ export default function Biblioteca() {
     }
   }
 
+  /**
+   * Grava as alteracoes do editor.
+   *
+   * NAO avisa em caso de sucesso: quem salva e o proprio editor, sozinho, a
+   * cada pausa na digitacao — um toast por gravacao viraria um desfile de
+   * "Conteúdo salvo" no canto da tela. O aviso de estado fica dentro do
+   * editor (IndicadorSalvamento).
+   *
+   * O erro SOBE em vez de virar toast aqui: o editor precisa saber que a
+   * gravacao falhou para marcar o estado e tentar de novo.
+   *
+   * Tambem nao mexe em `editando`: devolver o conteudo gravado para o editor
+   * reiniciaria o formulario no meio da digitacao seguinte.
+   */
   const salvar = async (id, patch) => {
-    try {
-      const atualizado = await bib.atualizar(id, patch)
-      setEditando((atual) =>
-        atual && atual.id_conteudo === id ? { ...atual, ...atualizado } : atual
-      )
-      setToast({ texto: "Conteúdo salvo.", severidade: "success" })
-    } catch (err) {
-      setToast({
-        texto: err.response?.data?.erro || "Erro ao salvar o conteúdo.",
-        severidade: "error",
-      })
-    }
+    await bib.atualizar(id, patch)
   }
 
   const duplicar = async (conteudo) => {

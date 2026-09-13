@@ -99,6 +99,35 @@ services:
     networks:
       - interna
 
+  # Outro passo que sobe, faz uma coisa e sai: acerta o dono do volume de
+  # uploads.
+  #
+  # POR QUE ELE EXISTE
+  # O Dockerfile ja faz `chown -R node:node /app` — mas no BUILD. Um volume
+  # nomeado e montado POR CIMA daquele diretorio, e leva o dono que ele proprio
+  # ganhou quando nasceu. Volumes criados antes do achado QRN-19 (quando o
+  # container ainda rodava como root) ficaram com `root:root`; desde que a API
+  # passou a rodar como `node`, ela nao escreve mais neles.
+  #
+  # O sintoma nao apontava para ca: todo upload — logo de conteudo, anexo de
+  # entrega, imagem de aula — respondia 500 com EACCES no log, num ambiente
+  # que subia sem nenhum aviso.
+  #
+  # Roda a cada `up`. Num volume ja correto o chown nao muda nada e custa
+  # milissegundos; e o preco de o ambiente nao depender de alguem lembrar.
+  #
+  # Usa a imagem do backend (ja baixada) com `user: root`, so para ter
+  # permissao de trocar o dono — o processo da API continua sem privilegio.
+  permissoes:
+    image: ${IMAGEM_BACKEND:?}
+    user: root
+    command: ["chown", "-R", "node:node", "/app/uploads"]
+    restart: "no"
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - interna
+
   backend:
     image: ${IMAGEM_BACKEND:?}
     restart: always
@@ -139,6 +168,8 @@ services:
       postgres:
         condition: service_healthy
       migracao:
+        condition: service_completed_successfully
+      permissoes:
         condition: service_completed_successfully
     networks:
       - interna

@@ -18,7 +18,7 @@
  *
  * A arvore vem da API (/trilha) via usePrograma.
  */
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import {
   Box,
   Paper,
@@ -73,6 +73,40 @@ export default function Programa() {
   // Toast: { texto, severidade, undo? }.
   const [toast, setToast] = useState(null)
 
+  // O que o Inspector tem por salvar agora. Ele publica nesta ref a cada
+  // renderizacao; aqui so lemos, no momento do clique.
+  const inspetor = useRef(null)
+  // Acao barrada por um rascunho nao salvo: { acao, nome, podeSalvar }.
+  const [pendente, setPendente] = useState(null)
+
+  /**
+   * Executa `acao` — mas se houver rascunho por salvar no Inspector, pergunta
+   * antes em vez de descartar o que foi digitado.
+   *
+   * Trocar de no reseta o formulario do Inspector a partir da prop; sem esta
+   * guarda, clicar no proximo passo para conferir uma coisa apagava em
+   * silencio a descricao que estava sendo escrita.
+   */
+  const comGuarda = (acao) => {
+    const reg = inspetor.current
+    if (reg?.alterado) {
+      setPendente({ acao, nome: reg.nome, podeSalvar: reg.podeSalvar })
+      return
+    }
+    acao()
+  }
+
+  /** Segue com a acao barrada, salvando antes se foi o que pediram. */
+  const resolverPendente = async (salvarAntes) => {
+    const { acao } = pendente
+    setPendente(null)
+
+    if (salvarAntes) await inspetor.current?.salvar()
+    else inspetor.current?.descartar()
+
+    acao()
+  }
+
   // Arvore filtrada pela busca (memoizada).
   const { programa: arvore, matchIds } = useMemo(
     () => prog.filtrar(termo),
@@ -85,12 +119,14 @@ export default function Programa() {
     expandidos: prog.expandidos,
     termo,
     setTermo,
-    setSelecionadoId: (id) => {
-      prog.setSelecionadoId(id)
-      if (!mdUp) setArvoreMobile(false)
-    },
+    setSelecionadoId: (id) =>
+      comGuarda(() => {
+        prog.setSelecionadoId(id)
+        if (!mdUp) setArvoreMobile(false)
+      }),
     alternarExpandido: prog.alternarExpandido,
-    adicionar: prog.adicionar,
+    // Criar tambem troca a selecao para o item novo, entao passa pela guarda.
+    adicionar: (...args) => comGuarda(() => prog.adicionar(...args)),
     reordenar: prog.reordenar,
     abrirMenu: (ancora, no) => setMenu({ ancora, no }),
   }
@@ -119,6 +155,21 @@ export default function Programa() {
     } finally {
       setSalvandoTrilha(false)
     }
+  }
+
+  /**
+   * Duplica a trilha aberta com tudo dentro dela e ja abre a copia — o
+   * caminho para montar a turma seguinte a partir da anterior em vez de
+   * remontar fase por fase.
+   */
+  const duplicarTrilha = async (id) => {
+    setToast({ texto: "Duplicando a trilha…", severidade: "info" })
+    const r = await prog.duplicar(id)
+    setToast(
+      r.ok
+        ? { texto: `Trilha duplicada como "${r.no.nome}".`, severidade: "success" }
+        : { texto: r.erro, severidade: "error" }
+    )
   }
 
   const definirPadrao = async (id) => {
@@ -155,11 +206,18 @@ export default function Programa() {
 
   // Acoes disparadas pelo menu de contexto.
   const acoesMenu = {
-    adicionar: prog.adicionar,
+    adicionar: ctx.adicionar,
     alternarAtivo: prog.alternarAtivo,
     duplicar: async (no) => {
-      await prog.duplicar(no.id_no)
-      setToast({ texto: "Item duplicado.", severidade: "success" })
+      const r = await prog.duplicar(no.id_no)
+      setToast(
+        r.ok
+          ? {
+              texto: `${TIPO_META[no.tipo].label} "${no.nome}" duplicado com todo o conteúdo dentro dele.`,
+              severidade: "success",
+            }
+          : { texto: r.erro, severidade: "error" }
+      )
     },
     excluir: pedirExclusao,
   }
@@ -259,6 +317,7 @@ export default function Programa() {
             programaAtivoId={prog.programaAtivoId}
             onSelecionarPrograma={prog.selecionarPrograma}
             onNovaTrilha={() => setNovaTrilha({ nome: "" })}
+            onDuplicarTrilha={duplicarTrilha}
             onDefinirPadrao={definirPadrao}
             onGerenciarStartups={() => setStartupsAberto(true)}
             onExpandirTodos={prog.expandirTodos}
@@ -291,7 +350,14 @@ export default function Programa() {
                 programa={prog.programa}
                 no={prog.selecionado}
                 trilha={prog.trilha}
-                acoes={prog}
+                // O breadcrumb e a lista de filhos daqui tambem trocam de no:
+                // entram pela mesma guarda de rascunho que a arvore.
+                acoes={{
+                  ...prog,
+                  setSelecionadoId: ctx.setSelecionadoId,
+                  adicionar: ctx.adicionar,
+                }}
+                registro={inspetor}
                 onSalvar={feedbackSalvo}
                 onExcluir={pedirExclusao}
               />
@@ -331,6 +397,14 @@ export default function Programa() {
         }
         onConfirmar={confirmarExclusao}
         onCancelar={() => setConfirmar(null)}
+      />
+
+      {/* Rascunho por salvar barrando a troca de item */}
+      <DialogRascunho
+        pendente={pendente}
+        onSalvar={() => resolverPendente(true)}
+        onDescartar={() => resolverPendente(false)}
+        onCancelar={() => setPendente(null)}
       />
 
       {/* Toast (feedback das acoes) */}
@@ -380,6 +454,48 @@ export default function Programa() {
         )}
       </AnimatePresence>
     </AppLayout>
+  )
+}
+
+/**
+ * Rascunho por salvar barrando a troca de item.
+ *
+ * Tres saidas de proposito. Um confirma-ou-cancela obrigaria a fechar o
+ * dialogo, clicar em Salvar e clicar de novo no item de destino — tres passos
+ * para o caso mais comum, que e "sim, salva isso e me leva pro proximo".
+ */
+function DialogRascunho({ pendente, onSalvar, onDescartar, onCancelar }) {
+  return (
+    <Dialog open={Boolean(pendente)} onClose={onCancelar} maxWidth="xs" fullWidth>
+      <DialogTitle>Alterações não salvas</DialogTitle>
+      <DialogContent dividers>
+        <Typography variant="body2" color="text.secondary">
+          Você mexeu em <strong>{pendente?.nome}</strong> e ainda não salvou.
+        </Typography>
+        {pendente && !pendente.podeSalvar && (
+          <Alert severity="warning" sx={{ mt: 2, borderRadius: "6px" }}>
+            Do jeito que está, não dá para salvar — falta preencher um campo
+            obrigatório. Volte para completar, ou descarte o que mudou.
+          </Alert>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+        <Button onClick={onCancelar} sx={{ textTransform: "none" }}>
+          Voltar
+        </Button>
+        <Button onClick={onDescartar} color="error" sx={{ textTransform: "none" }}>
+          Descartar
+        </Button>
+        <Button
+          onClick={onSalvar}
+          variant="contained"
+          disabled={!pendente?.podeSalvar}
+          sx={{ textTransform: "none" }}
+        >
+          Salvar e continuar
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 

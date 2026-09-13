@@ -85,6 +85,7 @@ function paraServico(body = {}) {
     duracao: "duracao",
     logo_url: "logoUrl",
     blocos: "blocos",
+    documento: "documento",
   }
 
   const saida = {}

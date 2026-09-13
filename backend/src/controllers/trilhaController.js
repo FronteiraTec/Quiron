@@ -84,6 +84,19 @@ async function mover(req, res, next) {
   }
 }
 
+/**
+ * POST /trilha/:id/duplicar — body opcional: { nome }
+ * Copia o no e toda a subarvore dentro dele. Na raiz, e "duplicar trilha".
+ */
+async function duplicar(req, res, next) {
+  try {
+    const no = await trilhaService.duplicar(req.params.id, req.usuario, req.body?.nome)
+    res.status(201).json({ no })
+  } catch (err) {
+    next(err)
+  }
+}
+
 /** GET /trilha/:id/conteudos */
 async function listarConteudos(req, res, next) {
   try {
@@ -237,6 +250,7 @@ module.exports = {
   excluir,
   reordenarFilhos,
   mover,
+  duplicar,
   listarConteudos,
   vincularConteudo,
   desvincularConteudo,

@@ -327,42 +327,42 @@ export function usePrograma() {
 
   // ---------------------------------------------------------------- duplicar
   /**
-   * Duplica um no copiando seus campos. A copia entra no fim da lista de
-   * irmaos; a subarvore NAO e copiada (o servidor nao tem essa operacao, e
-   * duplicar recursivamente do cliente geraria uma cascata de chamadas).
+   * Duplica um no com TUDO que esta dentro dele.
+   *
+   * A copia da subarvore acontece no servidor, numa transacao
+   * (POST /trilha/:id/duplicar). Antes isto era um POST daqui que copiava so
+   * os campos do proprio no: duplicar uma fase devolvia uma fase vazia
+   * chamada "(copia)", e quem queria a fase inteira remontava os modulos e
+   * passos a mao.
+   *
+   * Duplicar a RAIZ cria outra trilha do tenant. Ai muda a lista do seletor e
+   * a copia e uma arvore que ainda nao esta carregada, entao o caminho e o
+   * mesmo de criar uma trilha: recarrega a lista e abre a nova.
    */
   const duplicar = useCallback(
     async (id) => {
-      if (!programa) return
-      const no = acharNo([programa], id)
-      const caminho = caminhoAte([programa], id)
-      if (!no || !caminho) return
-
-      const pai = caminho[caminho.length - 2]
-      if (!pai) return
-
       try {
-        const { data } = await api.post("/trilha", {
-          id_tenant: idTenant,
-          id_pai: pai.id_no,
-          nome: `${no.nome} (cópia)`,
-          descricao: no.descricao,
-          ...(no.tipo === "PASSO" && {
-            tipo_passo: no.tipo_passo,
-            permite_entrega: no.permite_entrega,
-            obrigatoria: no.obrigatoria,
-            prazo: no.prazo,
-            carga_horaria: no.carga_horaria,
-            entregavel: no.entregavel,
-          }),
-        })
-        await carregar(programaAtivoId)
-        setSelecionadoId(data.no.id_no)
+        const { data } = await api.post(`/trilha/${id}/duplicar`)
+
+        if (data.no.tipo === "PROGRAMA") {
+          localStorage.setItem(chaveUltima(idTenant), String(data.no.id_no))
+          setSelecionadoId(null)
+          setExpandidos({})
+          await carregarProgramas(data.no.id_no)
+          await carregar(data.no.id_no)
+        } else {
+          await carregar(programaAtivoId)
+          setSelecionadoId(data.no.id_no)
+        }
+
+        return { ok: true, no: data.no }
       } catch (err) {
-        setErro(err.response?.data?.erro || "Erro ao duplicar.")
+        const erro = err.response?.data?.erro || "Erro ao duplicar."
+        setErro(erro)
+        return { ok: false, erro }
       }
     },
-    [programa, idTenant, carregar, programaAtivoId]
+    [idTenant, carregar, carregarProgramas, programaAtivoId]
   )
 
   // ------------------------------------------------------------------ busca

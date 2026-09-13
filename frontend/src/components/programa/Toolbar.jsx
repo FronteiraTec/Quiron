@@ -34,6 +34,7 @@ import {
   StarBorder,
   Groups,
   Check,
+  ContentCopy,
 } from "@mui/icons-material"
 
 export default function Toolbar({
@@ -41,6 +42,7 @@ export default function Toolbar({
   programaAtivoId,
   onSelecionarPrograma,
   onNovaTrilha,
+  onDuplicarTrilha,
   onDefinirPadrao,
   onGerenciarStartups,
   onExpandirTodos,
@@ -224,8 +226,26 @@ export default function Toolbar({
           <ListItemIcon>
             <Add fontSize="small" color="primary" />
           </ListItemIcon>
-          <ListItemText primary="Nova trilha" />
+          <ListItemText primary="Nova trilha" secondary="Nasce vazia" secondaryTypographyProps={{ fontSize: 12 }} />
         </MenuItem>
+
+        {ativa && (
+          <MenuItem
+            onClick={() => {
+              setMenuTrilhas(null)
+              onDuplicarTrilha?.(ativa.id_no)
+            }}
+          >
+            <ListItemIcon>
+              <ContentCopy fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Duplicar esta trilha"
+              secondary="Copia fases, módulos e passos — sem as startups"
+              secondaryTypographyProps={{ fontSize: 12 }}
+            />
+          </MenuItem>
+        )}
 
         {ativa && !ativa.padrao && (
           <MenuItem

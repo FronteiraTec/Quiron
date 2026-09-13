@@ -7,14 +7,20 @@
  * referencia (ver trilhaRepository.vincularConteudo).
  */
 const { query, withTransaction } = require("../config/db")
+const { documentoDe } = require("../services/documentoAula")
 
 const CAMPOS = [
   "id_conteudo", "id_tenant", "tipo", "titulo", "resumo", "tags",
-  "url", "nome_arquivo", "duracao", "logo_url",
+  "url", "nome_arquivo", "duracao", "logo_url", "documento",
   "criado_por", "criado_ts", "atualizado_ts",
 ]
 
-const cols = (prefixo = "") => CAMPOS.map((c) => prefixo + c).join(", ")
+// A LISTAGEM nao traz o documento: a grade do acervo mostra titulo, resumo e
+// tags, e arrastar o corpo inteiro de cada aula so para desenhar um card
+// multiplicaria a resposta por nada. Quem precisa do corpo busca por id.
+const COLUNAS_LISTA = CAMPOS.filter((c) => c !== "documento")
+
+const cols = (prefixo = "", campos = CAMPOS) => campos.map((c) => prefixo + c).join(", ")
 const COLUNAS = cols()
 
 /**
@@ -54,7 +60,7 @@ async function listarPorTenant(idTenant, filtros = {}) {
   }
 
   const { rows } = await query(
-    `SELECT ${cols("c.")},
+    `SELECT ${cols("c.", COLUNAS_LISTA)},
             COALESCE(u.usos, '[]'::json) AS usos
        FROM conteudo c
        LEFT JOIN LATERAL (
@@ -93,8 +99,14 @@ async function contarPorTipo(idTenant) {
 }
 
 /**
- * Busca um conteudo pelo id, com os blocos (quando AULA) e a lista de passos
+ * Busca um conteudo pelo id, com o corpo (quando AULA) e a lista de passos
  * que o referenciam.
+ *
+ * A AULA sai daqui SEMPRE com `documento` preenchido, mesmo quando a coluna
+ * esta nula: nesse caso ele e derivado de `conteudo_bloco`, o formato de
+ * antes da migracao 018. Quem le nao precisa saber de que epoca e a aula.
+ * `blocos` continua indo junto para nao quebrar consumidor antigo — mas so
+ * tem conteudo enquanto a aula nao for salva no editor novo.
  */
 async function buscarPorId(id) {
   const { rows } = await query(
@@ -106,6 +118,7 @@ async function buscarPorId(id) {
 
   if (conteudo.tipo === "AULA") {
     conteudo.blocos = await listarBlocos(id)
+    conteudo.documento = documentoDe(conteudo, conteudo.blocos)
   }
   conteudo.usos = await listarUsos(id)
 
@@ -140,30 +153,37 @@ async function listarUsos(idConteudo) {
   return rows
 }
 
-/** Cria um conteudo. Os blocos, quando houver, entram na mesma transacao. */
+/** Cria um conteudo. O corpo da aula, quando houver, entra na mesma transacao. */
 async function criar(dados) {
   const {
     idTenant, tipo, titulo, resumo = null, tags = [],
     url = null, nomeArquivo = null, duracao = null, logoUrl = null,
-    criadoPor = null, blocos = null,
+    criadoPor = null, blocos = null, documento = null,
   } = dados
 
   return withTransaction(async (client) => {
     const { rows } = await client.query(
       `INSERT INTO conteudo (
          id_tenant, tipo, titulo, resumo, tags, url, nome_arquivo, duracao,
-         logo_url, criado_por
+         logo_url, documento, criado_por
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING ${COLUNAS}`,
       [idTenant, tipo, titulo, resumo, tags, url, nomeArquivo, duracao,
-       logoUrl, criadoPor]
+       logoUrl, documento === null ? null : JSON.stringify(documento), criadoPor]
     )
     const conteudo = rows[0]
 
+    // `blocos` no create so chega de cliente antigo; o editor de hoje manda
+    // `documento`. Continua aceito para nao quebrar quem ainda chama assim.
     if (tipo === "AULA" && Array.isArray(blocos)) {
       await gravarBlocos(client, conteudo.id_conteudo, blocos)
       conteudo.blocos = await listarBlocosNaTransacao(client, conteudo.id_conteudo)
+    }
+
+    if (tipo === "AULA") {
+      conteudo.blocos = conteudo.blocos ?? []
+      conteudo.documento = documentoDe(conteudo, conteudo.blocos)
     }
 
     return conteudo
@@ -180,19 +200,34 @@ const CAMPOS_EDITAVEIS = {
   logoUrl: "logo_url",
 }
 
+// `pg` manda array JS como array do Postgres, e a coluna e JSONB — por isso o
+// documento e serializado a mao antes de virar parametro.
+const serializar = (chave, valor) =>
+  chave === "documento" ? JSON.stringify(valor) : valor
+
 /**
- * Aplica um patch ao conteudo. Quando `blocos` vem no patch, a lista inteira e
- * substituida (apaga e regrava) — o editor sempre manda o documento completo,
- * e reconciliar bloco a bloco seria mais caro e mais fragil que reescrever.
+ * Aplica um patch ao conteudo.
+ *
+ * O editor sempre manda o corpo INTEIRO, nunca um delta: reconciliar bloco a
+ * bloco seria mais caro e mais fragil que reescrever. Vale tanto para
+ * `documento` (o formato de hoje) quanto para `blocos` (o de antes).
+ *
+ * Gravar `documento` APAGA as linhas de `conteudo_bloco` daquela aula. E a
+ * hora em que a conversao do formato antigo deixa de ser feita na leitura e
+ * vira o que esta no banco; manter as duas copias significaria duas versoes
+ * do mesmo corpo divergindo em silencio a cada edicao.
  */
 async function atualizar(id, patch) {
   return withTransaction(async (client) => {
     const sets = []
     const valores = []
 
-    for (const [chave, coluna] of Object.entries(CAMPOS_EDITAVEIS)) {
+    const editaveis = { ...CAMPOS_EDITAVEIS }
+    if (patch.documento !== undefined) editaveis.documento = "documento"
+
+    for (const [chave, coluna] of Object.entries(editaveis)) {
       if (patch[chave] !== undefined) {
-        valores.push(patch[chave])
+        valores.push(serializar(chave, patch[chave]))
         sets.push(`${coluna} = $${valores.length}`)
       }
     }
@@ -219,7 +254,9 @@ async function atualizar(id, patch) {
 
     if (!conteudo) return undefined
 
-    if (Array.isArray(patch.blocos)) {
+    if (Array.isArray(patch.documento)) {
+      await client.query(`DELETE FROM conteudo_bloco WHERE id_conteudo = $1`, [id])
+    } else if (Array.isArray(patch.blocos)) {
       await client.query(`DELETE FROM conteudo_bloco WHERE id_conteudo = $1`, [id])
       await gravarBlocos(client, id, patch.blocos)
       await client.query(
@@ -230,6 +267,7 @@ async function atualizar(id, patch) {
 
     if (conteudo.tipo === "AULA") {
       conteudo.blocos = await listarBlocosNaTransacao(client, id)
+      conteudo.documento = documentoDe(conteudo, conteudo.blocos)
     }
 
     return conteudo
@@ -269,10 +307,10 @@ async function duplicar(id) {
     const { rows } = await client.query(
       `INSERT INTO conteudo (
          id_tenant, tipo, titulo, resumo, tags, url, nome_arquivo, duracao,
-         logo_url, criado_por
+         logo_url, documento, criado_por
        )
        SELECT id_tenant, tipo, titulo || ' (copia)', resumo, tags,
-              url, nome_arquivo, duracao, logo_url, criado_por
+              url, nome_arquivo, duracao, logo_url, documento, criado_por
          FROM conteudo WHERE id_conteudo = $1
        RETURNING ${COLUNAS}`,
       [id]
@@ -280,6 +318,8 @@ async function duplicar(id) {
     const copia = rows[0]
     if (!copia) return undefined
 
+    // A copia leva os dois formatos como estavam: aula ja convertida copia o
+    // documento (e nao tem blocos), aula antiga copia os blocos.
     await client.query(
       `INSERT INTO conteudo_bloco (id_conteudo, tipo, ordem, texto, url, nome, variante)
        SELECT $1, tipo, ordem, texto, url, nome, variante
@@ -289,6 +329,7 @@ async function duplicar(id) {
 
     if (copia.tipo === "AULA") {
       copia.blocos = await listarBlocosNaTransacao(client, copia.id_conteudo)
+      copia.documento = documentoDe(copia, copia.blocos)
     }
 
     return copia

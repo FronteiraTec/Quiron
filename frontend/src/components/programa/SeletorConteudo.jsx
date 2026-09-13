@@ -5,6 +5,10 @@
  * E o que liga o Construtor de Programa (admin) a Biblioteca: o Passo nao
  * recria conteudo, ele aponta para o que ja existe. Os itens ja adicionados
  * saem da lista de disponiveis.
+ *
+ * Cada item sai com o LOGO do conteudo (o mesmo quadro do acervo), nao com o
+ * icone do tipo: numa incubadora com dez aulas na lista, dez quadradinhos
+ * iguais nao ajudam a achar a certa.
  */
 import { useEffect, useState } from "react"
 import {
@@ -21,6 +25,7 @@ import {
 } from "@mui/material"
 import { Search, AddCircleOutline, Close } from "@mui/icons-material"
 import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
+import LogoConteudo from "../biblioteca/LogoConteudo"
 import api from "../../services/api"
 import { useAuthStore } from "../../store/authStore"
 
@@ -104,7 +109,6 @@ export default function SeletorConteudo({ aberto, jaSelecionados = [], onAdicion
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {disponiveis.map((c) => {
               const meta = TIPO_CONTEUDO[c.tipo]
-              const Icone = meta.icon
               return (
                 <Box
                   key={c.id_conteudo}
@@ -121,20 +125,7 @@ export default function SeletorConteudo({ aberto, jaSelecionados = [], onAdicion
                     "&:hover": { borderColor: `${meta.cor}66`, bgcolor: "action.hover" },
                   }}
                 >
-                  <Box
-                    sx={{
-                      display: "grid",
-                      placeItems: "center",
-                      width: 34,
-                      height: 34,
-                      borderRadius: 1.5,
-                      bgcolor: `${meta.cor}1f`,
-                      color: meta.cor,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Icone sx={{ fontSize: 18 }} />
-                  </Box>
+                  <LogoConteudo conteudo={c} tamanho={34} fonteIcone={18} />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography sx={{ fontWeight: 700, fontSize: 14 }} noWrap>
                       {c.titulo}

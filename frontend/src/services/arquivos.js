@@ -107,6 +107,72 @@ export function anexoAcessivel(anexo) {
   return /^https?:\/\//i.test(url) || url.startsWith("/")
 }
 
+/**
+ * Reduz uma imagem antes de envia-la, preservando a proporcao.
+ *
+ * POR QUE: o regime PUBLICO aceita no maximo 2MB (arquivoService) e uma foto
+ * de celular passa disso sozinha. Mesmo cabendo, subir 4000px para exibir
+ * numa coluna de 700 gasta disco aqui e banda de quem le depois.
+ *
+ * Difere do redutor do logo (LogoConteudo), que encaixa a imagem num quadrado
+ * transparente porque os logos convivem numa grade e precisam do mesmo
+ * tamanho. Imagem no meio de uma aula nao: ela mantem a forma que tem.
+ *
+ * GIF passa direto — rasterizar num canvas guardaria so o primeiro quadro, e
+ * uma animacao viraria uma imagem parada sem ninguem pedir.
+ *
+ * @param {File} arquivo
+ * @param {{ladoMax?: number, qualidade?: number}} [opcoes]
+ * @returns {Promise<File>} o proprio arquivo quando nao ha o que reduzir
+ */
+export function reduzirImagem(arquivo, { ladoMax = 1600, qualidade = 0.85 } = {}) {
+  return new Promise((resolve, reject) => {
+    if (!arquivo.type.startsWith("image/") || arquivo.type === "image/gif") {
+      resolve(arquivo)
+      return
+    }
+
+    const leitor = new FileReader()
+    leitor.onerror = () => reject(new Error("Não foi possível ler a imagem."))
+    leitor.onload = () => {
+      const img = new Image()
+      img.onerror = () => reject(new Error("Arquivo de imagem inválido."))
+      img.onload = () => {
+        const escala = Math.min(1, ladoMax / Math.max(img.width, img.height))
+
+        // Ja cabe: devolve o original em vez de recodificar, o que so
+        // perderia qualidade sem ganhar bytes.
+        if (escala === 1) {
+          resolve(arquivo)
+          return
+        }
+
+        const canvas = document.createElement("canvas")
+        canvas.width = Math.round(img.width * escala)
+        canvas.height = Math.round(img.height * escala)
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height)
+
+        // PNG continua PNG por causa da transparencia; o resto sai JPEG, que
+        // e menor para fotografia.
+        const tipo = arquivo.type === "image/png" ? "image/png" : "image/jpeg"
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Não foi possível processar a imagem."))
+              return
+            }
+            resolve(new File([blob], arquivo.name, { type: tipo }))
+          },
+          tipo,
+          qualidade
+        )
+      }
+      img.src = leitor.result
+    }
+    leitor.readAsDataURL(arquivo)
+  })
+}
+
 /** Formata bytes para exibicao ("1,4 MB"). */
 export function formatarTamanho(bytes) {
   if (!bytes && bytes !== 0) return ""

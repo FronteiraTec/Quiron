@@ -14,6 +14,7 @@ const jornadaRepository = require("../repositories/jornadaRepository")
 const startupRepository = require("../repositories/startupRepository")
 const trilhaRepository = require("../repositories/trilhaRepository")
 const notificacaoService = require("./notificacaoService")
+const { documentoDe } = require("./documentoAula")
 const { erroNegocio } = require("../utils/erros")
 
 /**
@@ -132,7 +133,9 @@ async function carregar(idStartup, idPrograma) {
   // A tela espera um mentor; havendo varios, mostra o primeiro.
   const mentor = mentores[0] ? { nome: mentores[0].nome, online: false } : null
 
-  // Blocos agrupados por conteudo (as aulas chegam prontas para leitura).
+  // Corpo das aulas agrupado por conteudo (chegam prontas para leitura).
+  // Os blocos so existem para as aulas anteriores a migracao 018; para elas,
+  // o `documento` que o leitor recebe e derivado aqui (documentoAula.js).
   const blocosPorConteudo = new Map()
   for (const b of blocos) {
     if (!blocosPorConteudo.has(b.id_conteudo)) blocosPorConteudo.set(b.id_conteudo, [])
@@ -161,6 +164,7 @@ async function carregar(idStartup, idPrograma) {
       nome_arquivo: c.nome_arquivo,
       duracao: c.duracao,
       blocos: blocosPorConteudo.get(c.id_conteudo) ?? [],
+      documento: documentoDe(c, blocosPorConteudo.get(c.id_conteudo) ?? []),
     })
   }
 

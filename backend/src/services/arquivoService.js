@@ -59,9 +59,35 @@ const MIMES_PRIVADO = [...MIMES_IMAGEM, ...MIMES_DOCUMENTO]
 // baixa. HTML nunca entra na lista (ver o comentario do SVG acima).
 const EXIBIVEIS_INLINE = [...MIMES_IMAGEM, "application/pdf", "text/plain"]
 
-/** Garante que o diretorio existe. Roda na subida da API. */
+/**
+ * Garante que o diretorio existe E que da para escrever nele. Roda na subida.
+ *
+ * A checagem de ESCRITA nao e preciosismo. `mkdirSync` num diretorio que JA
+ * EXISTE devolve sucesso mesmo sem permissao de escrita — entao o boot passava
+ * limpo e a falha so aparecia depois, um upload por vez, como 500 com EACCES
+ * enterrado no log. Foi exatamente o que aconteceu com o volume de uploads
+ * criado antes do QRN-19, quando o container ainda rodava como root: o volume
+ * ficou `root:root`, a API passou a rodar como `node`, e todo envio de arquivo
+ * parou de funcionar sem que nada na subida reclamasse.
+ *
+ * A sonda abaixo transforma isso num erro nomeado, na primeira linha do log.
+ */
 function prepararDiretorio() {
   fsSync.mkdirSync(UPLOAD_DIR, { recursive: true })
+
+  const sonda = path.join(UPLOAD_DIR, `.escrita-${process.pid}`)
+  try {
+    fsSync.writeFileSync(sonda, "")
+    fsSync.unlinkSync(sonda)
+  } catch (err) {
+    throw new Error(
+      `Sem permissao de escrita em ${UPLOAD_DIR} (${err.code}). ` +
+        "TODO upload vai falhar: logo de conteudo, anexo de entrega, imagem de aula. " +
+        "O dono do volume precisa ser o usuario que roda a API (node, uid 1000) — " +
+        'e o que o servico "permissoes" do docker-compose.yml acerta a cada subida.'
+    )
+  }
+
   return UPLOAD_DIR
 }
 

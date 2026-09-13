@@ -6,12 +6,26 @@
  *   - nome (obrigatorio, com validacao) e descricao
  *   - para Fase/Modulo: resumo e lista clicavel do que ja existe dentro dele,
  *     com atalho para adicionar o proximo filho sem voltar para a arvore
- *   - campos especificos da tarefa (prazo/carga/entregavel e o conteudo
- *     ensinado, puxado da Biblioteca)
+ *   - para o Passo: o conteudo ensinado (puxado da Biblioteca), o que a
+ *     startup faz nele (se entrega algo, em que forma e sob qual
+ *     questionario), a moldura pedagogica e prazo/carga/entregavel
  *   - botoes Salvar / Cancelar (habilitados so quando ha alteracoes validas),
  *     com atalho Ctrl/Cmd+Enter para salvar
  *
  * O formulario mantem um rascunho local; ao trocar de no ou salvar, sincroniza.
+ * Quem barra a troca de no com rascunho pendente e o Construtor, pela ref
+ * `registro` que este painel publica.
+ *
+ * O CONTEUDO ENSINADO vem primeiro no Passo. Antes era a ultima secao, depois
+ * de entrega, moldura pedagogica e prazo — mas quem monta a trilha comeca
+ * escolhendo o que vai ensinar; a entrega e a consequencia disso, nao o
+ * contrario. Deixar a Biblioteca no fim do rolamento fazia o passo nascer com
+ * formulario preenchido e sem conteudo nenhum.
+ *
+ * "O que a startup faz aqui" so existe desde 13/09/2026. Ate entao o passo
+ * nascia com permite_entrega = FALSE (o default da coluna) e nao havia campo
+ * nenhum para mudar isso: a trilha ficava montada e bonita, e a incubada
+ * levava "O passo nao aceita entregas" ao tentar enviar.
  */
 import { useEffect, useMemo, useState } from "react"
 import {
@@ -28,6 +42,7 @@ import {
   IconButton,
   Tooltip,
   MenuItem,
+  Alert,
 } from "@mui/material"
 import {
   Save,
@@ -42,13 +57,51 @@ import {
   ChevronRight,
 } from "@mui/icons-material"
 import { motion } from "framer-motion"
-import { TIPO_META } from "../../data/trilhaMeta"
+import { TIPO_META, TIPOS_PASSO } from "../../data/trilhaMeta"
 import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
 import { AREAS_EMPRESA } from "../../data/jornadaMeta"
 import api from "../../services/api"
+import { useAuthStore } from "../../store/authStore"
 import Breadcrumb from "./Breadcrumb"
 import EmptyState from "./EmptyState"
 import SeletorConteudo from "./SeletorConteudo"
+import LogoConteudo from "../biblioteca/LogoConteudo"
+
+// Rotulo de cada tipo de entrega na voz de quem monta a trilha: a pergunta
+// nao e "qual o tipo do passo", e "o que a startup manda de volta".
+const ENTREGA_LABEL = {
+  TEXTO: "Uma resposta escrita",
+  ANEXO: "Um arquivo (PDF)",
+  VIDEO: "Um vídeo",
+  QUESTIONARIO: "As respostas de um questionário",
+}
+
+/**
+ * Normaliza os quatro campos que definem o que a startup FAZ no passo.
+ *
+ * Eles andam juntos: mandar um sem o outro deixa o banco num estado que a
+ * CHECK ck_trilha_no_questionario recusa — um id_questionario preso a um passo
+ * que deixou de ser do tipo QUESTIONARIO. Aqui eles saem sempre coerentes:
+ * sem entrega nao ha tipo, e sem tipo QUESTIONARIO nao ha questionario.
+ */
+function entregaDoPasso(form) {
+  if (!form.permite_entrega) {
+    return {
+      permite_entrega: false,
+      tipo_passo: null,
+      id_questionario: null,
+      obrigatoria: Boolean(form.obrigatoria),
+    }
+  }
+
+  const tipo = form.tipo_passo || "TEXTO"
+  return {
+    permite_entrega: true,
+    tipo_passo: tipo,
+    id_questionario: tipo === "QUESTIONARIO" ? form.id_questionario || null : null,
+    obrigatoria: Boolean(form.obrigatoria),
+  }
+}
 
 // Vocabulario de competencias. Lista fixa para as etiquetas ficarem
 // consistentes entre passos — texto livre viraria "Pesquisa", "pesquisas",
@@ -66,7 +119,19 @@ const COMPETENCIAS = [
   "Pitch",
 ]
 
-export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, onExcluir }) {
+export default function InspectorPanel({
+  programa,
+  no,
+  trilha,
+  acoes,
+  onSalvar,
+  onExcluir,
+  // Ref onde este painel publica o estado do rascunho. E por ela que o
+  // Construtor sabe que ha alteracao por salvar antes de trocar de no.
+  registro,
+}) {
+  const idTenant = useAuthStore((s) => s.usuario?.id_tenant ?? null)
+
   // Rascunho local do formulario. Os Hooks precisam rodar sempre, em toda
   // renderizacao (mesmo quando `no` e null), entao ficam todos antes do
   // "return" antecipado abaixo — chama-los depois de um return condicional
@@ -92,6 +157,30 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
   // nao no formulario: vincular e desvincular valem na hora, sem passar pelo
   // botao Salvar — que cuida apenas dos campos do proprio no.
   const [conteudosSel, setConteudosSel] = useState([])
+
+  // Questionarios do tenant, para o passo que cobra um. Carregados so quando
+  // o seletor precisa deles — a maioria dos passos nunca abre essa lista.
+  const [questionarios, setQuestionarios] = useState([])
+  const precisaQuestionarios =
+    no?.tipo === "PASSO" && form?.permite_entrega && form?.tipo_passo === "QUESTIONARIO"
+
+  useEffect(() => {
+    if (!precisaQuestionarios || !idTenant) return
+
+    let cancelado = false
+    api
+      .get("/questionarios", { params: { id_tenant: idTenant } })
+      .then(({ data }) => {
+        if (!cancelado) setQuestionarios(data.questionarios)
+      })
+      .catch(() => {
+        if (!cancelado) setQuestionarios([])
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [precisaQuestionarios, idTenant])
 
   useEffect(() => {
     if (no?.tipo !== "PASSO") {
@@ -126,9 +215,73 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
       (form.objetivo ?? "") !== (no.objetivo ?? "") ||
       (form.porque ?? "") !== (no.porque ?? "") ||
       (form.area ?? "") !== (no.area ?? "") ||
+      Boolean(form.permite_entrega) !== Boolean(no.permite_entrega) ||
+      Boolean(form.obrigatoria) !== Boolean(no.obrigatoria) ||
+      (form.tipo_passo ?? "") !== (no.tipo_passo ?? "") ||
+      (form.id_questionario ?? "") !== (no.id_questionario ?? "") ||
       JSON.stringify(form.competencias ?? []) !== JSON.stringify(no.competencias ?? [])
     )
   }, [form, no])
+
+  const nomeVazio = !form?.nome?.trim()
+  // Um passo que cobra questionario sem questionario escolhido nao tem o que
+  // mostrar ao incubado — e o banco recusa a combinacao invertida.
+  const faltaQuestionario = Boolean(
+    form?.permite_entrega && form?.tipo_passo === "QUESTIONARIO" && !form?.id_questionario
+  )
+  const podeSalvar = alterado && !nomeVazio && !faltaQuestionario
+
+  const setCampo = (campo) => (e) =>
+    setForm((f) => ({ ...f, [campo]: e.target.value }))
+
+  const alternarCompetencia = (c) =>
+    setForm((f) => {
+      const atuais = f.competencias || []
+      return {
+        ...f,
+        competencias: atuais.includes(c)
+          ? atuais.filter((x) => x !== c)
+          : [...atuais, c],
+      }
+    })
+
+  const salvar = async () => {
+    if (!no || !podeSalvar) return
+    const atualizado = await acoes.atualizar(no.id_no, {
+      nome: form.nome.trim(),
+      descricao: form.descricao,
+      ativo: form.ativo,
+      ...(no.tipo === "PASSO" && {
+        prazo: form.prazo || null,
+        carga_horaria: form.carga_horaria,
+        entregavel: form.entregavel,
+        objetivo: form.objetivo,
+        porque: form.porque,
+        competencias: form.competencias || [],
+        // String vazia viraria uma area invalida; o banco espera NULL.
+        area: form.area || null,
+        ...entregaDoPasso(form),
+      }),
+    })
+
+    // Realinha o rascunho com o que o servidor gravou de fato. Sem isto um
+    // campo que volta normalizado — o prazo sai DATE e chega ISO — deixa o
+    // formulario "alterado" para sempre depois de salvar: o ponto laranja nao
+    // apagava, e a guarda de rascunho perguntaria a cada troca de item.
+    if (atualizado) setForm((f) => ({ ...f, ...atualizado }))
+
+    onSalvar?.()
+  }
+
+  const cancelar = () => setForm(no)
+
+  // Publica o rascunho para o Construtor. Sem array de dependencias de
+  // proposito: o pai le isto no clique, e o que ele precisa e sempre o estado
+  // da ultima renderizacao — inclusive o `salvar` com o form atual dentro.
+  useEffect(() => {
+    if (!registro) return
+    registro.current = no ? { alterado, podeSalvar, nome: no.nome, salvar, descartar: cancelar } : null
+  })
 
   if (!no) {
     return (
@@ -171,45 +324,6 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
       /* mantem a lista como esta */
     }
   }
-
-  const nomeVazio = !form.nome?.trim()
-  const podeSalvar = alterado && !nomeVazio
-
-  const setCampo = (campo) => (e) =>
-    setForm((f) => ({ ...f, [campo]: e.target.value }))
-
-  const alternarCompetencia = (c) =>
-    setForm((f) => {
-      const atuais = f.competencias || []
-      return {
-        ...f,
-        competencias: atuais.includes(c)
-          ? atuais.filter((x) => x !== c)
-          : [...atuais, c],
-      }
-    })
-
-  const salvar = async () => {
-    if (!podeSalvar) return
-    await acoes.atualizar(no.id_no, {
-      nome: form.nome.trim(),
-      descricao: form.descricao,
-      ativo: form.ativo,
-      ...(no.tipo === "PASSO" && {
-        prazo: form.prazo || null,
-        carga_horaria: form.carga_horaria,
-        entregavel: form.entregavel,
-        objetivo: form.objetivo,
-        porque: form.porque,
-        competencias: form.competencias || [],
-        // String vazia viraria uma area invalida; o banco espera NULL.
-        area: form.area || null,
-      }),
-    })
-    onSalvar?.()
-  }
-
-  const cancelar = () => setForm(no)
 
   return (
     <motion.div
@@ -433,6 +547,177 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
             <>
               <Divider textAlign="left">
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  CONTEÚDO ENSINADO
+                </Typography>
+              </Divider>
+
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  O que a incubadora ensina neste passo. O incubado vê isto na
+                  Jornada. Reutilize conteúdos da Biblioteca.
+                </Typography>
+
+                {conteudosSel.length > 0 ? (
+                  <Stack spacing={1} sx={{ mb: 1.5 }}>
+                    {conteudosSel.map((c) => {
+                      const cmeta = TIPO_CONTEUDO[c.tipo]
+                      return (
+                        <Box
+                          key={c.id_conteudo}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.5,
+                            p: 1,
+                            borderRadius: 1.5,
+                            border: "1px solid",
+                            borderColor: "divider",
+                          }}
+                        >
+                          <LogoConteudo conteudo={c} tamanho={30} fonteIcone={17} />
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography sx={{ fontWeight: 600, fontSize: 13.5 }} noWrap>
+                              {c.titulo}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {cmeta.label}
+                            </Typography>
+                          </Box>
+                          <Tooltip title="Remover" arrow>
+                            <IconButton size="small" onClick={() => removeConteudo(c.id_conteudo)}>
+                              <Close sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      )
+                    })}
+                  </Stack>
+                ) : (
+                  <Box
+                    sx={{
+                      border: "1px dashed",
+                      borderColor: "divider",
+                      borderRadius: 1.5,
+                      p: 2.5,
+                      textAlign: "center",
+                      color: "text.secondary",
+                      mb: 1.5,
+                    }}
+                  >
+                    <LibraryAdd sx={{ fontSize: 22, opacity: 0.4, mb: 0.5 }} />
+                    <Typography variant="body2">Nenhum conteúdo vinculado ainda.</Typography>
+                  </Box>
+                )}
+
+                <Button
+                  onClick={() => setSeletorAberto(true)}
+                  startIcon={<LibraryAdd />}
+                  variant="outlined"
+                  size="small"
+                  sx={{ textTransform: "none" }}
+                >
+                  Adicionar da Biblioteca
+                </Button>
+              </Box>
+
+              <Divider textAlign="left">
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  O QUE A STARTUP FAZ AQUI
+                </Typography>
+              </Divider>
+
+              <Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={Boolean(form.permite_entrega)}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          permite_entrega: e.target.checked,
+                          // Desligar a entrega apaga o tipo e o questionario:
+                          // sao respostas a uma pergunta que deixou de existir.
+                          ...(e.target.checked
+                            ? { tipo_passo: f.tipo_passo || "TEXTO" }
+                            : { tipo_passo: null, id_questionario: null }),
+                        }))
+                      }
+                    />
+                  }
+                  label="A startup entrega algo neste passo"
+                />
+
+                {form.permite_entrega ? (
+                  <Stack spacing={2} sx={{ mt: 1.5 }}>
+                    <TextField
+                      select
+                      label="O que ela envia"
+                      fullWidth
+                      value={form.tipo_passo || "TEXTO"}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          tipo_passo: e.target.value,
+                          ...(e.target.value !== "QUESTIONARIO" && { id_questionario: null }),
+                        }))
+                      }
+                    >
+                      {TIPOS_PASSO.map((t) => (
+                        <MenuItem key={t.valor} value={t.valor}>
+                          {ENTREGA_LABEL[t.valor] || t.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+
+                    {form.tipo_passo === "QUESTIONARIO" && (
+                      <TextField
+                        select
+                        label="Qual questionário"
+                        fullWidth
+                        value={form.id_questionario || ""}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, id_questionario: e.target.value || null }))
+                        }
+                        error={faltaQuestionario}
+                        helperText={
+                          questionarios.length === 0
+                            ? "Nenhum questionário cadastrado ainda — crie um em Programa › Questionários."
+                            : faltaQuestionario
+                              ? "Escolha o questionário que este passo aplica."
+                              : " "
+                        }
+                      >
+                        {questionarios.map((q) => (
+                          <MenuItem key={q.id_questionario} value={q.id_questionario}>
+                            {q.titulo}
+                            {q.ativo ? "" : " (inativo)"}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={form.obrigatoria !== false}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, obrigatoria: e.target.checked }))
+                          }
+                        />
+                      }
+                      label="A entrega é obrigatória"
+                    />
+                  </Stack>
+                ) : (
+                  <Alert severity="info" sx={{ mt: 1, borderRadius: "6px" }}>
+                    Passo só de conteúdo: o incubado lê ou assiste e segue adiante.
+                    Não há nada para ele enviar, e nada para a incubadora avaliar.
+                  </Alert>
+                )}
+              </Box>
+
+              <Divider textAlign="left">
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                   O QUE O INCUBADO VÊ
                 </Typography>
               </Divider>
@@ -507,7 +792,7 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
 
               <Divider textAlign="left">
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  DETALHES DA ENTREGA
+                  PRAZO E ESFORÇO
                 </Typography>
               </Divider>
 
@@ -557,95 +842,6 @@ export default function InspectorPanel({ programa, no, trilha, acoes, onSalvar, 
                   ),
                 }}
               />
-
-              <Divider textAlign="left">
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  CONTEÚDO ENSINADO
-                </Typography>
-              </Divider>
-
-              <Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                  O que a incubadora ensina neste passo. O incubado vê isto na
-                  Jornada. Reutilize conteúdos da Biblioteca.
-                </Typography>
-
-                {conteudosSel.length > 0 ? (
-                  <Stack spacing={1} sx={{ mb: 1.5 }}>
-                    {conteudosSel.map((c) => {
-                      const cmeta = TIPO_CONTEUDO[c.tipo]
-                      const CIcone = cmeta.icon
-                      return (
-                        <Box
-                          key={c.id_conteudo}
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1.5,
-                            p: 1,
-                            borderRadius: 1.5,
-                            border: "1px solid",
-                            borderColor: "divider",
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              display: "grid",
-                              placeItems: "center",
-                              width: 30,
-                              height: 30,
-                              borderRadius: 1,
-                              bgcolor: `${cmeta.cor}1f`,
-                              color: cmeta.cor,
-                              flexShrink: 0,
-                            }}
-                          >
-                            <CIcone sx={{ fontSize: 17 }} />
-                          </Box>
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography sx={{ fontWeight: 600, fontSize: 13.5 }} noWrap>
-                              {c.titulo}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {cmeta.label}
-                            </Typography>
-                          </Box>
-                          <Tooltip title="Remover" arrow>
-                            <IconButton size="small" onClick={() => removeConteudo(c.id_conteudo)}>
-                              <Close sx={{ fontSize: 16 }} />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      )
-                    })}
-                  </Stack>
-                ) : (
-                  <Box
-                    sx={{
-                      border: "1px dashed",
-                      borderColor: "divider",
-                      borderRadius: 1.5,
-                      p: 2.5,
-                      textAlign: "center",
-                      color: "text.secondary",
-                      mb: 1.5,
-                    }}
-                  >
-                    <LibraryAdd sx={{ fontSize: 22, opacity: 0.4, mb: 0.5 }} />
-                    <Typography variant="body2">Nenhum conteúdo vinculado ainda.</Typography>
-                  </Box>
-                )}
-
-                <Button
-                  onClick={() => setSeletorAberto(true)}
-                  startIcon={<LibraryAdd />}
-                  variant="outlined"
-                  size="small"
-                  sx={{ textTransform: "none" }}
-                >
-                  Adicionar da Biblioteca
-                </Button>
-              </Box>
             </>
           )}
         </Stack>

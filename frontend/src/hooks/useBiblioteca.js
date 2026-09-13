@@ -76,12 +76,15 @@ export function useBiblioteca() {
     async (tipo) => {
       // O servidor exige url em LINK e VIDEO; um rascunho vazio desses tipos
       // seria recusado, entao ele nasce com um placeholder que o editor troca.
+      //
+      // AULA nasce SEM corpo: o editor de blocos abre com um paragrafo vazio
+      // por conta propria, e semear um bloco aqui so faria a aula ja nascer
+      // "alterada" e disparar uma gravacao antes de alguem escrever nada.
       const corpo = {
         id_tenant: idTenant,
         tipo,
         titulo: "Sem título",
         ...(tipo === "LINK" || tipo === "VIDEO" ? { url: "https://" } : {}),
-        ...(tipo === "AULA" ? { blocos: [{ tipo: "paragrafo", texto: "" }] } : {}),
       }
 
       const { data } = await api.post("/conteudos", corpo)

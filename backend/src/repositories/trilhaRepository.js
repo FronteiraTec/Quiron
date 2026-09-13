@@ -270,15 +270,119 @@ async function compactarOrdem(client, idPai) {
   )
 }
 
+// Colunas que a copia herda do original. De fora ficam id_no (novo), id_pai e
+// ordem (recalculados na insercao), os carimbos de tempo (a copia nasce agora)
+// e `padrao`, que e um titulo do tenant e nao um campo do no.
+const CAMPOS_COPIA = [
+  "id_tenant", "tipo", "descricao", "ativo",
+  "tipo_passo", "permite_entrega", "obrigatoria", "id_questionario", "anexo",
+  "prazo", "carga_horaria", "entregavel",
+  "objetivo", "porque", "competencias", "area",
+]
+
+/**
+ * Duplica um no com TODA a subarvore dentro dele, numa transacao so.
+ *
+ * Copiar apenas o no — o que o Construtor fazia do lado do cliente — devolvia
+ * uma fase vazia chamada "(copia)", justamente o contrario do que se espera de
+ * uma copia. E repetir a chamada de criacao nivel a nivel a partir do
+ * navegador seria uma cascata de requisicoes capaz de falhar no meio e deixar
+ * meia arvore no banco.
+ *
+ * A copia entra como IRMA do original, no fim da lista. Duplicar a raiz,
+ * portanto, cria outra TRILHA do tenant — e assim que o Construtor oferece
+ * "duplicar trilha" para montar a turma seguinte a partir da anterior.
+ *
+ * NAO acompanham a copia:
+ *   padrao      so uma trilha por tenant pode ser a padrao (uk_trilha_no_padrao)
+ *   matriculas  a copia nasce sem startup nenhuma: quem faz a trilha antiga
+ *               nao passa a fazer a nova por ela ter sido copiada
+ *   entregas    sao da startup no passo original, nao do molde
+ *
+ * @param {number} id
+ * @param {string} [nomeDaCopia] - nome do no raiz da copia.
+ * @returns {Promise<object|undefined>} A raiz da copia, ou undefined se o no
+ *   informado nao existe.
+ */
+async function duplicar(id, nomeDaCopia) {
+  return withTransaction(async (client) => {
+    // A subarvore inteira numa consulta so, pais antes dos filhos — a ordem
+    // importa: cada filho precisa do id novo do pai, ja inserido.
+    const { rows: nos } = await client.query(
+      `WITH RECURSIVE arv AS (
+         SELECT ${COLUNAS}, 0 AS nivel
+           FROM trilha_no
+          WHERE id_no = $1
+         UNION ALL
+         SELECT ${cols("n.")}, a.nivel + 1
+           FROM trilha_no n
+           JOIN arv a ON a.id_no = n.id_pai
+       )
+       SELECT * FROM arv ORDER BY nivel, ordem, id_no`,
+      [id]
+    )
+    if (!nos.length) return undefined
+
+    const original = nos[0]
+    const mapa = new Map() // id antigo -> id novo
+    let copia
+
+    for (const no of nos) {
+      const ehRaiz = no.id_no === original.id_no
+      const placeholders = CAMPOS_COPIA.map((_, i) => `$${i + 3}`).join(", ")
+
+      const { rows } = await client.query(
+        `INSERT INTO trilha_no (id_pai, nome, ordem, ${CAMPOS_COPIA.join(", ")})
+         VALUES (
+           $1, $2,
+           COALESCE(
+             (SELECT MAX(ordem) + 1 FROM trilha_no WHERE id_pai IS NOT DISTINCT FROM $1), 1
+           ),
+           ${placeholders}
+         )
+         RETURNING ${COLUNAS}`,
+        [
+          ehRaiz ? no.id_pai : mapa.get(no.id_pai),
+          ehRaiz ? nomeDaCopia || `${no.nome} (cópia)` : no.nome,
+          ...CAMPOS_COPIA.map((campo) => no[campo]),
+        ]
+      )
+
+      mapa.set(no.id_no, rows[0].id_no)
+      if (ehRaiz) copia = rows[0]
+    }
+
+    // Os conteudos da Biblioteca vinculados aos passos vao junto. Uma copia
+    // sem o material ensinado obrigaria a religar passo por passo — que e
+    // exatamente o trabalho que duplicar existe para poupar.
+    const antigos = [...mapa.keys()]
+    await client.query(
+      `INSERT INTO trilha_conteudo (id_no, id_conteudo, ordem)
+       SELECT m.novo, tc.id_conteudo, tc.ordem
+         FROM trilha_conteudo tc
+         JOIN unnest($1::int[], $2::int[]) AS m(antigo, novo) ON m.antigo = tc.id_no`,
+      [antigos, antigos.map((antigo) => mapa.get(antigo))]
+    )
+
+    return copia
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Vinculo com a Biblioteca (trilha_conteudo)
 // ---------------------------------------------------------------------------
 
-/** Lista os conteudos que um PASSO ensina, ja resolvidos da Biblioteca. */
+/**
+ * Lista os conteudos que um PASSO ensina, ja resolvidos da Biblioteca.
+ *
+ * `logo_url` vem junto porque quem monta a trilha reconhece o conteudo pela
+ * marca dele, nao pelo icone do tipo — sem essa coluna os cinco conteudos
+ * vinculados ao passo sairiam com o mesmo quadradinho de AULA.
+ */
 async function listarConteudos(idNo) {
   const { rows } = await query(
     `SELECT c.id_conteudo, c.tipo, c.titulo, c.resumo, c.tags,
-            c.url, c.nome_arquivo, c.duracao, tc.ordem
+            c.url, c.nome_arquivo, c.duracao, c.logo_url, tc.ordem
        FROM trilha_conteudo tc
        JOIN conteudo c ON c.id_conteudo = tc.id_conteudo
       WHERE tc.id_no = $1
@@ -513,6 +617,7 @@ module.exports = {
   excluir,
   reordenar,
   mover,
+  duplicar,
   listarConteudos,
   vincularConteudo,
   desvincularConteudo,

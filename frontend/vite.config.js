@@ -18,4 +18,11 @@ export default defineConfig({
       },
     },
   },
+  // Testes do frontend (`npm test`). Cobrem a logica propria — o hook de
+  // salvamento automatico e as funcoes sobre o documento —, e nao o
+  // comportamento do BlockNote, que e responsabilidade da biblioteca.
+  test: {
+    environment: "jsdom",
+    include: ["src/**/*.test.{js,jsx}"],
+  },
 })

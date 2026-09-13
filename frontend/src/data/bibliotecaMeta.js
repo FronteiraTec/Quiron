@@ -6,10 +6,11 @@
  *
  *   TIPO_CONTEUDO / TIPOS_ORDEM -> como cada tipo aparece e em que ordem
  *   TAGS                        -> vocabulario de temas do acervo
- *   BLOCOS_TIPOS / criarBloco   -> o editor de aulas estilo Notion
  *
- * As chaves de TIPO_CONTEUDO e de BLOCOS_TIPOS casam com os enums
- * conteudoTipo e blocoTipo do banco (schema.sql).
+ * As chaves de TIPO_CONTEUDO casam com o enum conteudoTipo do banco
+ * (schema.sql). O corpo de uma AULA nao mora mais aqui: ele e um documento
+ * do editor de blocos (components/editor/), e os tipos de bloco sao o
+ * esquema do BlockNote, nao uma tabela de rotulos.
  */
 import {
   MenuBook,
@@ -77,33 +78,3 @@ export const TAGS = [
   "Vendas",
   "Juridico",
 ]
-
-// Gerador de ids locais para blocos ainda nao salvos (o editor precisa de uma
-// key estavel antes de o servidor atribuir o id definitivo).
-let _seq = 2000
-export const novoId = (prefixo = "bloco") => `${prefixo}-${++_seq}`
-
-// ---------------------------------------------------------------------------
-// Fabrica de blocos (usados pela AULA — editor estilo Notion).
-// Cada bloco: { id, tipo, texto, url?, nome?, variante? }.
-// ---------------------------------------------------------------------------
-export const BLOCOS_TIPOS = {
-  h1: { label: "Título", atalho: "Título grande" },
-  h2: { label: "Subtítulo", atalho: "Título de seção" },
-  paragrafo: { label: "Texto", atalho: "Parágrafo comum" },
-  lista: { label: "Lista", atalho: "Item com marcador" },
-  callout: { label: "Destaque", atalho: "Caixa de dica/aviso" },
-  video: { label: "Vídeo", atalho: "Vídeo embutido" },
-  arquivo: { label: "Anexo", atalho: "Arquivo inline" },
-  divisor: { label: "Divisor", atalho: "Linha separadora" },
-}
-
-export function criarBloco(tipo = "paragrafo") {
-  const base = { id: novoId("bloco"), tipo, texto: "" }
-  if (tipo === "callout") return { ...base, variante: "dica" }
-  if (tipo === "video" || tipo === "arquivo") return { ...base, url: "", nome: "" }
-  if (tipo === "divisor") return { id: base.id, tipo, texto: "" }
-  return base
-}
-
-// ---------------------------------------------------------------------------

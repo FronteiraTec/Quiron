@@ -188,6 +188,27 @@ async function mover(id, novoPaiId, usuario) {
 }
 
 /**
+ * Duplica um no com tudo que esta dentro dele.
+ *
+ * Duplicar e CRIAR: a chave exigida e a de criacao, checada no tenant do no
+ * original — a copia nasce no mesmo tenant, entao nao ha um segundo tenant a
+ * considerar aqui.
+ *
+ * @param {number} id
+ * @param {string} [nome] - nome da copia; o padrao e "<original> (copia)".
+ */
+async function duplicar(id, usuario, nome) {
+  const no = await buscarNo(id)
+  await rbacService.garantirPermissao(no.id_tenant, usuario, "programa.trilha.criar")
+
+  if (nome !== undefined && !String(nome).trim()) {
+    throw erroNegocio(400, "O nome nao pode ficar vazio.")
+  }
+
+  return trilhaRepository.duplicar(id, nome?.trim())
+}
+
+/**
  * Um no e descendente de outro? Impede o ciclo de arrastar um pai para dentro
  * do proprio filho — o banco aceitaria, e a arvore viraria um anel orfao,
  * invisivel e impossivel de apagar pela UI.
@@ -369,6 +390,7 @@ module.exports = {
   excluir,
   reordenarFilhos,
   mover,
+  duplicar,
   listarConteudos,
   vincularConteudo,
   desvincularConteudo,

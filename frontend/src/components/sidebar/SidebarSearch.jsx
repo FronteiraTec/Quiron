@@ -3,7 +3,7 @@
  *
  * Expandida: campo de texto que filtra os itens (ver useSidebar.resultadosBusca).
  * Recolhida: vira um botao de lupa que expande a Sidebar e foca a busca.
- * Atalho: tecla "/" foca o campo (quando a Sidebar esta expandida).
+ * Atalho: tecla "/" foca o campo (Sidebar expandida, fora de campo de texto).
  */
 import { useEffect, useRef } from "react"
 import { Box, InputBase, IconButton, Tooltip } from "@mui/material"
@@ -12,14 +12,24 @@ import { Search, Close } from "@mui/icons-material"
 export default function SidebarSearch({ recolhida, valor, onChange, onExpandir }) {
   const inputRef = useRef(null)
 
-  // Atalho "/" para focar a busca (ignora quando ja se digita em outro campo).
+  // Atalho "/" para focar a busca (ignora quem ja esta escrevendo).
   useEffect(() => {
     if (recolhida) return
     const onKey = (e) => {
-      if (e.key === "/" && !/input|textarea/i.test(e.target.tagName)) {
-        e.preventDefault()
-        inputRef.current?.focus()
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return
+
+      // Area editavel conta como "escrevendo", e nao so <input>/<textarea>: o
+      // editor de aulas e um <div contenteditable> (BlockNote), entao o teste
+      // por tagName nao o reconhecia e o preventDefault daqui engolia o "/"
+      // antes de o editor ve-lo — o menu de blocos nunca abria, e o foco ainda
+      // pulava para a busca do menu. E o mesmo teste que o tour ja faz.
+      const alvo = e.target
+      if (alvo?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(alvo?.tagName)) {
+        return
       }
+
+      e.preventDefault()
+      inputRef.current?.focus()
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)

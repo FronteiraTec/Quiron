@@ -1,6 +1,6 @@
 /**
  * Menu de contexto (...) de um no da arvore. Acoes: adicionar filho, ativar/
- * desativar, duplicar (placeholder) e excluir. Controlado pelo pai via
+ * desativar, duplicar (com a subarvore) e excluir. Controlado pelo pai via
  * ancora + no alvo.
  */
 import { Menu, MenuItem, ListItemIcon, ListItemText, Divider } from "@mui/material"
@@ -49,7 +49,11 @@ export default function ContextMenu({ ancora, no, onFechar, acoes }) {
         <ListItemIcon>
           <ContentCopy fontSize="small" />
         </ListItemIcon>
-        <ListItemText>Duplicar</ListItemText>
+        <ListItemText
+          primary="Duplicar"
+          secondary={meta.childTipo ? `Leva os ${meta.childLabel}s junto` : null}
+          secondaryTypographyProps={{ fontSize: 12 }}
+        />
       </MenuItem>
       <Divider />
       <MenuItem onClick={fechar(() => acoes.excluir(no))} sx={{ color: "error.main" }}>

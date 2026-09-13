@@ -7,10 +7,14 @@
  */
 const bibliotecaRepository = require("../repositories/bibliotecaRepository")
 const rbacService = require("./rbacService")
+const { validarDocumento } = require("./documentoAula")
 const { erroNegocio } = require("../utils/erros")
 
 const TIPOS = ["AULA", "VIDEO", "ARQUIVO", "TEMPLATE", "LINK"]
 
+// Tipos do corpo ANTIGO de uma AULA. Nenhum cliente novo manda isto — o
+// editor de hoje manda `documento` —, mas a validacao continua aqui porque a
+// rota continua aceitando o formato (ver documentoAula.js).
 const TIPOS_BLOCO = [
   "h1", "h2", "paragrafo", "lista", "callout", "video", "arquivo", "divisor",
 ]
@@ -24,6 +28,22 @@ const EXIGEM_URL = ["LINK", "VIDEO"]
 const LOGO_MAX_BYTES = 2 * 1024 * 1024 // 2MB
 const LOGO_DATA_URL = /^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,/
 const LOGO_HTTP = /^https?:\/\//
+
+/**
+ * O caminho que o nosso proprio upload devolve: /api/arquivos/<uuid>.
+ *
+ * Desde 20/07/2026 o SeletorLogo sobe a imagem como arquivo PUBLICO e grava
+ * aqui a url servida pela API, que e RELATIVA — mas a validacao continuou
+ * exigindo data URL ou http(s), do tempo em que o logo era base64. Ninguem
+ * percebeu porque o volume de uploads estava sem permissao de escrita: o
+ * upload falhava antes, e um caminho desses nunca chegava a ser validado.
+ * Consertado o volume, todo logo novo passou a ser recusado com 400 — e como
+ * o editor salva sozinho, a aula inteira parava de gravar junto.
+ *
+ * `(?!\/)` nao e detalhe: "//outro-site.com/x" tambem comeca com barra, e num
+ * <img src> carrega de OUTRA origem (endereco de protocolo relativo).
+ */
+const LOGO_CAMINHO_API = /^\/(?!\/)/
 
 // ---------------------------------------------------------------------------
 // Autorizacao: quem tem a chave, como na trilha. O tenant das operacoes sobre
@@ -81,6 +101,7 @@ async function criar(dados, usuario) {
 
   validarCorpo(tipo, dados)
   if (dados.blocos !== undefined) validarBlocos(tipo, dados.blocos)
+  if (dados.documento !== undefined) validarDocumento(tipo, dados.documento)
   if (dados.tags !== undefined) validarTags(dados.tags)
   if (dados.logoUrl !== undefined) validarLogo(dados.logoUrl)
 
@@ -100,6 +121,7 @@ async function atualizar(id, patch, usuario) {
   validarCorpo(atual.tipo, { ...atual, ...patch })
 
   if (patch.blocos !== undefined) validarBlocos(atual.tipo, patch.blocos)
+  if (patch.documento !== undefined) validarDocumento(atual.tipo, patch.documento)
   if (patch.tags !== undefined) validarTags(patch.tags)
   if (patch.logoUrl !== undefined) validarLogo(patch.logoUrl)
 
@@ -179,10 +201,15 @@ function validarTags(tags) {
 function validarLogo(logo) {
   if (logo === null || logo === "") return
 
-  if (typeof logo !== "string" || (!LOGO_DATA_URL.test(logo) && !LOGO_HTTP.test(logo))) {
+  const aceito =
+    typeof logo === "string" &&
+    (LOGO_DATA_URL.test(logo) || LOGO_HTTP.test(logo) || LOGO_CAMINHO_API.test(logo))
+
+  if (!aceito) {
     throw erroNegocio(
       400,
-      "O logo deve ser uma imagem (png, jpg, webp, gif ou svg) ou um link http(s)."
+      "O logo deve ser uma imagem (png, jpg, webp, gif ou svg), um link http(s) " +
+        "ou um arquivo enviado para a propria plataforma."
     )
   }
   if (logo.length > LOGO_MAX_BYTES) {
