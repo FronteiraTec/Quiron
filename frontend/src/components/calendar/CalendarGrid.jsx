@@ -18,6 +18,7 @@ import {
 } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import CalendarEvent from "./CalendarEvent"
+import { horaDoEvento } from "../../utils/horaEvento"
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
 const MAX_POR_CELULA = 2
@@ -25,7 +26,7 @@ const MAX_POR_CELULA = 2
 function agruparPorDia(eventos) {
   const mapa = new Map()
   for (const ev of eventos) {
-    const chave = format(new Date(ev.inicio_ts), "yyyy-MM-dd")
+    const chave = format(horaDoEvento(ev.inicio_ts), "yyyy-MM-dd")
     if (!mapa.has(chave)) mapa.set(chave, [])
     mapa.get(chave).push(ev)
   }
@@ -155,7 +156,7 @@ function VisaoSemana({ dataReferencia, eventos, onSelecionarEvento }) {
     <Box sx={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 1.5, p: 3, overflowY: "auto" }}>
       {dias.map((dia) => {
         const chave = format(dia, "yyyy-MM-dd")
-        const eventosDoDia = (porDia.get(chave) || []).sort((a, b) => new Date(a.inicio_ts) - new Date(b.inicio_ts))
+        const eventosDoDia = (porDia.get(chave) || []).sort((a, b) => horaDoEvento(a.inicio_ts) - horaDoEvento(b.inicio_ts))
         const hoje = isToday(dia)
         return (
           <Box key={chave} sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -201,7 +202,7 @@ function VisaoSemana({ dataReferencia, eventos, onSelecionarEvento }) {
 
 // -------------------------------------------------------------- visao dia
 function VisaoDia({ dataReferencia, eventos, onSelecionarEvento }) {
-  const ordenados = [...eventos].sort((a, b) => new Date(a.inicio_ts) - new Date(b.inicio_ts))
+  const ordenados = [...eventos].sort((a, b) => horaDoEvento(a.inicio_ts) - horaDoEvento(b.inicio_ts))
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 3, maxWidth: 900, mx: "auto", width: "100%" }}>
       <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, textTransform: "capitalize" }}>
@@ -222,7 +223,7 @@ function VisaoDia({ dataReferencia, eventos, onSelecionarEvento }) {
 
 // ----------------------------------------------------------- visao agenda
 function VisaoAgenda({ eventos, onSelecionarEvento }) {
-  const ordenados = [...eventos].sort((a, b) => new Date(a.inicio_ts) - new Date(b.inicio_ts))
+  const ordenados = [...eventos].sort((a, b) => horaDoEvento(a.inicio_ts) - horaDoEvento(b.inicio_ts))
   const porDia = agruparPorDia(ordenados)
   const chaves = [...porDia.keys()].sort()
 

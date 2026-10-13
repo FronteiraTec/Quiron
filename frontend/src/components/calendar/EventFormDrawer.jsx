@@ -34,6 +34,7 @@ import { format } from "date-fns"
 import { useCategorias, useLocais } from "./categorias"
 import api from "../../services/api"
 import { useAuthStore } from "../../store/authStore"
+import { horaDoEvento } from "../../utils/horaEvento"
 
 const FORM_VAZIO = {
   titulo: "",
@@ -57,8 +58,8 @@ const FORM_VAZIO = {
 
 /** Converte um evento vindo da API para o shape do formulario. */
 function eventoParaForm(evento) {
-  const inicio = new Date(evento.inicio_ts)
-  const fim = evento.fim_ts ? new Date(evento.fim_ts) : null
+  const inicio = horaDoEvento(evento.inicio_ts)
+  const fim = evento.fim_ts ? horaDoEvento(evento.fim_ts) : null
   return {
     titulo: evento.titulo,
     categoria: evento.categoria,

@@ -33,6 +33,7 @@ import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import api from "../../services/api"
 import { useCategorias } from "./categorias"
+import { horaDoEvento } from "../../utils/horaEvento"
 
 function Campo({ icone, rotulo, children }) {
   if (!children) return null
@@ -108,12 +109,12 @@ export default function EventDrawer({ evento, aberto, onClose, onEditar, onExclu
         <Box sx={{ flex: 1, overflowY: "auto", p: 3 }}>
           <Campo icone={<CalendarToday fontSize="small" />} rotulo="Data">
             <Box sx={{ textTransform: "capitalize" }}>
-              {format(new Date(evento.inicio_ts), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              {format(horaDoEvento(evento.inicio_ts), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </Box>
           </Campo>
           <Campo icone={<AccessTime fontSize="small" />} rotulo="Horário">
-            {format(new Date(evento.inicio_ts), "HH:mm")}
-            {evento.fim_ts ? ` - ${format(new Date(evento.fim_ts), "HH:mm")}` : ""}
+            {format(horaDoEvento(evento.inicio_ts), "HH:mm")}
+            {evento.fim_ts ? ` - ${format(horaDoEvento(evento.fim_ts), "HH:mm")}` : ""}
           </Campo>
           <Campo icone={<Place fontSize="small" />} rotulo="Local">
             {evento.local}

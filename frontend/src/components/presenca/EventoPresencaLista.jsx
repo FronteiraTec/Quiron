@@ -12,9 +12,10 @@
 import { Box, Typography, Tooltip, LinearProgress } from "@mui/material"
 import { EventBusy, CheckCircle } from "@mui/icons-material"
 import { useCategorias } from "../calendar/categorias"
+import { horaDoEvento } from "../../utils/horaEvento"
 
 function dataLegivel(iso) {
-  return new Date(iso).toLocaleDateString("pt-BR", {
+  return horaDoEvento(iso).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "short",
     year: "numeric",

@@ -31,6 +31,7 @@ import {
 } from "@mui/material"
 import { Search, HowToReg, EventAvailable } from "@mui/icons-material"
 import { useCategorias } from "../calendar/categorias"
+import { horaDoEvento } from "../../utils/horaEvento"
 
 // Como cada resposta ao convite (RSVP) aparece na chamada. `null` = nao
 // respondeu, que e o caso mais comum e por isso nao vira chip nenhum.
@@ -237,7 +238,7 @@ export default function ChamadaPainel({ chamada, carregando, salvandoIds, onMarc
           </Typography>
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-          {new Date(evento.inicio_ts).toLocaleString("pt-BR", {
+          {horaDoEvento(evento.inicio_ts).toLocaleString("pt-BR", {
             day: "2-digit",
             month: "long",
             year: "numeric",

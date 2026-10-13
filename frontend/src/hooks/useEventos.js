@@ -23,6 +23,7 @@ import {
 } from "date-fns"
 import api from "../services/api"
 import { useCategorias } from "../components/calendar/categorias"
+import { paraHoraDoEvento } from "../utils/horaEvento"
 
 /** Calcula o intervalo [inicio, fim] a buscar na API, de acordo com a visao. */
 function calcularPeriodo(dataReferencia, visao) {
@@ -84,8 +85,8 @@ export function useEventos({ idTenant, usuarioId }) {
       const { data } = await api.get("/eventos", {
         params: {
           id_tenant: idTenant,
-          inicio: periodo.inicio.toISOString(),
-          fim: periodo.fim.toISOString(),
+          inicio: paraHoraDoEvento(periodo.inicio),
+          fim: paraHoraDoEvento(periodo.fim),
         },
       })
       setEventos(data.eventos)

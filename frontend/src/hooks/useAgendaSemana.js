@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { startOfDay, endOfWeek } from "date-fns"
 import api from "../services/api"
+import { paraHoraDoEvento } from "../utils/horaEvento"
 
 export function useAgendaSemana(idTenant) {
   const [eventos, setEventos] = useState([])
@@ -36,8 +37,8 @@ export function useAgendaSemana(idTenant) {
       const { data } = await api.get("/eventos", {
         params: {
           id_tenant: idTenant,
-          inicio: periodo.inicio.toISOString(),
-          fim: periodo.fim.toISOString(),
+          inicio: paraHoraDoEvento(periodo.inicio),
+          fim: paraHoraDoEvento(periodo.fim),
         },
       })
       setEventos(data.eventos)

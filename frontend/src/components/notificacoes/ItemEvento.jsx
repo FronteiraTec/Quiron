@@ -11,10 +11,11 @@ import { Place } from "@mui/icons-material"
 import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { useCategorias } from "../calendar/categorias"
+import { horaDoEvento } from "../../utils/horaEvento"
 
 /** "Hoje as 14:00" / "Amanha as 09:30" / "12 de marco as 09:30". */
 function quandoAcontece(inicioTs) {
-  const data = new Date(inicioTs)
+  const data = horaDoEvento(inicioTs)
   const hora = format(data, "HH:mm")
   if (isToday(data)) return `Hoje às ${hora}`
   if (isTomorrow(data)) return `Amanhã às ${hora}`

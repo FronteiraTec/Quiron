@@ -23,6 +23,7 @@ import BotaoExportar from "../components/relatorios/BotaoExportar"
 import { useRelatorio } from "../hooks/useRelatorio"
 import { STATUS } from "../components/relatorios/vizPalette"
 import { baixarCsv } from "../utils/csv"
+import { horaDoEvento } from "../utils/horaEvento"
 
 // Abaixo disso a sala esteve mais vazia que cheia — o corte em que vale
 // revisar formato, horario ou publico do evento.
@@ -168,7 +169,7 @@ function Conteudo({ idTenant, dias }) {
                 {
                   chave: "inicio_ts",
                   rotulo: "Data",
-                  render: (l) => new Date(l.inicio_ts).toLocaleDateString("pt-BR"),
+                  render: (l) => horaDoEvento(l.inicio_ts).toLocaleDateString("pt-BR"),
                 },
                 { chave: "publico", rotulo: "Convidados", alinhamento: "right" },
                 { chave: "confirmados", rotulo: "Confirmaram", alinhamento: "right" },

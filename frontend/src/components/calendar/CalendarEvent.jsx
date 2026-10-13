@@ -8,11 +8,12 @@ import { Box, Typography, alpha } from "@mui/material"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { useCategorias } from "./categorias"
+import { horaDoEvento } from "../../utils/horaEvento"
 
 export default function CalendarEvent({ evento, variante = "pilula", onClick }) {
   const { categoriaInfo } = useCategorias()
   const { label, cor, Icone } = categoriaInfo(evento.categoria)
-  const hora = format(new Date(evento.inicio_ts), "HH:mm")
+  const hora = format(horaDoEvento(evento.inicio_ts), "HH:mm")
 
   if (variante === "lista") {
     return (

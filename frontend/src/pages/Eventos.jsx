@@ -21,6 +21,7 @@ import EventFormDrawer from "../components/calendar/EventFormDrawer"
 import { useAuthStore } from "../store/authStore"
 import { useEventos } from "../hooks/useEventos"
 import api from "../services/api"
+import { horaDoEvento } from "../utils/horaEvento"
 
 export default function Eventos() {
   const usuario = useAuthStore((s) => s.usuario)
@@ -75,7 +76,7 @@ export default function Eventos() {
 
   useEffect(() => {
     if (!dataParam) return
-    const data = new Date(dataParam)
+    const data = horaDoEvento(dataParam)
     if (!Number.isNaN(data.getTime())) calendario.irParaData(data)
   }, [dataParam, calendario.irParaData])
 

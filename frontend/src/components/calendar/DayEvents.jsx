@@ -8,12 +8,13 @@ import { EventBusy } from "@mui/icons-material"
 import { format, isSameDay, isToday } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { useCategorias } from "./categorias"
+import { horaDoEvento } from "../../utils/horaEvento"
 
 export default function DayEvents({ dia, eventos = [], onSelecionar }) {
   const { categoriaInfo } = useCategorias()
   const doDia = eventos
-    .filter((ev) => isSameDay(new Date(ev.inicio_ts), dia))
-    .sort((a, b) => new Date(a.inicio_ts) - new Date(b.inicio_ts))
+    .filter((ev) => isSameDay(horaDoEvento(ev.inicio_ts), dia))
+    .sort((a, b) => horaDoEvento(a.inicio_ts) - horaDoEvento(b.inicio_ts))
 
   return (
     <Box sx={{ px: 2, py: 1.5 }}>
@@ -69,8 +70,8 @@ export default function DayEvents({ dia, eventos = [], onSelecionar }) {
                     {ev.titulo}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
-                    {format(new Date(ev.inicio_ts), "HH:mm")}
-                    {ev.fim_ts && ` - ${format(new Date(ev.fim_ts), "HH:mm")}`}
+                    {format(horaDoEvento(ev.inicio_ts), "HH:mm")}
+                    {ev.fim_ts && ` - ${format(horaDoEvento(ev.fim_ts), "HH:mm")}`}
                     {` · ${label}`}
                   </Typography>
                 </Box>

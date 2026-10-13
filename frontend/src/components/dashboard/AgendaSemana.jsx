@@ -14,6 +14,7 @@ import { format, isToday, isTomorrow, isSameDay } from "date-fns"
 import { useNavigate } from "react-router-dom"
 import { useCategorias } from "../calendar/categorias"
 import { useAgendaSemana } from "../../hooks/useAgendaSemana"
+import { horaDoEvento } from "../../utils/horaEvento"
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
 
@@ -27,11 +28,11 @@ function rotuloDia(data) {
 /** Agrupa os eventos por dia, mantendo a ordem cronologica. */
 function agruparPorDia(eventos) {
   const ordenados = [...eventos].sort(
-    (a, b) => new Date(a.inicio_ts) - new Date(b.inicio_ts)
+    (a, b) => horaDoEvento(a.inicio_ts) - horaDoEvento(b.inicio_ts)
   )
   const grupos = []
   for (const ev of ordenados) {
-    const data = new Date(ev.inicio_ts)
+    const data = horaDoEvento(ev.inicio_ts)
     let grupo = grupos.find((g) => isSameDay(g.data, data))
     if (!grupo) {
       grupo = { data, itens: [] }
@@ -51,7 +52,7 @@ function subtitulo(ev) {
 function EventoItem({ evento, onClick }) {
   const { categoriaInfo } = useCategorias()
   const { cor, label } = categoriaInfo(evento.categoria)
-  const inicio = new Date(evento.inicio_ts)
+  const inicio = horaDoEvento(evento.inicio_ts)
   return (
     <Box
       onClick={onClick}

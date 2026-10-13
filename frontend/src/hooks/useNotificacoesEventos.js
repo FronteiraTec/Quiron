@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { startOfDay, addMonths, subDays } from "date-fns"
 import api from "../services/api"
+import { paraHoraDoEvento } from "../utils/horaEvento"
 
 // Por quanto tempo um evento recem-criado continua aparecendo como notificacao.
 const JANELA_DIAS = 14
@@ -66,8 +67,8 @@ export function useNotificacoesEventos({ idTenant, idUsuario }) {
       const { data } = await api.get("/eventos", {
         params: {
           id_tenant: idTenant,
-          inicio: startOfDay(agora).toISOString(),
-          fim: addMonths(agora, HORIZONTE_MESES).toISOString(),
+          inicio: paraHoraDoEvento(startOfDay(agora)),
+          fim: paraHoraDoEvento(addMonths(agora, HORIZONTE_MESES)),
         },
       })
       setEventos(data.eventos)

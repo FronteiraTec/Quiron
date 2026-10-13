@@ -12,6 +12,7 @@ import MiniCalendar from "./MiniCalendar"
 import DayEvents from "./DayEvents"
 import { useCategorias } from "./categorias"
 import { format } from "date-fns"
+import { horaDoEvento } from "../../utils/horaEvento"
 
 const bordaSutil = (t) => (t.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.06)")
 
@@ -30,7 +31,7 @@ export default function CalendarSidebar({
 }) {
   // Pontinhos do mini calendario: usam a lista sem filtro, para nao sumirem
   // quando o usuario restringe as categorias.
-  const diasComEvento = new Set(todosEventos.map((ev) => format(new Date(ev.inicio_ts), "yyyy-MM-dd")))
+  const diasComEvento = new Set(todosEventos.map((ev) => format(horaDoEvento(ev.inicio_ts), "yyyy-MM-dd")))
 
   const { categorias } = useCategorias()
   const filtrando = somenteMeus || categoriasAtivas.size < categorias.length
