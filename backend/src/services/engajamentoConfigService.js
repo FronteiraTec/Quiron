@@ -312,9 +312,18 @@ async function criarAcao(idTenant, dados, usuario) {
     })
   } catch (err) {
     if (err.code === "23505") {
+      // Uma mensagem por indice: a generica deixava o admin sem saber se o
+      // problema era o nome ou a categoria escolhida.
+      const porIndice = {
+        uq_engajamento_acao_rotulo: "Já existe uma ação com esse nome.",
+        uq_engajamento_acao_categoria:
+          "Essa categoria da agenda já é pontuada por outra ação (mesmo desativada). Edite a ação existente.",
+        uq_engajamento_acao_mentoria: "Já existe uma ação de mentoria realizada. Edite a existente.",
+      }
       throw erroNegocio(
         409,
-        "Já existe uma ação com esse nome, ou já há uma ação pontuando essa categoria/mentoria."
+        porIndice[err.constraint] ||
+          "Já existe uma ação com esse nome, ou já há uma ação pontuando essa categoria/mentoria."
       )
     }
     if (err.code === "23503") throw erroNegocio(400, "Categoria de agenda inválida.")

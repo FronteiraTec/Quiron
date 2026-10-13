@@ -52,6 +52,7 @@ import AppLayout from "../components/AppLayout"
 import api from "../services/api"
 import AbaCadastro from "../components/startup/AbaCadastro"
 import AbaMembros from "../components/startup/AbaMembros"
+import { useAuthStore } from "../store/authStore"
 import AbaModelos from "../components/startup/AbaModelos"
 import AbaFasesConcluidas from "../components/startup/AbaFasesConcluidas"
 import ChipSituacao from "../components/startup/ChipSituacao"
@@ -63,6 +64,9 @@ export default function StartupDetail() {
   const navigate = useNavigate()
 
   const situacoes = useStartupConfigStore((s) => s.situacoes) || []
+  // Vincular mentor e cadastrar membro exigem o admin no backend.
+  const usuario = useAuthStore((s) => s.usuario)
+  const ehGestao = Boolean(usuario?.root) || usuario?.papel === "admin"
 
   const [startup, setStartup] = useState(null)
   const [carregando, setCarregando] = useState(true)
@@ -221,7 +225,7 @@ export default function StartupDetail() {
           </Tabs>
           <Box data-tour="startup-conteudo" sx={{ p: 3 }}>
             {aba === "cadastro" && <AbaCadastro startup={startup} />}
-            {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={startup.id_tenant} />}
+            {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={startup.id_tenant} gestao={ehGestao} />}
             {aba === "modelos" && <AbaModelos idStartup={startup.id_startup} />}
             {aba === "fases" && <AbaFasesConcluidas idStartup={startup.id_startup} />}
           </Box>

@@ -8,7 +8,7 @@
  *   - grupo:        { id, texto, icone, filhos: [ ...itens simples ] }
  *
  * Campos:
- *   id       -> identificador estavel (usado em favoritos/recentes/persistencia)
+ *   id       -> identificador estavel (usado em favoritos/persistencia)
  *   texto    -> rotulo exibido
  *   icone    -> elemento de icone (MUI icons)
  *   rota     -> caminho do react-router
@@ -263,7 +263,7 @@ export function menuPorPapel(papel) {
 
 /**
  * Achata a arvore em uma lista de itens navegaveis (com rota), guardando o
- * grupo pai. Usado pela busca rapida e por favoritos/recentes.
+ * grupo pai. Usado pela busca rapida e pelos favoritos.
  * @param {Array} menu
  */
 export function achatarMenu(menu) {

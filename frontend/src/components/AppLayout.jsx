@@ -5,7 +5,7 @@
  * a esquerda e o conteudo principal (children) a direita. Ao montar, garante
  * que o usuario logado e as preferencias visuais estejam carregados.
  *
- * O estado da Sidebar (papel, recolhida, favoritos, recentes, busca...) vem do
+ * O estado da Sidebar (papel, recolhida, favoritos, busca...) vem do
  * hook useSidebar; aqui so orquestramos larguras e o drawer mobile.
  */
 import { useEffect, useState } from "react"

@@ -1,6 +1,6 @@
 /**
  * Hook principal da Sidebar: reune papel, menu, busca, grupos abertos,
- * item ativo, favoritos/recentes e navegacao.
+ * item ativo, favoritos e navegacao.
  *
  * Concentra toda a logica de estado para que os componentes visuais
  * (Sidebar, SidebarGroup, SidebarItem...) fiquem simples e declarativos.
@@ -92,7 +92,7 @@ export function useSidebar({ onNavegar } = {}) {
     [rotaAtiva]
   )
 
-  // Item plano atualmente ativo (usado para o indicador deslizante e recentes).
+  // Item plano atualmente ativo (usado para o indicador deslizante).
   const itemAtivo = useMemo(
     () => itensPlanos.find((i) => rotaAtiva(i.rota)),
     [itensPlanos, rotaAtiva]
@@ -132,7 +132,7 @@ export function useSidebar({ onNavegar } = {}) {
     )
   }, [busca, itensPlanos])
 
-  // --- Favoritos / recentes resolvidos para itens completos ---
+  // --- Favoritos resolvidos para itens completos ---
   const porId = useMemo(() => {
     const m = new Map()
     itensPlanos.forEach((i) => m.set(i.id, i))
@@ -143,25 +143,16 @@ export function useSidebar({ onNavegar } = {}) {
     () => prefs.pinned.map((id) => porId.get(id)).filter(Boolean),
     [prefs.pinned, porId]
   )
-  const itensRecentes = useMemo(
-    () =>
-      prefs.recentes
-        .map((id) => porId.get(id))
-        .filter(Boolean)
-        .filter((i) => !prefs.pinned.includes(i.id)),
-    [prefs.recentes, prefs.pinned, porId]
-  )
 
   // --- Navegacao ---
   const navegar = useCallback(
     (item) => {
       if (!item?.rota) return
-      prefs.registrarRecente(item.id)
       navigate(item.rota)
       setBusca("")
       onNavegar?.()
     },
-    [navigate, prefs, onNavegar]
+    [navigate, onNavegar]
   )
 
   return {
@@ -182,11 +173,10 @@ export function useSidebar({ onNavegar } = {}) {
     busca,
     setBusca,
     resultadosBusca,
-    // favoritos / recentes
+    // favoritos
     pinned: prefs.pinned,
     alternarPin: prefs.alternarPin,
     itensFixados,
-    itensRecentes,
     // preferencias recolhida
     recolhida: prefs.recolhida,
     setRecolhida: prefs.setRecolhida,

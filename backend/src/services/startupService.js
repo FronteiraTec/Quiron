@@ -275,15 +275,11 @@ async function atualizarSituacao(id, situacao, usuario) {
 async function adicionarMembro(idStartup, idUsuario, lider, usuario) {
   if (!idUsuario) throw erroNegocio(400, "Informe o id_usuario.")
   await buscarComPermissao(idStartup, usuario, "startups.membros.adicionar")
-  try {
-    return await startupRepository.adicionarMembro(idStartup, idUsuario, !!lider)
-  } catch (err) {
-    // 23505 = violacao de UNIQUE (usuario ja e membro desta startup).
-    if (err.code === "23505") {
-      throw erroNegocio(409, "Este usuario ja e membro da startup.")
-    }
-    throw err
-  }
+  // Sem linha de volta = o vinculo ja existia e estava ativo. Quem saiu da
+  // equipe (ativo = FALSE) e reativado pelo repository, nao cai aqui.
+  const membro = await startupRepository.adicionarMembro(idStartup, idUsuario, !!lider)
+  if (!membro) throw erroNegocio(409, "Este usuario ja e membro da startup.")
+  return membro
 }
 
 /** Lista os membros ativos de uma startup. */

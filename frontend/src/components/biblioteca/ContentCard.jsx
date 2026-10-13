@@ -43,7 +43,10 @@ function tempoRelativo(iso) {
 export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }) {
   const meta = TIPO_CONTEUDO[conteudo.tipo]
   const [menu, setMenu] = useState(null)
-  const usos = conteudo.usos?.length || 0
+  // Por fase, e nao por passo: o Construtor so mostra a fase, e o passo
+  // "Materiais" que a guarda por baixo nao diz nada a quem le o card.
+  const fasesDeUso = [...new Set((conteudo.usos || []).map((u) => u.fase).filter(Boolean))]
+  const usos = fasesDeUso.length
 
   return (
     <Paper
@@ -140,15 +143,13 @@ export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }
         <Tooltip
           arrow
           title={
-            usos
-              ? conteudo.usos.map((u) => `${u.fase} › ${u.passo}`).join("\n")
-              : "Ainda não usado em nenhum passo"
+            usos ? fasesDeUso.join("\n") : "Ainda não está em nenhuma fase"
           }
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: usos ? "primary.main" : "text.disabled" }}>
             <AccountTree sx={{ fontSize: 15 }} />
             <Typography variant="caption" sx={{ fontWeight: 600 }}>
-              {usos ? `Usado em ${usos}` : "Não usado"}
+              {usos ? `Em ${usos} fase${usos === 1 ? "" : "s"}` : "Fora das trilhas"}
             </Typography>
           </Box>
         </Tooltip>

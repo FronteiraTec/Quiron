@@ -47,11 +47,6 @@ const SECOES = [
           "Passe o mouse sobre o item no menu lateral e clique no icone de alfinete que aparece à direita. Itens fixados ficam sempre visíveis no topo do menu, na seção \"Favoritos\".",
       },
       {
-        pergunta: "O que é a seção \"Recentes\"?",
-        resposta:
-          "Mostra as últimas páginas que você visitou, para voltar rápido sem navegar pelo menu inteiro. Some sozinha quando o menu está recolhido.",
-      },
-      {
         pergunta: "Como recolho o menu lateral para ganhar espaço na tela?",
         resposta:
           "Clique no ícone com três linhas horizontais paralelas (≡) no topo do menu lateral (StartupSwitcher) para alternar entre o menu expandido e o recolhido (só ícones).",

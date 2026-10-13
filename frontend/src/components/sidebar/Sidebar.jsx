@@ -3,7 +3,7 @@
  *
  * Exporta:
  *   - SidebarConteudo: o miolo (cabecalho de startup, busca, favoritos,
- *     recentes, menu por papel e rodape). Reaproveitado pelo drawer mobile.
+ *     menu por papel e rodape). Reaproveitado pelo drawer mobile.
  *   - Sidebar (default): o Drawer permanente do desktop/tablet, retratil
  *     entre a largura expandida (280px) e a recolhida (72px).
  *
@@ -19,7 +19,7 @@ import SidebarSkeleton from "./SidebarSkeleton"
 
 export { SIDEBAR_WIDTH, SIDEBAR_MINI_WIDTH }
 
-// Rotulo de secao (Favoritos/Recentes); some quando a Sidebar esta recolhida.
+// Rotulo de secao (Favoritos/Menu); some quando a Sidebar esta recolhida.
 function SecaoLabel({ children, recolhida }) {
   if (recolhida) return <Divider sx={{ my: 1.5, mx: 2 }} />
   return (
@@ -73,7 +73,6 @@ export function SidebarConteudo({
     pinned,
     alternarPin,
     itensFixados,
-    itensRecentes,
     navegar,
     setRecolhida,
   } = sidebar
@@ -166,29 +165,7 @@ export function SidebarConteudo({
               </>
             )}
 
-            {/* Recentes (apenas no modo expandido) */}
-            {!recolhida && itensRecentes.length > 0 && (
-              <>
-                <SecaoLabel recolhida={recolhida}>Recentes</SecaoLabel>
-                <List disablePadding>
-                  {itensRecentes.map((item) => (
-                    <SidebarItem
-                      key={`rec-${item.id}`}
-                      item={item}
-                      ativo={rotaAtiva(item.rota)}
-                      recolhida={false}
-                      badges={badges}
-                      fixado={false}
-                      variante={variante}
-                      onNavegar={navegar}
-                      onFixar={alternarPin}
-                    />
-                  ))}
-                </List>
-              </>
-            )}
-
-            {(itensFixados.length > 0 || (!recolhida && itensRecentes.length > 0)) && (
+            {itensFixados.length > 0 && (
               <SecaoLabel recolhida={recolhida}>Menu</SecaoLabel>
             )}
 

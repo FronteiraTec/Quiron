@@ -295,7 +295,7 @@ const TOUR_PROGRAMA = {
     {
       titulo: "O Construtor de Programa",
       texto:
-        "É aqui que a trilha da incubação é montada: Trilha → Fases → Módulos → Passos, tudo numa tela só, sem abrir formulário em outra página.",
+        "É aqui que a trilha da incubação é montada: a trilha, suas fases e os materiais de cada fase, tudo numa tela só, sem abrir formulário em outra página.",
     },
     {
       seletor: '[data-tour="programa-criar-trilha"]',
@@ -318,20 +318,14 @@ const TOUR_PROGRAMA = {
       posicao: "direita",
       titulo: "A árvore",
       texto:
-        "A estrutura inteira do programa. Crie itens pelo + de cada nível, arraste para reordenar e clique com o botão direito para duplicar, desativar ou excluir.",
+        "As fases da trilha. Crie uma pelo \"+ Nova fase\", arraste para reordenar e use o menu (...) para duplicar, desativar ou excluir.",
     },
     {
       seletor: '[data-tour="programa-inspector"]',
       posicao: "esquerda",
       titulo: "As propriedades do item",
       texto:
-        "Selecione um item na árvore e edite aqui: nome, descrição, conteúdo da Biblioteca, questionário e prazo. Não há modal — o que você digita é salvo neste painel.",
-    },
-    {
-      seletor: '[data-tour="programa-expandir"]',
-      posicao: "baixo",
-      titulo: "Abrir e fechar tudo",
-      texto: "Expande ou recolhe a árvore inteira — ajuda quando a trilha já tem muitas fases.",
+        "Selecione uma fase e edite aqui: nome, descrição e os materiais dela — crie um material novo ou reaproveite um da Biblioteca.",
     },
     {
       seletor: '[data-tour="programa-startups"]',
@@ -360,44 +354,38 @@ const TOUR_BIBLIOTECA = {
     {
       titulo: "Biblioteca de Conhecimento",
       texto:
-        "Tudo o que a sua incubadora ensina fica aqui. O material é criado uma vez e reaproveitado em qualquer passo de qualquer trilha.",
+        "Aqui você vê o que cada trilha tem de material, separado pelas fases. O material nasce na fase, no Construtor.",
+    },
+    {
+      seletor: '[data-tour="biblioteca-trilhas"]',
+      posicao: "baixo",
+      titulo: "Escolha a trilha",
+      texto:
+        "Cada trilha mostra suas fases e os materiais de cada uma. \"Fora das trilhas\" junta o que não está em nenhuma fase.",
+      permitirInteracao: true,
     },
     {
       seletor: '[data-tour="biblioteca-busca"]',
       posicao: "baixo",
-      titulo: "Encontre um conteúdo",
+      titulo: "Encontre um material",
       texto: "A busca olha título, resumo e tags ao mesmo tempo.",
       permitirInteracao: true,
     },
     {
-      seletor: '[data-tour="biblioteca-tipos"]',
-      posicao: "baixo",
-      titulo: "Filtre por tipo",
-      texto:
-        "Vídeo, texto, arquivo, link... O número ao lado de cada tipo diz quanto você já tem de cada um.",
-    },
-    {
-      seletor: '[data-tour="biblioteca-tags"]',
-      posicao: "baixo",
-      titulo: "Filtre por tema",
-      texto: "As tags organizam o acervo por assunto e se combinam com o filtro de tipo.",
-    },
-    {
       seletor: '[data-tour="biblioteca-grade"]',
       posicao: "auto",
-      titulo: "Os conteúdos",
+      titulo: "Os materiais",
       texto:
-        "Clique num card para editar. Cada card também permite duplicar e excluir — um conteúdo usado em algum passo da trilha precisa ser desvinculado antes de sair.",
+        "Clique num card para abrir e corrigir. Um material que está em alguma fase precisa sair dela, no Construtor, antes de ser excluído.",
     },
     {
-      seletor: '[data-tour="biblioteca-novo"]',
+      seletor: '[data-tour="biblioteca-construtor"]',
       posicao: "baixo",
-      titulo: "Criar conteúdo",
+      titulo: "Adicionar material",
       texto:
-        "Escolha o tipo e o editor abre pela lateral. Depois é só apontar o passo da trilha para este conteúdo, no Construtor.",
-      permitirInteracao: true,
+        "Para criar um material, abra a fase no Construtor e use \"Novo material\" ou \"Da Biblioteca\".",
     },
-    fim("Crie uma vez, use em todas as trilhas."),
+    fim("O material de cada fase, num lugar só."),
   ],
 }
 

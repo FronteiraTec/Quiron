@@ -4,8 +4,8 @@
  * Dois niveis de persistencia:
  *   1. Backend (usuario_preferencias): o estado "recolhida" reaproveita a
  *      coluna `sidebar_recolhida` via preferenciaStore (PUT /preferencias).
- *   2. localStorage (por usuario): favoritos (pinned), historico recente e a
- *      ultima secao aberta - dados de UI que ainda nao tem coluna no schema.
+ *   2. localStorage (por usuario): favoritos (pinned) e a ultima secao
+ *      aberta - dados de UI que ainda nao tem coluna no schema.
  *
  * Assim o comportamento fica identico ao spec (salvar automaticamente estado
  * recolhido, itens fixados e ultima secao aberta) sem exigir migracao de banco.
@@ -13,8 +13,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { usePreferenciaStore } from "../store/preferenciaStore"
 import { useAuthStore } from "../store/authStore"
-
-const MAX_RECENTES = 6
 
 function chaveLocal(idUsuario) {
   return `quiron_sidebar_${idUsuario ?? "anon"}`
@@ -55,9 +53,8 @@ export function useSidebarPreferences() {
     [salvarPreferencias]
   )
 
-  // --- Estado local por usuario (pinned / recentes / ultima secao) ---
+  // --- Estado local por usuario (pinned / ultima secao) ---
   const [pinned, setPinned] = useState([])
-  const [recentes, setRecentes] = useState([])
   const [ultimaSecao, setUltimaSecao] = useState(null)
   const carregado = useRef(false)
 
@@ -65,7 +62,6 @@ export function useSidebarPreferences() {
   useEffect(() => {
     const dados = lerLocal(idUsuario)
     setPinned(Array.isArray(dados.pinned) ? dados.pinned : [])
-    setRecentes(Array.isArray(dados.recentes) ? dados.recentes : [])
     setUltimaSecao(dados.ultimaSecao ?? null)
     carregado.current = true
   }, [idUsuario])
@@ -73,8 +69,8 @@ export function useSidebarPreferences() {
   // Persiste no localStorage sempre que algo muda (apos o carregamento).
   useEffect(() => {
     if (!carregado.current) return
-    salvarLocal(idUsuario, { pinned, recentes, ultimaSecao })
-  }, [idUsuario, pinned, recentes, ultimaSecao])
+    salvarLocal(idUsuario, { pinned, ultimaSecao })
+  }, [idUsuario, pinned, ultimaSecao])
 
   const alternarPin = useCallback((id) => {
     setPinned((atual) =>
@@ -82,18 +78,11 @@ export function useSidebarPreferences() {
     )
   }, [])
 
-  const registrarRecente = useCallback((id) => {
-    if (!id) return
-    setRecentes((atual) => [id, ...atual.filter((x) => x !== id)].slice(0, MAX_RECENTES))
-  }, [])
-
   return {
     recolhida,
     setRecolhida,
     pinned,
     alternarPin,
-    recentes,
-    registrarRecente,
     ultimaSecao,
     setUltimaSecao,
   }

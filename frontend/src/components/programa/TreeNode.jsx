@@ -1,5 +1,7 @@
 /**
- * Um no da arvore do programa (fase, modulo ou tarefa), recursivo.
+ * Um no da arvore do programa. No Construtor a arvore para na fase (ver
+ * filhoNoConstrutor): os materiais dela ficam no Inspector, nao na arvore.
+ * O componente segue recursivo para o dia em que outro nivel voltar.
  *
  * Responsavel por:
  *  - indicador visual do nivel (indentacao + barra de acento colorida)
@@ -19,7 +21,7 @@ import {
   DragIndicator,
 } from "@mui/icons-material"
 import { motion, AnimatePresence } from "framer-motion"
-import { TIPO_META } from "../../data/trilhaMeta"
+import { TIPO_META, filhoNoConstrutor } from "../../data/trilhaMeta"
 import QuickAdd from "./QuickAdd"
 
 // Realca o trecho que casa com a busca dentro do nome do no.
@@ -45,9 +47,11 @@ export default function TreeNode({
 }) {
   const meta = TIPO_META[no.tipo]
   const Icone = meta.icon
-  // Todo no traz os filhos em `filhos`; so a folha (PASSO) nao aceita nenhum.
+  // Todo no traz os filhos em `filhos`; a arvore para no ultimo nivel do
+  // Construtor, mesmo que o banco tenha modulos e passos por baixo.
   const filhos = no.filhos ?? []
-  const temFilhos = Boolean(meta.childTipo)
+  const tipoFilho = filhoNoConstrutor(no.tipo)
+  const temFilhos = Boolean(tipoFilho)
   const aberto = ctx.expandidos[no.id_no]
   const selecionado = ctx.selecionadoId === no.id_no
 
@@ -189,13 +193,13 @@ export default function TreeNode({
           {/* Acoes no hover: adicionar filho + menu */}
           {hover && (
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              {meta.childTipo && (
+              {tipoFilho && (
                 <Tooltip title={`Adicionar ${meta.childLabel}`} arrow>
                   <IconButton
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation()
-                      ctx.adicionar(no.id_no, meta.childTipo)
+                      ctx.adicionar(no.id_no, tipoFilho)
                     }}
                     sx={{ p: 0.4 }}
                   >
@@ -235,10 +239,10 @@ export default function TreeNode({
             ))}
             {/* Entrada rapida para o proximo filho */}
             <QuickAdd
-              tipoFilho={meta.childTipo}
-              cor={TIPO_META[meta.childTipo].cor}
+              tipoFilho={tipoFilho}
+              cor={TIPO_META[tipoFilho].cor}
               indent={nivel + 1}
-              onAdd={(nome) => ctx.adicionar(no.id_no, meta.childTipo, nome)}
+              onAdd={(nome) => ctx.adicionar(no.id_no, tipoFilho, nome)}
             />
           </motion.div>
         )}

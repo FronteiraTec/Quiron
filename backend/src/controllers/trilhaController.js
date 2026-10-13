@@ -106,6 +106,39 @@ async function listarConteudos(req, res, next) {
   }
 }
 
+/** GET /trilha/:id/materiais — :id e uma trilha (PROGRAMA) ou uma FASE. */
+async function listarMateriais(req, res, next) {
+  try {
+    res.json({ fases: await trilhaService.materiais(req.params.id, req.usuario) })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** POST /trilha/:id/materiais — :id e uma FASE; body: { id_conteudo } */
+async function vincularMaterial(req, res, next) {
+  try {
+    const vinculo = await trilhaService.vincularMaterial(
+      req.params.id,
+      req.body.id_conteudo,
+      req.usuario
+    )
+    res.status(201).json({ vinculo })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** DELETE /trilha/:id/materiais/:idConteudo — :id e uma FASE */
+async function desvincularMaterial(req, res, next) {
+  try {
+    await trilhaService.desvincularMaterial(req.params.id, req.params.idConteudo, req.usuario)
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+}
+
 /** POST /trilha/:id/conteudos — body: { id_conteudo } */
 async function vincularConteudo(req, res, next) {
   try {
@@ -254,6 +287,9 @@ module.exports = {
   listarConteudos,
   vincularConteudo,
   desvincularConteudo,
+  listarMateriais,
+  vincularMaterial,
+  desvincularMaterial,
   listarProgramas,
   arvoreDoPrograma,
   definirPadrao,

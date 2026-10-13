@@ -301,11 +301,22 @@ async function substituirContatos(idStartup, contatos) {
   })
 }
 
-/** Adiciona um membro (usuario) a uma startup. */
+/**
+ * Adiciona um membro (usuario) a uma startup.
+ *
+ * Remover um membro so desativa o vinculo (ativo = FALSE), e a linha fica na
+ * tabela com a mesma chave (id_startup, id_usuario). Por isso quem ja saiu e
+ * readicionado reativando essa linha, com nova entrada_dt. Se o vinculo ja
+ * estiver ativo, nada e alterado e a funcao devolve undefined.
+ */
 async function adicionarMembro(idStartup, idUsuario, lider = false) {
   const { rows } = await query(
     `INSERT INTO startup_membros (id_startup, id_usuario, lider)
      VALUES ($1, $2, $3)
+     ON CONFLICT (id_startup, id_usuario) DO UPDATE
+        SET ativo = TRUE, lider = EXCLUDED.lider,
+            entrada_dt = NOW(), saida_dt = NULL
+      WHERE startup_membros.ativo = FALSE
      RETURNING *`,
     [idStartup, idUsuario, lider]
   )

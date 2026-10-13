@@ -405,6 +405,165 @@ async function vincularConteudo(idNo, idConteudo) {
   return rows[0]
 }
 
+// ---------------------------------------------------------------------------
+// MATERIAIS POR FASE
+//
+// O Construtor mostra a trilha so ate a FASE: "adicionar material a fase" e o
+// gesto de quem monta. O banco continua PROGRAMA > FASE > MODULO > PASSO, e o
+// conteudo continua pendurado no PASSO (trilha_conteudo) — e o passo que a
+// Jornada, as entregas e os relatorios leem. A fase so ganha, sob demanda, um
+// modulo e um passo "Materiais" para guardar o que se vincula a ela.
+// ---------------------------------------------------------------------------
+
+/** Nome do modulo/passo criado por baixo da fase para guardar os materiais. */
+const NOME_MATERIAIS = "Materiais"
+
+/**
+ * Os materiais de cada fase, a partir de uma trilha (todas as fases) ou de
+ * uma fase so. Um conteudo aparece uma vez por fase, mesmo se estiver em dois
+ * passos dela; `passos` diz em quais, para desvincular de todos.
+ *
+ * @param {number} idNo id de um PROGRAMA ou de uma FASE.
+ * @returns {Promise<object[]>} [{ id_no, nome, ordem, ativo, conteudos: [] }]
+ */
+async function materiaisPorFase(idNo) {
+  const { rows } = await query(
+    `WITH RECURSIVE arv AS (
+       SELECT id_no, tipo, nome, ordem, ativo,
+              CASE WHEN tipo = 'FASE' THEN id_no END AS id_fase
+         FROM trilha_no
+        WHERE id_no = $1
+       UNION ALL
+       SELECT n.id_no, n.tipo, n.nome, n.ordem, n.ativo,
+              COALESCE(a.id_fase, CASE WHEN n.tipo = 'FASE' THEN n.id_no END)
+         FROM trilha_no n
+         JOIN arv a ON a.id_no = n.id_pai
+     )
+     SELECT f.id_no AS id_fase, f.nome AS fase, f.ordem AS fase_ordem, f.ativo AS fase_ativa,
+            p.id_no AS id_passo,
+            c.id_conteudo, c.tipo, c.titulo, c.resumo, c.tags,
+            c.url, c.nome_arquivo, c.duracao, c.logo_url
+       FROM arv f
+       LEFT JOIN arv p ON p.id_fase = f.id_no AND p.tipo = 'PASSO'
+       LEFT JOIN trilha_conteudo tc ON tc.id_no = p.id_no
+       LEFT JOIN conteudo c ON c.id_conteudo = tc.id_conteudo
+      WHERE f.tipo = 'FASE'
+      ORDER BY f.ordem, f.id_no, p.ordem, tc.ordem, c.titulo`,
+    [idNo]
+  )
+
+  const fases = new Map()
+  for (const r of rows) {
+    if (!fases.has(r.id_fase)) {
+      fases.set(r.id_fase, {
+        id_no: r.id_fase,
+        nome: r.fase,
+        ordem: r.fase_ordem,
+        ativo: r.fase_ativa,
+        conteudos: [],
+      })
+    }
+    if (!r.id_conteudo) continue
+    const fase = fases.get(r.id_fase)
+    const ja = fase.conteudos.find((c) => c.id_conteudo === r.id_conteudo)
+    if (ja) {
+      ja.passos.push(r.id_passo)
+      continue
+    }
+    fase.conteudos.push({
+      id_conteudo: r.id_conteudo,
+      tipo: r.tipo,
+      titulo: r.titulo,
+      resumo: r.resumo,
+      tags: r.tags,
+      url: r.url,
+      nome_arquivo: r.nome_arquivo,
+      duracao: r.duracao,
+      logo_url: r.logo_url,
+      passos: [r.id_passo],
+    })
+  }
+  return [...fases.values()]
+}
+
+/**
+ * Vincula um conteudo a uma FASE, pelo passo que guarda os materiais dela.
+ *
+ * Usa o primeiro passo da fase (na ordem dos modulos e passos), que nas fases
+ * montadas antes desta mudanca e o passo que ja existia. Fase sem passo ganha
+ * um modulo e um passo "Materiais", so de conteudo (sem entrega).
+ *
+ * Numa transacao, com a fase travada: dois cliques seguidos em "adicionar"
+ * criariam dois modulos "Materiais" sem a trava.
+ */
+async function vincularMaterialNaFase(fase, idConteudo) {
+  return withTransaction(async (client) => {
+    await client.query(`SELECT id_no FROM trilha_no WHERE id_no = $1 FOR UPDATE`, [fase.id_no])
+
+    const { rows: existentes } = await client.query(
+      `SELECT p.id_no
+         FROM trilha_no m
+         JOIN trilha_no p ON p.id_pai = m.id_no AND p.tipo = 'PASSO'
+        WHERE m.id_pai = $1 AND m.tipo = 'MODULO'
+        ORDER BY m.ordem, m.id_no, p.ordem, p.id_no
+        LIMIT 1`,
+      [fase.id_no]
+    )
+    let idPasso = existentes[0]?.id_no
+
+    if (!idPasso) {
+      const criarNo = async (idPai, tipo) => {
+        const { rows } = await client.query(
+          `INSERT INTO trilha_no (id_tenant, id_pai, tipo, nome, ordem)
+           VALUES ($1, $2, $3, $4,
+             COALESCE((SELECT MAX(ordem) + 1 FROM trilha_no WHERE id_pai = $2), 1))
+           RETURNING id_no`,
+          [fase.id_tenant, idPai, tipo, NOME_MATERIAIS]
+        )
+        return rows[0].id_no
+      }
+      // Reaproveita um modulo vazio da fase antes de criar outro.
+      const { rows: modulos } = await client.query(
+        `SELECT id_no FROM trilha_no
+          WHERE id_pai = $1 AND tipo = 'MODULO'
+          ORDER BY ordem, id_no LIMIT 1`,
+        [fase.id_no]
+      )
+      const idModulo = modulos[0]?.id_no ?? (await criarNo(fase.id_no, "MODULO"))
+      idPasso = await criarNo(idModulo, "PASSO")
+    }
+
+    await client.query(
+      `INSERT INTO trilha_conteudo (id_no, id_conteudo, ordem)
+       VALUES ($1, $2,
+         COALESCE((SELECT MAX(ordem) + 1 FROM trilha_conteudo WHERE id_no = $1), 1))
+       ON CONFLICT (id_no, id_conteudo) DO NOTHING`,
+      [idPasso, idConteudo]
+    )
+    return { id_no: fase.id_no, id_passo: idPasso, id_conteudo: Number(idConteudo) }
+  })
+}
+
+/** Tira um conteudo de TODOS os passos de uma fase. Devolve quantos vinculos saiu. */
+async function desvincularMaterialDaFase(idFase, idConteudo) {
+  const { rowCount } = await query(
+    `DELETE FROM trilha_conteudo tc
+      USING trilha_no p, trilha_no m
+      WHERE tc.id_no = p.id_no
+        AND p.tipo = 'PASSO' AND p.id_pai = m.id_no
+        AND m.tipo = 'MODULO' AND m.id_pai = $1
+        AND tc.id_conteudo = $2`,
+    [idFase, idConteudo]
+  )
+  return rowCount
+}
+
+/** O tenant de um conteudo (para nao vincular material de outra incubadora). */
+async function tenantDoConteudo(idConteudo) {
+  const { rows } = await query(`SELECT id_tenant FROM conteudo WHERE id_conteudo = $1`, [idConteudo])
+  return rows[0]?.id_tenant ?? null
+}
+
 /** Desvincula um conteudo de um passo (o conteudo continua na Biblioteca). */
 async function desvincularConteudo(idNo, idConteudo) {
   const { rows } = await query(
@@ -621,6 +780,10 @@ module.exports = {
   listarConteudos,
   vincularConteudo,
   desvincularConteudo,
+  materiaisPorFase,
+  vincularMaterialNaFase,
+  desvincularMaterialDaFase,
+  tenantDoConteudo,
   listarProgramas,
   definirPadrao,
   programaPadrao,

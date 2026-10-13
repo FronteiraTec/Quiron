@@ -29,7 +29,7 @@
  *   PUT                       /engajamento-config/linkedin
  *   GET/POST/PUT/PATCH/DELETE /selos
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useOutletContext } from "react-router-dom"
 import {
   Alert,
@@ -257,7 +257,7 @@ const ACAO_VAZIA = {
   cor: "#6366f1",
 }
 
-function DialogoAcao({ aberto, inicial, categorias, onFechar, onSalvar }) {
+function DialogoAcao({ aberto, inicial, categorias, acoes, onFechar, onSalvar }) {
   const [form, setForm] = useState(ACAO_VAZIA)
   const [erro, setErro] = useState(null)
   const [salvando, setSalvando] = useState(false)
@@ -296,6 +296,14 @@ function DialogoAcao({ aberto, inicial, categorias, onFechar, onSalvar }) {
 
   const gatilho = GATILHOS.find((g) => g.valor === form.gatilho)
 
+  // O banco aceita uma acao por categoria (uq_engajamento_acao_categoria) e
+  // uma de mentoria por tenant — contando as desativadas. O que ja tem dono
+  // aparece travado, com o nome da acao, em vez de falhar so ao salvar.
+  const donoDaCategoria = new Map(
+    acoes.filter((a) => a.categoria_evento).map((a) => [a.categoria_evento, a])
+  )
+  const acaoMentoria = acoes.find((a) => a.gatilho === "MENTORIA_MINISTRADA")
+
   return (
     <Dialog open={aberto} onClose={onFechar} fullWidth maxWidth="sm">
       <DialogTitle>{editando ? "Editar ação" : "Nova ação que pontua"}</DialogTitle>
@@ -325,8 +333,15 @@ function DialogoAcao({ aberto, inicial, categorias, onFechar, onSalvar }) {
           }
         >
           {GATILHOS.map((g) => (
-            <MenuItem key={g.valor} value={g.valor}>
+            <MenuItem
+              key={g.valor}
+              value={g.valor}
+              disabled={!editando && g.valor === "MENTORIA_MINISTRADA" && Boolean(acaoMentoria)}
+            >
               {g.rotulo}
+              {!editando && g.valor === "MENTORIA_MINISTRADA" && acaoMentoria
+                ? ` — já existe ("${acaoMentoria.rotulo}")`
+                : ""}
             </MenuItem>
           ))}
         </TextField>
@@ -340,11 +355,17 @@ function DialogoAcao({ aberto, inicial, categorias, onFechar, onSalvar }) {
             disabled={editando}
             helperText="Cada categoria é pontuada por uma ação só. Categoria sem ação não vale ponto."
           >
-            {categorias.map((c) => (
-              <MenuItem key={c.chave} value={c.chave}>
-                {c.rotulo}
-              </MenuItem>
-            ))}
+            {categorias.map((c) => {
+              const dono = donoDaCategoria.get(c.chave)
+              return (
+                <MenuItem key={c.chave} value={c.chave} disabled={!editando && Boolean(dono)}>
+                  {c.rotulo}
+                  {!editando && dono
+                    ? ` — já pontuada por "${dono.rotulo}"${dono.ativo ? "" : " (desativada)"}`
+                    : ""}
+                </MenuItem>
+              )
+            })}
           </TextField>
         )}
 
@@ -572,6 +593,15 @@ export default function ConfiguracaoEngajamento() {
   const [dlgAcao, setDlgAcao] = useState(null)
   const [dlgSelo, setDlgSelo] = useState(null)
 
+  // A escada de cada liga, memorizada: o EditorNiveis reinicia as linhas quando
+  // esta prop muda, e um `niveis.filter()` direto no JSX criaria um array novo
+  // a cada render da pagina — abrir um dialogo ou digitar no campo do LinkedIn
+  // apagaria os degraus ainda nao salvos.
+  const niveisPorLiga = useMemo(
+    () => Object.fromEntries(LIGAS.map((l) => [l.valor, niveis.filter((n) => n.liga === l.valor)])),
+    [niveis]
+  )
+
   const carregar = useCallback(async () => {
     if (!idTenant) return
     setCarregando(true)
@@ -798,7 +828,7 @@ export default function ConfiguracaoEngajamento() {
               <EditorNiveis
                 idTenant={idTenant}
                 liga={liga.valor}
-                niveis={niveis.filter((n) => n.liga === liga.valor)}
+                niveis={niveisPorLiga[liga.valor]}
                 onSalvo={(qtd) =>
                   comAviso(async () => {}, `Escada de ${liga.rotulo.toLowerCase()} salva com ${qtd} níveis.`)
                 }
@@ -964,6 +994,7 @@ export default function ConfiguracaoEngajamento() {
         aberto={Boolean(dlgAcao)}
         inicial={dlgAcao?.inicial}
         categorias={categorias}
+        acoes={acoes}
         onFechar={() => setDlgAcao(null)}
         onSalvar={async (form) => {
           const corpo = { ...form, id_tenant: idTenant }

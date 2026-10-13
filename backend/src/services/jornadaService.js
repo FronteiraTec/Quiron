@@ -240,10 +240,17 @@ async function carregar(idStartup, idPrograma) {
     // Uma fase e liberada quando a anterior foi concluida. Assim a trilha tem
     // sequencia sem precisar de uma coluna "bloqueada" que teria de ser
     // mantida a mao a cada aprovacao.
+    //
+    // So os passos COM entrega contam: o passo so de conteudo (o "Materiais"
+    // que o Construtor cria por baixo da fase) nunca tem entrega, nunca chega
+    // a APROVADO e prendia a fase — e com ela todas as seguintes — para
+    // sempre. Fase sem nenhuma entrega fica em andamento, mas nao bloqueia a
+    // proxima: nao ha o que aprovar nela.
     const registrada = statusFase.get(fase.id_no)
+    const avaliaveis = passos.filter((p) => p.permite_entrega)
     const concluida =
       registrada === "APROVADA" ||
-      (passos.length > 0 && passos.every((p) => p.entrega.status === "APROVADO"))
+      (avaliaveis.length > 0 && avaliaveis.every((p) => p.entrega.status === "APROVADO"))
 
     let status = "EM_ANDAMENTO"
     if (concluida) status = "CONCLUIDO"
@@ -258,7 +265,7 @@ async function carregar(idStartup, idPrograma) {
       passos,
     })
 
-    anteriorConcluido = concluida
+    anteriorConcluido = concluida || (status !== "BLOQUEADO" && avaliaveis.length === 0)
   }
 
   return {
