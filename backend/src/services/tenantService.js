@@ -10,7 +10,7 @@ const startupConfigRepository = require("../repositories/startupConfigRepository
 const tarefaConfigRepository = require("../repositories/tarefaConfigRepository")
 const engajamentoRepository = require("../repositories/engajamentoRepository")
 const engajamentoPadroes = require("../engajamento/padroes")
-const { gerarHash } = require("../utils/senha")
+const { gerarHash, validarSenha } = require("../utils/senha")
 const { withTransaction } = require("../config/db")
 const { erroNegocio } = require("../utils/erros")
 
@@ -149,9 +149,7 @@ async function criarUsuario(idTenant, { nome, email, celular, senha, papel }, us
   if (!PAPEIS_VALIDOS.includes(papel)) {
     throw erroNegocio(400, "Informe um papel valido (admin, mentor ou usuario).")
   }
-  if (senha.length < 6) {
-    throw erroNegocio(400, "A senha provisoria deve ter ao menos 6 caracteres.")
-  }
+  validarSenha(senha, "A senha provisoria")
 
   const senhaHash = gerarHash(senha)
 
@@ -189,10 +187,17 @@ async function atualizarUsuario(idTenant, idUsuario, { nome, celular, papel }, u
   if (!PAPEIS_VALIDOS.includes(papel)) {
     throw erroNegocio(400, "Informe um papel valido (admin, mentor ou usuario).")
   }
+
+  // O vinculo e conferido ANTES de escrever (QRN-13). O perfil (nome, celular)
+  // e do usuario, nao do tenant: gravado primeiro, o admin A renomeava um
+  // usuario do tenant B e so DEPOIS recebia o 404 do papel — com o nome ja
+  // trocado.
+  if (!(await tenantRepository.buscarUsuarioVinculado(idTenant, idUsuario))) {
+    throw erroNegocio(404, "Usuario nao vinculado a esta incubadora.")
+  }
+
   await usuarioRepository.atualizarPerfil(idUsuario, { nome, celular })
-  const vinculo = await tenantRepository.atualizarPapel(idTenant, idUsuario, papel)
-  if (!vinculo) throw erroNegocio(404, "Usuario nao vinculado a esta incubadora.")
-  return vinculo
+  return tenantRepository.atualizarPapel(idTenant, idUsuario, papel)
 }
 
 /**

@@ -11,7 +11,7 @@
 #   ./scripts/backup.sh dev
 #
 # NO CRON (todo dia as 3h, guardando o log):
-#   0 3 * * * /opt/quiron/prod/scripts/backup.sh prod >> /var/log/quiron-backup.log 2>&1
+#   0 3 * * * /opt/quiron/prod/scripts/backup.sh prod >> /opt/quiron/backups/backup.log 2>&1
 #
 # RESTAURAR (o passo que ninguem testa e todo mundo precisa um dia):
 #   gunzip -c banco-AAAA-MM-DD.sql.gz | docker compose exec -T postgres psql -U quiron -d quiron
@@ -22,7 +22,7 @@ set -euo pipefail
 
 AMBIENTE="${1:?uso: $0 prod|dev}"
 RAIZ="/opt/quiron/$AMBIENTE"
-DESTINO="${QUIRON_BACKUP_DIR:-/var/backups/quiron/$AMBIENTE}"
+DESTINO="${QUIRON_BACKUP_DIR:-/opt/quiron/backups}/$AMBIENTE"
 MANTER_DIAS="${QUIRON_BACKUP_DIAS:-14}"
 
 DATA=$(date +%Y-%m-%d-%H%M)

@@ -11,6 +11,11 @@ RUN npm ci --omit=dev
 
 COPY . .
 
+# O commit desta imagem, devolvido pelo /health. O deploy.yml passa o SHA; num
+# build local fica "local".
+ARG VERSAO=local
+ENV VERSAO=$VERSAO
+
 # O volume de uploads e escrito em tempo de execucao; sem isto o processo, ja
 # sem privilegio, nao conseguiria gravar nele.
 RUN mkdir -p /app/uploads && chown -R node:node /app

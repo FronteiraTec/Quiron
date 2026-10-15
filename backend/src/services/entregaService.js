@@ -11,15 +11,17 @@ const questionarioRepository = require("../repositories/questionarioRepository")
 const startupRepository = require("../repositories/startupRepository")
 const tenantRepository = require("../repositories/tenantRepository")
 const rbacService = require("./rbacService")
+const startupService = require("./startupService")
 const notificacaoService = require("./notificacaoService")
 const { erroNegocio } = require("../utils/erros")
 
 const TIPOS_TEXTO = ["TEXTO_CURTO", "PARAGRAFO"]
 const TIPOS_ESCOLHA = ["ESCOLHA_UNICA", "CAIXAS_SELECAO"]
 
-/** Lista as entregas de uma startup. */
-async function listar(idStartup) {
+/** Lista as entregas de uma startup — para quem tem vinculo com ela (QRN-04). */
+async function listar(idStartup, usuario) {
   if (!idStartup) throw erroNegocio(400, "Informe o id_startup.")
+  await startupService.garantirVinculo(idStartup, usuario)
   return entregaRepository.listarPorStartup(idStartup)
 }
 
@@ -65,10 +67,14 @@ async function listarFila(idTenant, usuario) {
   return fila.map(comSituacao)
 }
 
-/** Busca uma entrega pelo id, incluindo suas respostas. */
-async function buscar(id) {
+/**
+ * Busca uma entrega pelo id, incluindo suas respostas. A startup vem da
+ * propria entrega, e quem le precisa ter vinculo com ela (QRN-04).
+ */
+async function buscar(id, usuario) {
   const entrega = await entregaRepository.buscarPorId(id)
   if (!entrega) throw erroNegocio(404, "Entrega nao encontrada.")
+  await startupService.garantirVinculo(entrega.id_startup, usuario)
   const respostas = await entregaRepository.listarRespostasPorEntrega(id)
   return { ...entrega, respostas }
 }
@@ -106,11 +112,12 @@ async function buscarDetalhe(id, usuario) {
 /**
  * Cria uma entrega simples (texto/arquivo). O id_usuario vem do token.
  */
-async function criar(dados) {
+async function criar(dados, usuario) {
   const { idNo, idStartup, idUsuario } = dados
   if (!idNo || !idStartup || !idUsuario) {
     throw erroNegocio(400, "Informe id_no e id_startup.")
   }
+  await startupService.garantirMembro(idStartup, usuario)
 
   const passo = await exigirPasso(idNo)
   if (!passo.permite_entrega) {
@@ -147,12 +154,14 @@ async function exigirPasso(idNo) {
  * @param {number} dados.idStartup
  * @param {number} dados.idUsuario - Autor (vem do token).
  * @param {Array<{idPergunta:number, texto?:string, alternativas?:number[]}>} dados.respostas
+ * @param {{id:number, root?:boolean}} usuario - autenticado; precisa ser membro.
  * @returns {Promise<object>} A entrega criada.
  */
-async function responderQuestionario({ idNo, idStartup, idUsuario, respostas }) {
+async function responderQuestionario({ idNo, idStartup, idUsuario, respostas }, usuario) {
   if (!idNo || !idStartup) {
     throw erroNegocio(400, "Informe id_no e id_startup.")
   }
+  await startupService.garantirMembro(idStartup, usuario)
 
   const passo = await exigirPasso(idNo)
   if (passo.tipo_passo !== "QUESTIONARIO" || !passo.id_questionario) {

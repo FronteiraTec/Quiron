@@ -50,29 +50,27 @@ helpers apareceriam como testes vazios no relatório.
 `--test-concurrency=1` no `npm test` não é enfeite: os arquivos compartilham um
 banco só, e cada um o recria no `before`. Em paralelo eles se destruiriam.
 
-## `autorizacao.test.js` falha de propósito
+## `autorizacao.test.js` — as regressões da auditoria
 
-Esse arquivo afirma o comportamento **correto**, não o atual. Hoje:
+Esse arquivo afirma o comportamento **correto** das rotas que a auditoria de
+30/08/2026 achou sem checagem de autorização. Cada teste nomeia o seu achado
+(`QRN-04`, `QRN-08`, ...).
 
-```
-# tests 43
-# pass 27
-# fail 16
-```
+Até 15/10/2026, 16 deles falhavam de propósito, e com eles a CI inteira — o
+que travava todo deploy. Os cinco achados foram fechados nessa data:
 
-Rodando o `npm test` inteiro, o total é maior (os arquivos novos entram na
-conta) mas o número de falhas continua sendo **16** — todas dentro do
-`autorizacao.test.js`. Qualquer falha fora dele é regressão de verdade.
+| Achado | Onde foi corrigido |
+|---|---|
+| QRN-04 | `auditLogService`, `jornadaService`, `entregaService`, `avaliacaoService` |
+| QRN-05 | `utils/senha.js` — `validarSenha`, usada em todo lugar que grava senha |
+| QRN-07 | `rbacRepository.usuarioTemPermissao` — exige vínculo **ativo** |
+| QRN-08 | `startupService.buscarComPermissao` — chave **e** vínculo com a startup |
+| QRN-13 | `tenantService.atualizarUsuario` — confere o vínculo antes de escrever |
 
-As 16 falhas são os achados abertos da auditoria de 30/08/2026 — cada teste
-nomeia o seu (`QRN-04`, `QRN-08`, ...). Elas são a definição de pronto do
-trabalho de autorização: quando o último passar, o trabalho acabou, e o portão
-impede o furo de voltar depois.
+Daqui em diante, um vermelho neste arquivo é regressão: alguma rota voltou a
+confiar no `id_tenant`/`id_startup` do pedido.
 
-Enquanto isso, o `deploy.yml` não sobe nada — o job `subir` depende do `ci`.
-
-Os 5 testes que **passam** dentro desse arquivo são os controles, e importam
-tanto quanto os que falham:
+Alguns testes do arquivo são **controles**, e importam tanto quanto os outros:
 
 - `colaborador CONTINUA lendo o Canvas da PROPRIA startup` — a correção do
   QRN-08 não pode fechar o acesso legítimo junto.
