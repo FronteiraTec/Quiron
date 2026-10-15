@@ -140,6 +140,24 @@ async function resolverPrimeiraVez(cliente) {
   )
 }
 
+/**
+ * O SQL do arquivo sem o BEGIN/COMMIT de topo.
+ *
+ * Quase todas as migracoes ate a 018 trazem os proprios BEGIN; e COMMIT;,
+ * porque nasceram para rodar a mao no psql. Dentro da transacao que o runner
+ * abre, o COMMIT do arquivo fechava a transacao NO MEIO: a migracao ficava
+ * aplicada e o INSERT em schema_migracao rodava fora dela — se ele falhasse,
+ * o banco mudava sem registro, e a proxima execucao tentaria aplicar de novo.
+ *
+ * Tirar as duas linhas aqui, e nao nos arquivos, preserva o checksum do que ja
+ * foi aplicado em producao. So linhas que sao EXATAMENTE o comando: um BEGIN
+ * dentro de um corpo de funcao (`BEGIN ... END`) nao termina em `;` na mesma
+ * linha sozinho, e fica intacto.
+ */
+function semTransacaoPropria(sql) {
+  return sql.replace(/^[ \t]*(BEGIN|COMMIT)[ \t]*;[ \t]*$/gim, "")
+}
+
 /** Confere que nenhuma migracao ja aplicada mudou no disco. */
 function conferirChecksums(migracoes, aplicadas) {
   const divergentes = []
@@ -170,6 +188,12 @@ async function principal() {
   })
 
   await cliente.connect()
+
+  // Duas execucoes ao mesmo tempo (um deploy e alguem rodando a mao) leriam a
+  // mesma lista de pendentes e aplicariam tudo duas vezes. O lock de sessao
+  // faz a segunda esperar a primeira; quando ela entra, ja ve tudo aplicado.
+  // A chave e arbitraria — so precisa ser sempre a mesma.
+  await cliente.query("SELECT pg_advisory_lock(7351001)")
 
   try {
     const migracoes = listarMigracoes()
@@ -229,7 +253,7 @@ async function principal() {
       log(`aplicando ${m.arquivo}...`)
       try {
         await cliente.query("BEGIN")
-        await cliente.query(m.sql)
+        await cliente.query(semTransacaoPropria(m.sql))
         await cliente.query(
           "INSERT INTO schema_migracao (arquivo, checksum) VALUES ($1, $2)",
           [m.arquivo, m.checksum]
@@ -244,6 +268,7 @@ async function principal() {
 
     log(`${pendentes.length} migracao(oes) aplicada(s).`)
   } finally {
+    // Fechar a conexao ja solta o lock; o end() cobre os dois.
     await cliente.end()
   }
 }

@@ -13,7 +13,7 @@ async function listar(req, res, next) {
     const { id_entrega, id_tenant } = req.query
     const avaliacoes = id_tenant
       ? await avaliacaoService.listarDoTenant(id_tenant, req.usuario)
-      : await avaliacaoService.listar(id_entrega)
+      : await avaliacaoService.listar(id_entrega, req.usuario)
     res.json({ avaliacoes })
   } catch (err) {
     next(err)

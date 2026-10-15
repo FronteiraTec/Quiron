@@ -11,9 +11,9 @@
  * dois discordarem — uma entrega aprovada com o passo marcado "aguardando".
  */
 const jornadaRepository = require("../repositories/jornadaRepository")
-const startupRepository = require("../repositories/startupRepository")
 const trilhaRepository = require("../repositories/trilhaRepository")
 const notificacaoService = require("./notificacaoService")
+const startupService = require("./startupService")
 const { documentoDe } = require("./documentoAula")
 const { erroNegocio } = require("../utils/erros")
 
@@ -62,11 +62,12 @@ function montarEntrega(row, historico) {
  * E o que a tela "Minha Jornada" mostra antes de entrar numa delas. O
  * progresso vem calculado das entregas aprovadas, no repositorio.
  */
-async function listarTrilhas(idStartup) {
+async function listarTrilhas(idStartup, usuario) {
   if (!idStartup) throw erroNegocio(400, "Informe o id_startup.")
 
-  const startup = await startupRepository.buscarPorId(idStartup)
-  if (!startup) throw erroNegocio(404, "Startup nao encontrada.")
+  // A trilha, a equipe e as entregas sao da startup: so quem tem vinculo com
+  // ela le (QRN-04). Antes bastava estar logado e trocar o id na URL.
+  await startupService.garantirVinculo(idStartup, usuario)
 
   return trilhaRepository.programasDaStartup(idStartup)
 }
@@ -92,11 +93,10 @@ async function resolverPrograma(idStartup, idPrograma) {
   return escolhida.id_no
 }
 
-async function carregar(idStartup, idPrograma) {
+async function carregar(idStartup, idPrograma, usuario) {
   if (!idStartup) throw erroNegocio(400, "Informe o id_startup.")
 
-  const startup = await startupRepository.buscarPorId(idStartup)
-  if (!startup) throw erroNegocio(404, "Startup nao encontrada.")
+  const startup = await startupService.garantirVinculo(idStartup, usuario)
 
   const idTrilha = await resolverPrograma(idStartup, idPrograma)
 
@@ -322,11 +322,20 @@ async function reenviar(dados) {
   return entrega
 }
 
-/** O passo precisa existir, ser folha e aceitar entrega. */
-async function validarEntrega({ idNo, idStartup }) {
+/**
+ * Quem escreve precisa ser membro da startup, e o passo precisa existir, ser
+ * folha e aceitar entrega.
+ *
+ * O membro vem primeiro (QRN-04): o reenvio APAGA as avaliacoes existentes, e
+ * sem esta checagem qualquer conta logada apagava a devolutiva do mentor de
+ * qualquer startup.
+ */
+async function validarEntrega({ idNo, idStartup, usuario }) {
   if (!idNo || !idStartup) {
     throw erroNegocio(400, "Informe id_no e id_startup.")
   }
+
+  await startupService.garantirMembro(idStartup, usuario)
 
   const no = await trilhaRepository.buscarPorId(idNo)
 

@@ -1,63 +1,131 @@
 # ===========================================================================
 # DEPLOY.
 #
-#   push em dev  ->  dev.seudominio.com
-#   push em main     ->  app.seudominio.com
+#   merge/push em dev   ->  quiron-dev.fronteiratec.com
+#   merge/push em main  ->  quiron.fronteiratec.com   (com aprovacao, se o
+#                                                      environment `producao`
+#                                                      exigir revisor)
 #
-# SEMPRE depois da CI. O job `deploy` declara `needs: ci`, e o `ci` e o
-# workflow inteiro de testes reusado — nao ha como subir com o portao vermelho.
+# SEMPRE depois da CI: `publicar` depende de `ci`, que e o workflow de testes
+# inteiro reusado. Nao ha caminho que suba codigo com o portao vermelho.
 #
-# A IMAGEM E CONSTRUIDA AQUI, NAO NO SERVIDOR. Tres motivos: o servidor nao
-# precisa de RAM para um build de Vite; o deploy vira um `pull` de segundos em
-# vez de um build de minutos; e o rollback e trocar uma tag, porque cada imagem
-# fica marcada com o SHA do commit que a gerou.
+# A IMAGEM E CONSTRUIDA AQUI, NAO NO SERVIDOR. A VPS tem 2 GB e hospeda outros
+# projetos; um build do Vite passa de 1 GB. Cada imagem leva a tag do commit
+# (7 caracteres), entao rollback e trocar uma tag.
 #
-# SEGREDOS NECESSARIOS (Settings > Secrets and variables > Actions):
-#   VPS_HOST         ip ou dominio do servidor
-#   VPS_USUARIO      usuario de deploy (nao use root)
-#   VPS_SSH_CHAVE    a chave PRIVADA, conteudo inteiro do arquivo
-#   VPS_SSH_PORTA    opcional, o padrao e 22
+# O SERVIDOR NAO USA GIT. O repositorio e privado e o servidor nao tem (nem
+# deve ter) credencial do GitHub. Este workflow copia para la so os arquivos
+# que nao estao na imagem — compose, nginx, database, scripts — da MESMA
+# versao da imagem, e roda scripts/deploy.sh. O diretorio proxy/ (o Caddy
+# compartilhado com outros projetos) nunca e tocado.
 #
-# O GITHUB_TOKEN que publica no GHCR o proprio Actions fornece; nao precisa
-# criar nada para ele.
+# ROLLBACK: aba Actions > Deploy > Run workflow, escolha o ambiente e informe
+# a versao (o SHA curto de um deploy anterior). Pula testes e build: a imagem
+# daquela versao ja existe no GHCR.
+#
+# SECRETS (Settings > Environments > producao / desenvolvimento, ou no repo):
+#   VPS_HOST          IP do servidor
+#   VPS_PORTA         porta do SSH
+#   VPS_USUARIO       deploy
+#   VPS_SSH_CHAVE     a chave PRIVADA de deploy, o arquivo inteiro
+#   VPS_KNOWN_HOSTS   a linha do known_hosts do servidor (ver docs/deploy.md)
+#
+# VARIABLES:
+#   URL_PROD          https://quiron.fronteiratec.com
+#   URL_DEV           https://quiron-dev.fronteiratec.com
 # ===========================================================================
 name: Deploy
 
 on:
   push:
     branches: [main, dev]
-  # Permite subir uma versao a mao pela aba Actions — util para rollback.
   workflow_dispatch:
+    inputs:
+      ambiente:
+        description: Onde subir
+        type: choice
+        options: [dev, prod]
+        required: true
+      versao:
+        description: "Rollback: SHA curto de uma versao ja publicada. Vazio = a ponta da branch escolhida acima."
+        required: false
 
 concurrency:
-  # Dois pushes seguidos na mesma branch nao podem deployar em paralelo: o
-  # segundo esperaria o primeiro e os dois brigariam pelo mesmo diretorio no
-  # servidor. `cancel-in-progress: false` porque cancelar um deploy no meio
-  # deixa o ambiente num estado pior que deixar terminar.
-  group: deploy-${{ github.ref }}
+  # Um deploy por ambiente de cada vez. `cancel-in-progress: false` porque
+  # cancelar no meio deixa o ambiente pior do que deixar terminar.
+  group: deploy-${{ inputs.ambiente || (github.ref_name == 'main' && 'prod' || 'dev') }}
   cancel-in-progress: false
 
 jobs:
+  # Decide o que sobe e para onde. Fica num job a parte para que as regras
+  # estejam num lugar so, e nao espalhadas em `if:` pelos outros.
+  alvo:
+    name: Decidir versao e ambiente
+    runs-on: ubuntu-latest
+    outputs:
+      ambiente: ${{ steps.decidir.outputs.ambiente }}
+      sha: ${{ steps.decidir.outputs.sha }}
+      tag: ${{ steps.decidir.outputs.tag }}
+      construir: ${{ steps.decidir.outputs.construir }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decidir
+        id: decidir
+        env:
+          EVENTO: ${{ github.event_name }}
+          REF: ${{ github.ref_name }}
+          AMBIENTE_PEDIDO: ${{ inputs.ambiente }}
+          VERSAO: ${{ inputs.versao }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENTO" = "push" ]; then
+            [ "$REF" = "main" ] && AMBIENTE=prod || AMBIENTE=dev
+          else
+            AMBIENTE="$AMBIENTE_PEDIDO"
+          fi
+
+          if [ -n "${VERSAO:-}" ]; then
+            # Rollback: a versao precisa existir no historico do repositorio.
+            SHA=$(git rev-parse --verify "${VERSAO}^{commit}") || {
+              echo "::error::A versao '$VERSAO' nao existe no repositorio."; exit 1; }
+            CONSTRUIR=false
+          else
+            SHA="$GITHUB_SHA"
+            CONSTRUIR=true
+            # Producao recebe codigo novo so da main. Rollback para uma versao
+            # especifica pode vir de qualquer lugar: a imagem ja foi testada.
+            if [ "$AMBIENTE" = "prod" ] && [ "$REF" != "main" ]; then
+              echo "::error::Producao so recebe a ponta da main. Para rollback, informe a versao."
+              exit 1
+            fi
+          fi
+
+          {
+            echo "ambiente=$AMBIENTE"
+            echo "sha=$SHA"
+            echo "tag=${SHA::7}"
+            echo "construir=$CONSTRUIR"
+          } >> "$GITHUB_OUTPUT"
+          echo "### $AMBIENTE <- ${SHA::7}" >> "$GITHUB_STEP_SUMMARY"
+
   ci:
+    needs: alvo
+    if: needs.alvo.outputs.construir == 'true'
     uses: ./.github/workflows/ci.yml
 
   publicar:
     name: Construir e publicar imagens
-    needs: ci
+    needs: [alvo, ci]
+    if: needs.alvo.outputs.construir == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    outputs:
-      tag: ${{ steps.versao.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Definir a tag
-        id: versao
-        # O SHA curto do commit. Nunca `latest`: uma tag movel torna impossivel
-        # dizer o que esta rodando e impossivel voltar para a versao anterior.
-        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -67,114 +135,160 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # O label e o que deixa o deploy apagar imagens antigas DO QUIRON sem
+      # encostar nas dos outros projetos do servidor (ver scripts/deploy.sh).
       - name: Backend
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/quiron-backend:${{ steps.versao.outputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ghcr.io/${{ github.repository_owner }}/quiron-backend:${{ needs.alvo.outputs.tag }}
+          labels: br.com.fronteiratec.app=quiron
+          build-args: VERSAO=${{ needs.alvo.outputs.tag }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
       - name: Frontend
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/quiron-frontend:${{ steps.versao.outputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ghcr.io/${{ github.repository_owner }}/quiron-frontend:${{ needs.alvo.outputs.tag }}
+          labels: br.com.fronteiratec.app=quiron
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
 
   subir:
     name: Subir no servidor
-    needs: publicar
+    needs: [alvo, publicar]
+    # Roda depois do build, ou direto (rollback) quando o build foi pulado de
+    # proposito. `always()` porque, sem ele, um job pulado pula os seguintes.
+    if: >-
+      always() && needs.alvo.result == 'success' &&
+      (needs.publicar.result == 'success' ||
+       (needs.publicar.result == 'skipped' && needs.alvo.outputs.construir == 'false'))
     runs-on: ubuntu-latest
-    # O `environment` faz o GitHub registrar o historico de deploys por
-    # ambiente e permite exigir aprovacao manual para producao (configuravel em
-    # Settings > Environments).
-    environment: ${{ github.ref_name == 'main' && 'producao' || 'desenvolvimento' }}
+    permissions:
+      contents: read
+      packages: read
+    # O environment registra o historico de deploys por ambiente e e onde se
+    # exige aprovacao manual para producao (Settings > Environments).
+    environment:
+      name: ${{ needs.alvo.outputs.ambiente == 'prod' && 'producao' || 'desenvolvimento' }}
+      url: ${{ needs.alvo.outputs.ambiente == 'prod' && vars.URL_PROD || vars.URL_DEV }}
+    env:
+      AMBIENTE: ${{ needs.alvo.outputs.ambiente }}
+      TAG: ${{ needs.alvo.outputs.tag }}
+      DONO: ${{ github.repository_owner }}
     steps:
-      - name: Deploy por SSH
-        uses: appleboy/ssh-action@v1
-        env:
-          TAG: ${{ needs.publicar.outputs.tag }}
-          DONO: ${{ github.repository_owner }}
-          AMBIENTE: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      # Os arquivos da MESMA versao da imagem — num rollback, os de la.
+      - uses: actions/checkout@v4
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USUARIO }}
-          key: ${{ secrets.VPS_SSH_CHAVE }}
-          port: ${{ secrets.VPS_SSH_PORTA || 22 }}
-          envs: TAG,DONO,AMBIENTE
-          script_stop: true
-          script: |
+          ref: ${{ needs.alvo.outputs.sha }}
+
+      - name: Preparar SSH
+        env:
+          CHAVE: ${{ secrets.VPS_SSH_CHAVE }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          HOST: ${{ secrets.VPS_HOST }}
+          PORTA: ${{ secrets.VPS_PORTA }}
+          USUARIO: ${{ secrets.VPS_USUARIO }}
+        run: |
+          set -euo pipefail
+          for v in CHAVE KNOWN_HOSTS HOST PORTA USUARIO; do
+            [ -n "${!v}" ] || { echo "::error::Falta o secret VPS_$v (ver o cabecalho deste arquivo)."; exit 1; }
+          done
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          # Host key fixa, e nao ssh-keyscan: o keyscan aceitaria qualquer
+          # servidor que respondesse naquele IP.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host vps
+            HostName $HOST
+            Port $PORTA
+            User $USUARIO
+            IdentityFile ~/.ssh/deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+
+      - name: Copiar os arquivos da versao
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2029  # $AMBIENTE expande aqui, de proposito.
+          # So o que o stack le do disco. proxy/ fica de fora de proposito.
+          git archive --format=tar HEAD \
+              docker-compose.yml docker-compose.dev.yml .env.exemplo \
+              nginx database scripts \
+            | ssh vps "tar -x -C /opt/quiron/$AMBIENTE"
+
+      - name: Deploy
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          BACK="ghcr.io/$DONO/quiron-backend:$TAG"
+          FRONT="ghcr.io/$DONO/quiron-frontend:$TAG"
+          # O token vai pelo stdin, nunca pela linha de comando (que aparece no
+          # `ps` do servidor). O login fica num DOCKER_CONFIG temporario, apagado
+          # ao fim: nenhuma credencial do GitHub sobra no servidor, e o token
+          # expira junto com este job.
+          # shellcheck disable=SC2029  # as variaveis expandem aqui, de proposito.
+          printf '%s' "$TOKEN" | ssh vps "
             set -euo pipefail
-            cd "/opt/quiron/$AMBIENTE"
+            export DOCKER_CONFIG=\$(mktemp -d)
+            trap 'rm -rf \"\$DOCKER_CONFIG\"' EXIT
+            docker login ghcr.io -u '$ATOR' --password-stdin > /dev/null
+            cd /opt/quiron/$AMBIENTE
+            bash scripts/deploy.sh '$BACK' '$FRONT'
+          " 2>&1 | tee deploy.log
 
-            # O repositorio no servidor existe pelos arquivos que NAO estao na
-            # imagem: os compose, o nginx/default.conf e o database/schema.sql
-            # que o Postgres monta no primeiro boot.
-            git fetch --quiet origin
-            git checkout --quiet "$GITHUB_SHA" 2>/dev/null || git reset --hard --quiet "origin/$(git rev-parse --abbrev-ref HEAD)"
-
-            # A tag da versao entra no .env; o resto (segredos) ja esta la e
-            # nao e tocado.
-            sed -i "s|^IMAGEM_BACKEND=.*|IMAGEM_BACKEND=ghcr.io/$DONO/quiron-backend:$TAG|"   .env
-            sed -i "s|^IMAGEM_FRONTEND=.*|IMAGEM_FRONTEND=ghcr.io/$DONO/quiron-frontend:$TAG|" .env
-
-            docker compose pull --quiet
-
-            # Sobe o banco e ESPERA ficar saudavel antes de mexer no resto: a
-            # migracao precisa de um banco de pe.
-            docker compose up -d --wait postgres
-
-            # O passo que pode reprovar o deploy. Se uma migracao falhar, o
-            # `script_stop` interrompe aqui e a versao ANTIGA do backend
-            # continua no ar — nada foi trocado ainda.
-            docker compose run --rm migracao
-
-            docker compose up -d --wait
-
-            # Fumaca: a API precisa responder de dentro da rede do ambiente.
-            docker compose exec -T backend wget -q --spider http://localhost:3000/health
-            echo "deploy de $AMBIENTE concluido na versao $TAG"
-
-            # Imagens antigas enchem o disco: cada deploy traz um backend
-            # (~146MB) e um frontend (~65MB) novos, com tag propria.
-            #
-            # O `-a` nao e opcional aqui. Sem ele o prune so recolhe imagens
-            # SEM TAG, e as do GHCR chegam todas com tag — o disco encheria em
-            # silencio ate o deploy falhar por falta de espaco. Com `-a`, sai
-            # tudo que nao esta em uso por um container; as sete no ar
-            # continuam, porque estao referenciadas.
-            #
-            # `until=168h` guarda uma semana de versoes antigas, que sao os
-            # alvos possiveis de rollback.
-            docker image prune -af --filter "until=168h"
-            df -h / | tail -1
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "**Ambiente:** $AMBIENTE  "
+            echo "**Versao:** \`$TAG\`"
+            echo
+            if grep -q '\[migracao\]   ok:' deploy.log 2>/dev/null; then
+              echo "**Migracoes aplicadas:**"
+              grep '\[migracao\]   ok:' deploy.log | sed 's/.*ok: /- /'
+            else
+              echo "Nenhuma migracao nova."
+            fi
+            if grep -q 'ERRO' deploy.log 2>/dev/null; then
+              echo; echo '```'; grep -A3 'ERRO' deploy.log; echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   fumaca:
     name: Conferir pela internet
-    needs: subir
+    needs: [alvo, subir]
+    if: always() && needs.subir.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: A aplicacao responde no dominio publico
+      - name: A versao nova responde no dominio publico
         env:
-          URL: ${{ github.ref_name == 'main' && vars.URL_PROD || vars.URL_DEV }}
+          URL: ${{ needs.alvo.outputs.ambiente == 'prod' && vars.URL_PROD || vars.URL_DEV }}
+          TAG: ${{ needs.alvo.outputs.tag }}
         run: |
           if [ -z "${URL:-}" ]; then
-            echo "Defina as variaveis URL_PROD e URL_DEV em Settings > Variables para ligar esta conferencia."
+            echo "::warning::Defina as variables URL_PROD e URL_DEV para ligar esta conferencia."
             exit 0
           fi
           # O deploy ja conferiu por dentro; isto confere o caminho inteiro —
-          # DNS, certificado, Caddy e nginx.
-          for tentativa in 1 2 3 4 5; do
-            if curl -fsS --max-time 10 "$URL/api/health" | grep -q '"status":"ok"'; then
-              echo "$URL respondeu."
+          # DNS, certificado, Caddy, nginx — e que e a versao NOVA que responde.
+          for tentativa in 1 2 3 4 5 6; do
+            CORPO=$(curl -fsS --max-time 10 "$URL/api/health" || true)
+            if echo "$CORPO" | grep -q "\"versao\":\"$TAG\""; then
+              echo "$URL respondeu com a versao $TAG."
               exit 0
             fi
-            echo "tentativa $tentativa falhou, esperando..."
+            echo "tentativa $tentativa: $CORPO"
             sleep 10
           done
-          echo "A aplicacao nao respondeu em $URL apos o deploy."
+          echo "::error::$URL nao respondeu com a versao $TAG."
           exit 1

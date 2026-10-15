@@ -11,7 +11,8 @@ async function carregar(req, res, next) {
   try {
     const jornada = await jornadaService.carregar(
       req.query.id_startup,
-      req.query.id_trilha
+      req.query.id_trilha,
+      req.usuario
     )
     res.json({ jornada })
   } catch (err) {
@@ -22,7 +23,7 @@ async function carregar(req, res, next) {
 /** GET /jornada/trilhas?id_startup= — trilhas em andamento e concluidas. */
 async function listarTrilhas(req, res, next) {
   try {
-    const trilhas = await jornadaService.listarTrilhas(req.query.id_startup)
+    const trilhas = await jornadaService.listarTrilhas(req.query.id_startup, req.usuario)
     res.json({ trilhas })
   } catch (err) {
     next(err)
@@ -66,6 +67,7 @@ function paraServico(req) {
     idNo: id_no,
     idStartup: id_startup,
     idUsuario: req.usuario?.id ?? null,
+    usuario: req.usuario,
     textoResposta: texto_resposta,
     anexos,
   }

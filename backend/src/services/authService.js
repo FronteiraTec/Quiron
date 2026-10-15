@@ -7,7 +7,7 @@
 const usuarioRepository = require("../repositories/usuarioRepository")
 const senhaResetRepository = require("../repositories/senhaResetRepository")
 const tenantRepository = require("../repositories/tenantRepository")
-const { gerarHash, verificarSenha, gerarTokenReset, hashToken } = require("../utils/senha")
+const { gerarHash, verificarSenha, gerarTokenReset, hashToken, validarSenha } = require("../utils/senha")
 const { gerarToken, revogarToken } = require("../utils/jwt")
 const { enviarEmailReset } = require("../utils/email")
 const { erroNegocio } = require("../utils/erros")
@@ -68,6 +68,7 @@ async function registrar({ nome, email, celular, senha }) {
   if (!nome || !email || !celular || !senha) {
     throw erroNegocio(400, "Informe nome, email, celular e senha.")
   }
+  validarSenha(senha)
 
   try {
     const senhaHash = gerarHash(senha)
@@ -127,9 +128,7 @@ async function login({ email, senha }) {
  * @param {string} novaSenha
  */
 async function definirPrimeiraSenha(id, novaSenha) {
-  if (!novaSenha || novaSenha.length < 6) {
-    throw erroNegocio(400, "A nova senha deve ter ao menos 6 caracteres.")
-  }
+  validarSenha(novaSenha, "A nova senha")
   const senhaHash = gerarHash(novaSenha)
   await usuarioRepository.atualizarSenha(id, senhaHash)
 }
@@ -238,6 +237,7 @@ async function redefinirSenha(token, novaSenha) {
   if (!token || !novaSenha) {
     throw erroNegocio(400, "Informe o token e a nova senha.")
   }
+  validarSenha(novaSenha, "A nova senha")
 
   // Compara pelo hash do token (nunca guardamos o token puro).
   const registro = await senhaResetRepository.buscarValidoPorHash(hashToken(token))

@@ -5,7 +5,7 @@ const entregaService = require("../services/entregaService")
 
 async function listar(req, res, next) {
   try {
-    res.json({ entregas: await entregaService.listar(req.query.id_startup) })
+    res.json({ entregas: await entregaService.listar(req.query.id_startup, req.usuario) })
   } catch (err) {
     next(err)
   }
@@ -22,7 +22,7 @@ async function fila(req, res, next) {
 
 async function buscar(req, res, next) {
   try {
-    res.json({ entrega: await entregaService.buscar(req.params.id) })
+    res.json({ entrega: await entregaService.buscar(req.params.id, req.usuario) })
   } catch (err) {
     next(err)
   }
@@ -46,7 +46,7 @@ async function criar(req, res, next) {
       idUsuario: req.usuario.id,
       textoResposta: texto_resposta,
       arquivoUrl: arquivo_url,
-    })
+    }, req.usuario)
     res.status(201).json({ entrega })
   } catch (err) {
     next(err)
@@ -61,7 +61,7 @@ async function responder(req, res, next) {
       idStartup: id_startup,
       idUsuario: req.usuario.id,
       respostas,
-    })
+    }, req.usuario)
     res.status(201).json({ entrega })
   } catch (err) {
     next(err)

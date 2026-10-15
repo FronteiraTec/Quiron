@@ -4,6 +4,16 @@
 # Cada bloco manda para o alias que o nginx daquele stack registra na rede
 # `quiron-borda` (ver o servico `nginx` no docker-compose.yml da raiz).
 # Se um stack estiver parado, o dominio dele devolve 502 e o outro segue de pe.
+#
+# ESTE CADDY E COMPARTILHADO. Alem dos dois ambientes do Quiron, ele serve o
+# Desafio Empreende e a Vitrine — e o bloco da Vitrine e reescrito pelo deploy
+# DELA (borda.sh), direto no servidor. A copia que vale e a do servidor, em
+# /opt/quiron/prod/proxy/Caddyfile; esta aqui e um retrato dela.
+#
+# Por isso o deploy do Quiron (deploy.yml) NUNCA copia este diretorio. Mudou
+# algo aqui? Aplique a mao no servidor e recarregue:
+#   docker compose -f /opt/quiron/prod/proxy/docker-compose.yml exec caddy \
+#     caddy reload --config /etc/caddy/Caddyfile
 # ===========================================================================
 
 {
@@ -72,3 +82,47 @@
 		header_up X-Forwarded-Host {host}
 	}
 }
+# --- DESAFIO EMPREENDE -----------------------------------------------------
+# Sistema de avaliacoes do Desafio Empreende UFFS. O stack vive em
+# /opt/desafio-empreende e registra o apelido `desafio-web` nesta mesma rede.
+{$DOMINIO_DESAFIO:desafio.fronteiratec.com} {
+	import seguranca
+	encode zstd gzip
+
+	reverse_proxy desafio-web:80 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+
+		# Exportacoes de XLSX/CSV podem demorar em bases maiores.
+		transport http {
+			response_header_timeout 120s
+		}
+	}
+}
+
+# >>> VITRINE — gerenciado por /opt/vitrine/app/vitrine/deploy/vps/borda.sh. Não edite aqui:
+# edite deploy/caddy/vitrine.caddy no repositório da Vitrine e rode o borda.sh.
+#
+# Vitrine de iniciativas e notícias da incubadora (stack em /opt/vitrine). O
+# Nginx dela entra nesta rede com o apelido `vitrine-web`.
+#
+# Sem `import seguranca`: a CSP daquele bloco (`script-src 'self'`) quebraria a
+# Vitrine, que tem script inline no index.html (preferências de acessibilidade
+# antes da primeira pintura) e carrega o VLibras do governo. Os demais
+# cabeçalhos de segurança o Nginx da Vitrine já envia.
+{$DOMINIO_VITRINE:vitrine.fronteiratec.com} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		# Ambiente de validação: buscador não indexa. Remova esta linha quando a
+		# Vitrine for para o domínio definitivo.
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+
+	reverse_proxy vitrine-web:80 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+# <<< VITRINE

@@ -231,6 +231,11 @@ async function alocarRolePadrao(idTenant, idUsuario, papel, client) {
 /**
  * Verifica se um usuario possui uma permissao (chave) dentro de um tenant,
  * via alguma role (do tenant) a qual ele esteja vinculado.
+ *
+ * O vinculo ATIVO com o tenant e condicao, nao detalhe (QRN-07): desativar um
+ * usuario so mexe em `tenant_usuarios.ativo`, e as linhas de `usuario_role`
+ * ficam onde estavam para o caso de ele ser reativado. Sem o JOIN abaixo, o
+ * desligado continuava passando em toda chave das roles que tinha.
  * @param {number} idTenant
  * @param {number} idUsuario
  * @param {string} chave
@@ -242,6 +247,9 @@ async function usuarioTemPermissao(idTenant, idUsuario, chave) {
        SELECT 1
          FROM usuario_role ur
          JOIN role r ON r.id_role = ur.id_role
+         JOIN tenant_usuarios tu ON tu.id_usuario = ur.id_usuario
+                                AND tu.id_tenant = r.id_tenant
+                                AND tu.ativo = TRUE
          JOIN role_permissao rp ON rp.id_role = ur.id_role
          JOIN permissao p ON p.id_permissao = rp.id_permissao
         WHERE ur.id_usuario = $1 AND r.id_tenant = $2 AND p.chave = $3
@@ -263,6 +271,10 @@ async function listarPermissoesDoUsuario(idTenant, idUsuario) {
     `SELECT DISTINCT p.chave
        FROM usuario_role ur
        JOIN role r ON r.id_role = ur.id_role
+       -- Mesmo recorte de usuarioTemPermissao: desligado nao tem chave.
+       JOIN tenant_usuarios tu ON tu.id_usuario = ur.id_usuario
+                              AND tu.id_tenant = r.id_tenant
+                              AND tu.ativo = TRUE
        JOIN role_permissao rp ON rp.id_role = ur.id_role
        JOIN permissao p ON p.id_permissao = rp.id_permissao
       WHERE ur.id_usuario = $1 AND r.id_tenant = $2`,
