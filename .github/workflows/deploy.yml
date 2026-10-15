@@ -67,6 +67,7 @@ jobs:
       sha: ${{ steps.decidir.outputs.sha }}
       tag: ${{ steps.decidir.outputs.tag }}
       construir: ${{ steps.decidir.outputs.construir }}
+      imagens: ${{ steps.decidir.outputs.imagens }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -108,6 +109,8 @@ jobs:
             echo "sha=$SHA"
             echo "tag=${SHA::7}"
             echo "construir=$CONSTRUIR"
+            # O registro exige minusculas, e o dono vem como "FronteiraTec".
+            echo "imagens=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
           } >> "$GITHUB_OUTPUT"
           echo "### $AMBIENTE <- ${SHA::7}" >> "$GITHUB_STEP_SUMMARY"
 
@@ -142,7 +145,7 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/quiron-backend:${{ needs.alvo.outputs.tag }}
+          tags: ${{ needs.alvo.outputs.imagens }}/quiron-backend:${{ needs.alvo.outputs.tag }}
           labels: br.com.fronteiratec.app=quiron
           build-args: VERSAO=${{ needs.alvo.outputs.tag }}
           cache-from: type=gha,scope=backend
@@ -153,7 +156,7 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/quiron-frontend:${{ needs.alvo.outputs.tag }}
+          tags: ${{ needs.alvo.outputs.imagens }}/quiron-frontend:${{ needs.alvo.outputs.tag }}
           labels: br.com.fronteiratec.app=quiron
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
@@ -179,7 +182,7 @@ jobs:
     env:
       AMBIENTE: ${{ needs.alvo.outputs.ambiente }}
       TAG: ${{ needs.alvo.outputs.tag }}
-      DONO: ${{ github.repository_owner }}
+      IMAGENS: ${{ needs.alvo.outputs.imagens }}
     steps:
       # Os arquivos da MESMA versao da imagem — num rollback, os de la.
       - uses: actions/checkout@v4
@@ -230,8 +233,8 @@ jobs:
           ATOR: ${{ github.actor }}
         run: |
           set -euo pipefail
-          BACK="ghcr.io/$DONO/quiron-backend:$TAG"
-          FRONT="ghcr.io/$DONO/quiron-frontend:$TAG"
+          BACK="$IMAGENS/quiron-backend:$TAG"
+          FRONT="$IMAGENS/quiron-frontend:$TAG"
           # O token vai pelo stdin, nunca pela linha de comando (que aparece no
           # `ps` do servidor). O login fica num DOCKER_CONFIG temporario, apagado
           # ao fim: nenhuma credencial do GitHub sobra no servidor, e o token
