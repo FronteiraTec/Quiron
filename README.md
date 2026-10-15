@@ -10,6 +10,7 @@ engajamento.
 |---|---|
 | Subir o projeto | [abaixo](#rodando-localmente) |
 | Trabalhar em uma feature | [Branches](#branches) |
+| Mudar o banco | [`database/README.md`](database/README.md) |
 | Rodar os testes | [`docs/testes.md`](docs/testes.md) |
 | Publicar numa VPS | [`docs/deploy.md`](docs/deploy.md) |
 | Integrar o Google Agenda | [`docs/google-agenda.md`](docs/google-agenda.md) |
@@ -114,19 +115,15 @@ então basta `docker compose restart nginx`.
 
 ### Mudou o banco?
 
-Não edite o `database/schema.sql` para alterar algo que já existe. Escreva uma
-**migração**:
+Toda mudança é uma **migração nova** em `database/migrations/` **e** a mesma
+mudança no `database/schema.sql`. A CI confere as duas coisas no PR. O passo a
+passo e as regras estão em [`database/README.md`](database/README.md).
 
 ```bash
-# database/migrations/018_o_que_voce_fez.sql
+# database/migrations/019_o_que_voce_fez.sql
 docker compose run --rm migracao --conferir   # o que falta, sem escrever
 docker compose run --rm migracao              # aplica
 ```
-
-O `schema.sql` é o retrato completo do banco, usado só no primeiro boot de um
-volume vazio. As migrações são o que evolui um banco que já existe. As duas
-coisas precisam continuar de acordo: quem escreve a migração atualiza o
-`schema.sql` também.
 
 ---
 
@@ -135,8 +132,8 @@ coisas precisam continuar de acordo: quem escreve a migração atualiza o
 Duas branches permanentes:
 
 ```
-main   →  produção      (app.dominio)   protegida, só recebe merge
-dev    →  desenvolvimento (dev.dominio) onde o trabalho se integra
+main   →  produção        quiron.fronteiratec.com       protegida, só recebe merge
+dev    →  desenvolvimento quiron-dev.fronteiratec.com   onde o trabalho se integra
 ```
 
 **Toda branch nova sai da `dev`.** Nunca da `main`: a `main` só anda quando a
@@ -170,11 +167,19 @@ Exemplos: `feat/relatorio-por-mentor`, `fix/data-volta-um-dia`,
 git push -u origin feat/nome-curto
 ```
 
-Abra o Pull Request **para a `dev`** (não para a `main`). A CI roda nos testes
-e o merge fica bloqueado enquanto ela estiver vermelha.
+Abra o Pull Request **para a `dev`** (não para a `main`). A CI roda e o merge
+fica bloqueado enquanto ela estiver vermelha. Ela confere:
 
-Merge na `dev` → deploy automático em `dev.dominio`, onde a feature é
-verificada de verdade.
+- testes do backend (incluindo as regressões de segurança) e do frontend;
+- **o banco**: as migrações novas aplicam sobre a `dev`, nenhuma migração
+  antiga foi editada, o número não colide, o `schema.sql` acompanhou;
+- as imagens Docker constroem e os compose files são válidos.
+
+Merge na `dev` → deploy automático em `quiron-dev.fronteiratec.com`, onde a
+feature é verificada de verdade. O deploy faz backup do banco antes de migrar,
+volta sozinho para a versão anterior se a nova não subir saudável, e confere
+pela internet que a versão nova é a que responde. O que aconteceu fica no
+resumo da execução, na aba **Actions**.
 
 ### Indo para produção
 
@@ -182,12 +187,16 @@ Quando a `dev` estiver validada, PR de `dev` → `main`. O merge dispara o
 deploy de produção — com aprovação manual, se o *environment* `producao`
 estiver configurado com *required reviewers*.
 
+**Voltar uma versão:** aba **Actions › Deploy › Run workflow**, escolha o
+ambiente e informe a versão (o SHA curto, que aparece no resumo de cada
+deploy). Sobe em segundos, sem rebuild. Detalhes em [`docs/deploy.md`](docs/deploy.md).
+
 ```
 feat/xyz ──┐
 feat/abc ──┼──►  dev  ──►  main
 fix/123  ──┘      │          │
                   ▼          ▼
-             dev.dominio  app.dominio
+        quiron-dev     quiron
 ```
 
 ### Correção urgente em produção
@@ -217,10 +226,10 @@ npm test               # tudo (precisa de um Postgres e de um banco *_teste)
 Detalhes e o porquê do banco terminar em `_teste` estão em
 [`docs/testes.md`](docs/testes.md).
 
-**A suíte falha hoje, de propósito.** 16 dos 43 testes são as regressões de
-uma auditoria de segurança: eles afirmam o comportamento *correto* de rotas que
-ainda não checam autorização. Cada um nomeia o achado (`QRN-04`, `QRN-08`, …).
-Enquanto falharem, o deploy não sobe nada — o `deploy.yml` depende da CI.
+A suíte precisa estar **verde** para qualquer coisa subir: o `deploy.yml`
+depende da CI. O `test/autorizacao.test.js` guarda as regressões da auditoria
+de segurança (`QRN-04`, `QRN-08`, …) — um vermelho ali é uma rota que voltou a
+confiar no pedido em vez do recurso.
 
 ---
 
