@@ -41,8 +41,11 @@ app.use(express.json({ limit: "4mb" })) // Parse do corpo JSON (limite maior por
 app.set("trust proxy", 1)
 
 // --- Health check (usado pelo Docker e pelo smoke test do deploy) ---
+// `versao` e o commit da imagem (o deploy.yml passa no build). E como o deploy
+// confere, pela internet, que a versao nova e a que esta respondendo — e como
+// qualquer um descobre o que esta no ar sem entrar no servidor.
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", message: "API is running" })
+  res.json({ status: "ok", message: "API is running", versao: process.env.VERSAO || "local" })
 })
 
 // --- Rotas da aplicacao ---

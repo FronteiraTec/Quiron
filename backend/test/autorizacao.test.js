@@ -1,10 +1,9 @@
 /**
  * REGRESSAO DE AUTORIZACAO — os achados da auditoria de 30/08/2026.
  *
- * Cada teste aqui afirma o comportamento CORRETO, nao o atual. Enquanto os
- * achados nao forem corrigidos, este arquivo falha de proposito: ele e a
- * definicao de pronto do trabalho de autorizacao, e o portao que impede o
- * furo de voltar depois de fechado.
+ * Cada teste aqui afirma o comportamento CORRETO. Os achados foram fechados em
+ * 15/10/2026; o arquivo fica como o portao que impede cada furo de voltar.
+ * Um teste daqui vermelho e uma rota que voltou a confiar no pedido.
  *
  * O identificador QRN-xx no nome de cada teste aponta o achado no relatorio.
  *

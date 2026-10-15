@@ -79,4 +79,26 @@ function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex")
 }
 
-module.exports = { gerarHash, verificarSenha, gerarTokenReset, hashToken }
+/**
+ * Tamanho minimo de toda senha escolhida no sistema.
+ *
+ * Um lugar so (QRN-05): a regra existia no primeiro acesso e na senha
+ * provisoria, mas o cadastro publico e a redefinicao por e-mail nao a
+ * aplicavam, e aceitavam senha de um caractere. As telas do frontend repetem
+ * o mesmo numero; mudou aqui, mude la.
+ */
+const SENHA_MINIMO = 6
+
+/**
+ * Lanca 400 se a senha nao atende a politica.
+ * @param {string} senha
+ * @param {string} [rotulo] - como a mensagem chama a senha ("A senha provisoria").
+ */
+function validarSenha(senha, rotulo = "A senha") {
+  if (typeof senha !== "string" || senha.length < SENHA_MINIMO) {
+    const { erroNegocio } = require("./erros")
+    throw erroNegocio(400, `${rotulo} deve ter ao menos ${SENHA_MINIMO} caracteres.`)
+  }
+}
+
+module.exports = { gerarHash, verificarSenha, gerarTokenReset, hashToken, SENHA_MINIMO, validarSenha }

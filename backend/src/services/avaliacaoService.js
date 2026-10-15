@@ -6,14 +6,21 @@ const entregaRepository = require("../repositories/entregaRepository")
 const startupRepository = require("../repositories/startupRepository")
 const tenantRepository = require("../repositories/tenantRepository")
 const rbacService = require("./rbacService")
+const startupService = require("./startupService")
 const notificacaoService = require("./notificacaoService")
 const { erroNegocio } = require("../utils/erros")
 
 const STATUS_VALIDOS = ["APROVADO", "REPROVADO", "AJUSTE"]
 
-/** Lista as avaliacoes de uma entrega. */
-async function listar(idEntrega) {
+/**
+ * Lista as avaliacoes de uma entrega. A devolutiva do mentor e da startup
+ * avaliada: so le quem tem vinculo com ela (QRN-04).
+ */
+async function listar(idEntrega, usuario) {
   if (!idEntrega) throw erroNegocio(400, "Informe o id_entrega.")
+  const entrega = await entregaRepository.buscarPorId(idEntrega)
+  if (!entrega) throw erroNegocio(404, "Entrega nao encontrada.")
+  await startupService.garantirVinculo(entrega.id_startup, usuario)
   return avaliacaoRepository.listarPorEntrega(idEntrega)
 }
 

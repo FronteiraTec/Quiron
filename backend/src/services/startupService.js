@@ -169,10 +169,62 @@ async function buscarStartup(id) {
   return startup
 }
 
-/** Carrega a startup e exige a permissao no tenant DELA. */
+/**
+ * Carrega a startup e exige a permissao no tenant DELA e o vinculo com ELA.
+ *
+ * Sao os dois eixos de sempre: a chave diz O QUE a pessoa faz, o vinculo diz
+ * COM QUAL startup. So a chave nao basta (QRN-08): a role Colaborador tem
+ * `startups.canvas.editar`, e sem o vinculo isso valia para o Canvas de toda
+ * startup da incubadora, inclusive a concorrente da sala ao lado.
+ */
 async function buscarComPermissao(id, usuario, chave) {
   const startup = await buscarStartup(id)
   await rbacService.garantirPermissao(startup.id_tenant, usuario, chave)
+  await exigirVinculo(startup, usuario)
+  return startup
+}
+
+/**
+ * O mesmo recorte de `listar`, aplicado a UMA startup: root e admin do tenant
+ * alcancam todas; mentor e incubado, so as que acompanham ou de que sao
+ * membros. Quem nao tem vinculo ativo com o tenant nao alcanca nenhuma.
+ */
+async function exigirVinculo(startup, usuario) {
+  if (usuario?.root) return
+
+  const papel = await tenantRepository.buscarPapel(startup.id_tenant, usuario?.id)
+  if (!papel) throw erroNegocio(403, "Voce nao tem acesso a esta incubadora.")
+  if (papel === "admin") return
+
+  const ids = await startupRepository.listarIdsPorUsuario(startup.id_tenant, usuario.id)
+  if (!ids.includes(startup.id_startup)) {
+    throw erroNegocio(403, "Voce nao tem vinculo com esta startup.")
+  }
+}
+
+/**
+ * Exige vinculo com a startup, sem chave RBAC.
+ *
+ * Para as leituras que o proprio incubado faz da sua startup (a Jornada, as
+ * entregas) e que nao tem chave no catalogo: o menu "Minha Jornada" aparece
+ * para todo mundo, e o que limita e de quem e a startup.
+ */
+async function garantirVinculo(idStartup, usuario) {
+  const startup = await buscarStartup(idStartup)
+  await exigirVinculo(startup, usuario)
+  return startup
+}
+
+/**
+ * Exige que o usuario seja MEMBRO ativo da startup — para escrever em nome
+ * dela (entregas). Nem admin nem mentor passam: a entrega e o trabalho do
+ * time, e e o time que responde por ela. O root tambem nao, pelo mesmo motivo.
+ */
+async function garantirMembro(idStartup, usuario) {
+  const startup = await buscarStartup(idStartup)
+  const papel = await tenantRepository.buscarPapel(startup.id_tenant, usuario?.id)
+  const membro = papel && (await startupRepository.ehMembroDe(startup.id_startup, usuario.id))
+  if (!membro) throw erroNegocio(403, "So os membros da startup enviam entregas por ela.")
   return startup
 }
 
@@ -335,6 +387,10 @@ module.exports = {
   // Usado pelos services dos modelos de gestao (canvas/gut/5w2h), que precisam
   // da mesma checagem com a chave DELES.
   buscarComPermissao,
+  // Usados pela Jornada, entregas e avaliacoes: o recorte por startup sem
+  // chave RBAC (leitura) e o de membro (escrita).
+  garantirVinculo,
+  garantirMembro,
   criar,
   atualizar,
   atualizarSituacao,

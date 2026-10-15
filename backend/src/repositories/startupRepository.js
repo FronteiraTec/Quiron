@@ -468,6 +468,17 @@ async function ehMentorDe(idStartup, idUsuario) {
   return rows.length > 0
 }
 
+/** O usuario e membro ATIVO desta startup? Guarda da escrita de entregas. */
+async function ehMembroDe(idStartup, idUsuario) {
+  const { rows } = await query(
+    `SELECT 1
+       FROM startup_membros
+      WHERE id_startup = $1 AND id_usuario = $2 AND ativo = TRUE`,
+    [idStartup, idUsuario]
+  )
+  return rows.length > 0
+}
+
 /**
  * Busca a startup (ativa) a qual o usuario logado pertence como membro,
  * dentro do tenant informado. Usada pela tela "Minha Startup".
@@ -528,6 +539,7 @@ module.exports = {
   listarIdsPorMentor,
   listarMentores,
   ehMentorDe,
+  ehMembroDe,
   buscarStartupDoUsuario,
   removerMembro,
   listarFasesConcluidas,
