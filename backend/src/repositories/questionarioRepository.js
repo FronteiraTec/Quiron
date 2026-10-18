@@ -5,6 +5,10 @@
  * Um questionario (estilo Google Forms) tem varias perguntas; cada pergunta
  * tem um tipo (perguntaTipo). Perguntas de escolha (ESCOLHA_UNICA/CAIXAS_SELECAO)
  * possuem alternativas; perguntas de texto (TEXTO_CURTO/PARAGRAFO) nao.
+ *
+ * Questionario com prova = TRUE e uma prova de assinalar: as alternativas
+ * carregam o gabarito (alternativa.correta). Este repositorio devolve o
+ * gabarito sempre — esconde-lo de quem responde e do service.
  */
 const { query, withTransaction } = require("../config/db")
 
@@ -16,7 +20,7 @@ const TIPOS_COM_ALTERNATIVAS = ["ESCOLHA_UNICA", "CAIXAS_SELECAO"]
  */
 async function listarPorTenant(idTenant) {
   const { rows } = await query(
-    `SELECT q.id_questionario, q.titulo, q.descricao, q.ativo,
+    `SELECT q.id_questionario, q.titulo, q.descricao, q.ativo, q.prova,
             (SELECT COUNT(*) FROM pergunta p
               WHERE p.id_questionario = q.id_questionario)::int AS total_perguntas
        FROM questionarios q
@@ -33,7 +37,7 @@ async function listarPorTenant(idTenant) {
  */
 async function buscarPorIdComPerguntas(id) {
   const questionario = await query(
-    `SELECT id_questionario, id_tenant, titulo, descricao, ativo
+    `SELECT id_questionario, id_tenant, titulo, descricao, ativo, prova
        FROM questionarios WHERE id_questionario = $1`,
     [id]
   )
@@ -52,7 +56,7 @@ async function buscarPorIdComPerguntas(id) {
   let alternativasPorPergunta = {}
   if (idsPerguntas.length) {
     const alternativas = await query(
-      `SELECT id_alternativa, id_pergunta, descricao, ordem
+      `SELECT id_alternativa, id_pergunta, descricao, ordem, correta
          FROM alternativa
         WHERE id_pergunta = ANY($1) AND ativa = TRUE
         ORDER BY ordem, id_alternativa`,
@@ -77,18 +81,18 @@ async function buscarPorIdComPerguntas(id) {
  * Cria um questionario completo (com perguntas e alternativas) em uma
  * unica transacao. Se qualquer insercao falhar, tudo e desfeito.
  *
- * @param {{idTenant:number, titulo:string, descricao:string,
+ * @param {{idTenant:number, titulo:string, descricao:string, prova:boolean,
  *          perguntas:Array<{pergunta:string, tipo:string, obrigatoria:boolean,
- *          alternativas?:Array<{descricao:string}>}>}} dados
+ *          alternativas?:Array<{descricao:string, correta:boolean}>}>}} dados
  * @returns {Promise<object>} O questionario recem-criado (sem aninhar).
  */
-async function criarCompleto({ idTenant, titulo, descricao, perguntas }) {
+async function criarCompleto({ idTenant, titulo, descricao, prova, perguntas }) {
   return withTransaction(async (client) => {
     const { rows } = await client.query(
-      `INSERT INTO questionarios (id_tenant, titulo, descricao)
-       VALUES ($1, $2, $3)
-       RETURNING id_questionario, titulo, descricao, ativo`,
-      [idTenant, titulo, descricao]
+      `INSERT INTO questionarios (id_tenant, titulo, descricao, prova)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id_questionario, titulo, descricao, ativo, prova`,
+      [idTenant, titulo, descricao, !!prova]
     )
     const questionario = rows[0]
 
@@ -105,9 +109,9 @@ async function criarCompleto({ idTenant, titulo, descricao, perguntas }) {
       if (TIPOS_COM_ALTERNATIVAS.includes(p.tipo)) {
         for (let j = 0; j < p.alternativas.length; j++) {
           await client.query(
-            `INSERT INTO alternativa (id_pergunta, descricao, ordem)
-             VALUES ($1, $2, $3)`,
-            [idPergunta, p.alternativas[j].descricao, j + 1]
+            `INSERT INTO alternativa (id_pergunta, descricao, ordem, correta)
+             VALUES ($1, $2, $3, $4)`,
+            [idPergunta, p.alternativas[j].descricao, j + 1, !!p.alternativas[j].correta]
           )
         }
       }

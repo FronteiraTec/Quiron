@@ -7,6 +7,7 @@
  */
 import { useEffect, useRef } from "react"
 import { Box, InputBase, IconButton, Tooltip } from "@mui/material"
+import { alpha } from "@mui/material/styles"
 import { Search, Close } from "@mui/icons-material"
 
 export default function SidebarSearch({ recolhida, valor, onChange, onExpandir }) {
@@ -68,17 +69,17 @@ export default function SidebarSearch({ recolhida, valor, onChange, onExpandir }
           px: 1.5,
           height: 40,
           borderRadius: "10px",
-          bgcolor: (t) => (t.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(15,23,42,0.035)"),
+          bgcolor: (t) => (t.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.035)"),
           border: (t) =>
-            `1px solid ${t.palette.mode === "dark" ? "rgba(255,255,255,0.07)" : "rgba(15,23,42,0.07)"}`,
+            `1px solid ${t.palette.mode === "dark" ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
           transition: "box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease",
           "&:hover": {
-            bgcolor: (t) => (t.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.05)"),
+            bgcolor: (t) => (t.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"),
           },
           "&:focus-within": {
             bgcolor: "background.paper",
             borderColor: "primary.main",
-            boxShadow: (t) => `0 0 0 3px ${t.palette.primary.main}1a`,
+            boxShadow: (t) => `0 0 0 3px ${alpha(t.palette.primary.main, 0.18)}`,
           },
         }}
       >

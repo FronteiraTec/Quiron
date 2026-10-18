@@ -56,13 +56,13 @@ async function criar(req, res, next) {
 async function responder(req, res, next) {
   try {
     const { id_no, id_startup, respostas } = req.body
-    const entrega = await entregaService.responderQuestionario({
+    const { entrega, resultado } = await entregaService.responderQuestionario({
       idNo: id_no,
       idStartup: id_startup,
       idUsuario: req.usuario.id,
       respostas,
     }, req.usuario)
-    res.status(201).json({ entrega })
+    res.status(201).json({ entrega, resultado })
   } catch (err) {
     next(err)
   }

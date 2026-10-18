@@ -41,6 +41,11 @@ Vale guardar isso num `backend/.env.teste` e carregar com
 | `test/auth.test.js` | sim | login, `/me`, exigência de token, resposta genérica |
 | `test/biblioteca.test.js` | sim | ciclo do documento da AULA, aula legada, autorização |
 | `test/trilha.test.js` | sim | entrega do passo (os 4 campos juntos) e duplicação com subárvore |
+| `test/materialMentor.test.js` | não | normalização do Espaço do Mentor: corpo de cada tipo de material, link só http(s), origem única do compartilhamento |
+| `test/espacoMentor.test.js` | sim | Espaço do Mentor ponta a ponta: biblioteca pessoal privada (inclusive na rota genérica de arquivos), compartilhamento só com startup acompanhada, o que o incubado recebe, integridade dos vínculos e auditoria |
+| `test/materiaisIncubadora.test.js` | sim | materiais que a incubadora publica para os mentores: o mentor lê e baixa, não publica; o incubado não vê; arquivar tira de vista; trocar e excluir levam o arquivo antigo |
+| `test/questionarioProva.test.js` | sim | questionário em modo prova: correção tudo-ou-nada (caixas só pontuam com exatamente as corretas, em branco é erro), gabarito incoerente recusado, o incubado abre a prova e recebe a nota sem o gabarito, o mentor vê a correção completa |
+| `test/startupUuid.test.js` | sim | a startup pelo UUID na URL: abre a mesma startup que o id, vale nas rotas filhas, não é atalho de acesso, e as listas que viram link levam o UUID |
 | `test/autorizacao.test.js` | sim | **as regressões da auditoria** |
 
 Os helpers ficam em `backend/apoio-teste/` e **não** dentro de `test/`: o Node
@@ -109,6 +114,8 @@ precisa de banco, de servidor nem de navegador de verdade (o ambiente é
 | `src/hooks/useSalvamentoAutomatico.test.jsx` | debounce, gravações que se atropelam, falha de rede com repetição, aviso ao fechar a aba |
 | `src/components/editor/documento.test.js` | quando um documento conta como vazio, o que vai para `initialContent`, resumo em texto |
 | `src/components/sidebar/SidebarSearch.test.jsx` | o atalho `/` só rouba a tecla fora de campo de texto e fora de área editável |
+| `src/data/espacoMentorMeta.test.js` | filtros, formatos e agrupamento por etapa do Espaço do Mentor (biblioteca, compartilhados e o que a Jornada mostra) |
+| `src/components/espacoMentor/telasEspacoMentor.test.jsx` | o diálogo de compartilhar envia a etapa, o material, a finalidade e a orientação escolhidos (e não oferece o que o servidor recusaria); a Jornada lista e abre o material recebido; a aba "Materiais da incubadora" é leitura para o mentor e publicação para a coordenação |
 
 ### O que ele NÃO cobre, de propósito
 

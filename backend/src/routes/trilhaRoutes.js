@@ -46,10 +46,4 @@ router.get("/:id/conteudos", ctrl.listarConteudos)
 router.post("/:id/conteudos", ctrl.vincularConteudo) // body: { id_conteudo }
 router.delete("/:id/conteudos/:idConteudo", ctrl.desvincularConteudo)
 
-// Materiais por fase — o que o Construtor e a Biblioteca mostram. Por baixo o
-// conteudo continua num PASSO da fase (criado sob demanda, ver o repositorio).
-router.get("/:id/materiais", ctrl.listarMateriais) // :id = trilha ou fase
-router.post("/:id/materiais", ctrl.vincularMaterial) // :id = fase; body: { id_conteudo }
-router.delete("/:id/materiais/:idConteudo", ctrl.desvincularMaterial)
-
 module.exports = router

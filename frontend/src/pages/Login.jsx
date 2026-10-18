@@ -43,19 +43,51 @@ export default function Login() {
   const [capsLock, setCapsLock] = useState(false)
   const [erro, setErro] = useState("")
   const [carregando, setCarregando] = useState(false)
+  // Campos preenchidos pelo navegador ao abrir a pagina (ver detectarAutofill).
+  const [autofill, setAutofill] = useState({ email: false, senha: false })
+
+  /**
+   * O Chrome mostra o login salvo mas so libera o valor para o JS (e so
+   * dispara o onChange) depois que o usuario interage com a pagina. Ate la o
+   * estado fica vazio e o botao, desabilitado. O MUI marca o input preenchido
+   * com a animacao "mui-auto-fill" (e "mui-auto-fill-cancel" ao desfazer);
+   * o evento sobe ate o form e diz quais campos ja estao preenchidos.
+   */
+  const detectarAutofill = (e) => {
+    const campo = e.target.name
+    if (campo !== "email" && campo !== "senha") return
+    if (e.animationName === "mui-auto-fill") setAutofill((a) => ({ ...a, [campo]: true }))
+    if (e.animationName === "mui-auto-fill-cancel") setAutofill((a) => ({ ...a, [campo]: false }))
+  }
+
+  const emailPreenchido = Boolean(email.trim()) || autofill.email
+  const senhaPreenchida = Boolean(senha) || autofill.senha
 
   /**
    * Envia o formulario: autentica e redireciona.
    */
   const handleSubmit = async (e) => {
     e.preventDefault()
+    // Le do DOM e nao do estado: com autofill o onChange pode nao ter
+    // disparado, mas no clique o navegador ja liberou o valor. Precisa ser
+    // antes de setCarregando, que desabilita os campos (e campo desabilitado
+    // nao entra no FormData).
+    const dados = new FormData(e.currentTarget)
+    // Email copiado de outro lugar costuma vir com espaco sobrando; o
+    // backend compara a string crua e recusaria um login valido.
+    const emailEnviado = String(dados.get("email") ?? email).trim()
+    const senhaEnviada = String(dados.get("senha") ?? senha)
+    if (!emailEnviado || !senhaEnviada) {
+      setErro("Preencha email e senha.")
+      return
+    }
+    setEmail(emailEnviado)
+    setSenha(senhaEnviada)
     setErro("")
     setCarregando(true)
 
     try {
-      // Email copiado de outro lugar costuma vir com espaco sobrando; o
-      // backend compara a string crua e recusaria um login valido.
-      const { usuario } = await login(email.trim(), senha)
+      const { usuario } = await login(emailEnviado, senhaEnviada)
       // Senha provisoria: forca a troca antes de entrar no sistema.
       if (usuario?.deve_redefinir_senha) {
         navigate("/definir-senha")
@@ -86,9 +118,10 @@ export default function Login() {
       </Collapse>
 
       {/* Formulario */}
-      <Box component="form" onSubmit={handleSubmit} noValidate>
+      <Box component="form" onSubmit={handleSubmit} onAnimationStart={detectarAutofill} noValidate>
         <TextField
           label="Email"
+          name="email"
           type="email"
           fullWidth
           required
@@ -108,6 +141,7 @@ export default function Login() {
 
         <TextField
           label="Senha"
+          name="senha"
           type={mostrarSenha ? "text" : "password"}
           fullWidth
           required
@@ -156,7 +190,7 @@ export default function Login() {
           fullWidth
           size="large"
           disableElevation
-          disabled={carregando || !email.trim() || !senha}
+          disabled={carregando || !emailPreenchido || !senhaPreenchida}
           sx={{ mt: 3, borderRadius: 0, py: 1.25, fontWeight: 600 }}
           startIcon={carregando ? <CircularProgress size={18} color="inherit" /> : null}
         >

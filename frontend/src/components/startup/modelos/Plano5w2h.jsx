@@ -1,9 +1,12 @@
 /**
  * Plano de acao 5W2H como gerador de iniciativas.
  *
- * Cada acao vira um card com responsavel, prazo, status e progresso; ao
- * expandir aparecem os detalhes (por que, como, onde, quanto custa). Ha tres
- * visualizacoes: cards, tabela e linha do tempo.
+ * Ha tres visualizacoes:
+ *   - matriz (padrao): as sete perguntas em colunas coloridas, uma acao por
+ *     linha, mais uma coluna de andamento;
+ *   - cards: cada acao com responsavel, prazo, status e progresso; ao
+ *     expandir aparecem os detalhes (por que, como, onde, quanto custa);
+ *   - linha do tempo, ordenada pelo campo "Quando".
  *
  * API (inalterada): GET/POST /startups/:id/5w2h e DELETE /startups/:id/5w2h/:id.
  * Status e progresso nao existem no backend — sao um apoio visual persistido
@@ -32,17 +35,12 @@ import {
   Paper,
   Skeleton,
   Slider,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
   Typography,
+  useTheme,
 } from "@mui/material"
 import { alpha } from "@mui/material/styles"
 import AddIcon from "@mui/icons-material/Add"
@@ -52,7 +50,7 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline"
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined"
 import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined"
 import ViewModuleOutlinedIcon from "@mui/icons-material/ViewModuleOutlined"
-import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined"
+import ViewWeekOutlinedIcon from "@mui/icons-material/ViewWeekOutlined"
 import ViewTimelineOutlinedIcon from "@mui/icons-material/ViewTimelineOutlined"
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined"
 import AutorenewOutlinedIcon from "@mui/icons-material/AutorenewOutlined"
@@ -63,6 +61,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { format, isValid, parse } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import api from "../../../services/api"
+import { FONTES, MARCA, paletaDaCor } from "../../../theme"
 import { DialogConfirmar, EmptyState, ToastFeedback } from "./comum"
 
 const STATUS = {
@@ -77,6 +76,20 @@ const DETALHES = [
   { chave: "como", rotulo: "Como?" },
   { chave: "onde", rotulo: "Onde?" },
   { chave: "quanto_custa", rotulo: "Quanto custa?" },
+]
+
+// As sete perguntas da matriz, na ordem classica do 5W2H. As cores seguem o
+// arco do roxo ao verde, tiradas das cores do sistema (CORES_PRINCIPAIS do
+// tema) e ajustadas a aparencia por paletaDaCor. A coluna se identifica pelo
+// rotulo; a cor so ajuda a seguir a coluna com o olho.
+const PERGUNTAS = [
+  { chave: "o_que", rotulo: "O quê?", ingles: "What", dica: "O que será feito?", cor: "#9333ea" },
+  { chave: "por_que", rotulo: "Por quê?", ingles: "Why", dica: "Por que essa ação é necessária?", cor: MARCA.logo.magenta },
+  { chave: "onde", rotulo: "Onde?", ingles: "Where", dica: "Onde a ação acontece?", cor: "#dc2626" },
+  { chave: "quando", rotulo: "Quando?", ingles: "When", dica: "Qual é o prazo?", cor: "#f97316" },
+  { chave: "quem", rotulo: "Quem?", ingles: "Who", dica: "Quem é o responsável?", cor: MARCA.logo.amarelo },
+  { chave: "como", rotulo: "Como?", ingles: "How", dica: "Como ela será executada?", cor: MARCA.lima },
+  { chave: "quanto_custa", rotulo: "Quanto?", ingles: "How much", dica: "Quanto vai custar?", cor: MARCA.logo.verde },
 ]
 
 // ---- Status/progresso locais (o backend nao persiste esses campos) ----
@@ -116,7 +129,7 @@ function analisarData(texto) {
 export default function Plano5w2h({ idStartup }) {
   const [itens, setItens] = useState([])
   const [meta, setMeta] = useState(() => lerMeta(idStartup))
-  const [visao, setVisao] = useState("cards")
+  const [visao, setVisao] = useState("matriz")
   const [carregando, setCarregando] = useState(true)
   const [aviso, setAviso] = useState(null)
   const [dialogAberto, setDialogAberto] = useState(false)
@@ -200,11 +213,11 @@ export default function Plano5w2h({ idStartup }) {
           onChange={(_, v) => v && setVisao(v)}
           sx={{ "& .MuiToggleButton-root": { textTransform: "none", px: 1.5 } }}
         >
+          <ToggleButton value="matriz" aria-label="Modo matriz">
+            <ViewWeekOutlinedIcon sx={{ fontSize: 18, mr: 0.5 }} /> Matriz
+          </ToggleButton>
           <ToggleButton value="cards" aria-label="Modo cards">
             <ViewModuleOutlinedIcon sx={{ fontSize: 18, mr: 0.5 }} /> Cards
-          </ToggleButton>
-          <ToggleButton value="tabela" aria-label="Modo tabela">
-            <TableRowsOutlinedIcon sx={{ fontSize: 18, mr: 0.5 }} /> Tabela
           </ToggleButton>
           <ToggleButton value="timeline" aria-label="Modo linha do tempo">
             <ViewTimelineOutlinedIcon sx={{ fontSize: 18, mr: 0.5 }} /> Timeline
@@ -225,6 +238,14 @@ export default function Plano5w2h({ idStartup }) {
           rotuloAcao="Criar ação"
           onAcao={() => setDialogAberto(true)}
         />
+      ) : visao === "matriz" ? (
+        <MatrizAcoes
+          itens={itens}
+          meta={meta}
+          onAbrirStatus={(ancora, id) => setMenuStatus({ ancora, id })}
+          onExcluir={setExcluindo}
+          onNova={() => setDialogAberto(true)}
+        />
       ) : visao === "cards" ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           <AnimatePresence>
@@ -242,8 +263,6 @@ export default function Plano5w2h({ idStartup }) {
             ))}
           </AnimatePresence>
         </Box>
-      ) : visao === "tabela" ? (
-        <TabelaAcoes itens={itens} meta={meta} onAbrirStatus={(ancora, id) => setMenuStatus({ ancora, id })} onExcluir={setExcluindo} />
       ) : (
         <TimelineAcoes itens={itens} meta={meta} />
       )}
@@ -408,55 +427,235 @@ function CardAcao({ item, meta, expandido, onExpandir, onAbrirStatus, onProgress
   )
 }
 
-function TabelaAcoes({ itens, meta, onAbrirStatus, onExcluir }) {
-  const colunas = [
-    { chave: "o_que", rotulo: "O que" },
-    { chave: "quem", rotulo: "Quem" },
-    { chave: "quando", rotulo: "Quando" },
-    { chave: "por_que", rotulo: "Por quê" },
-    { chave: "como", rotulo: "Como" },
-    { chave: "onde", rotulo: "Onde" },
-    { chave: "quanto_custa", rotulo: "Quanto custa" },
-  ]
+// Molde das colunas: as sete perguntas dividem a largura e o andamento tem
+// largura fixa. Cada linha e uma grade propria com este mesmo molde — como
+// nenhuma coluna mede pelo conteudo, as linhas ficam alinhadas entre si e
+// cada uma pode entrar e sair animada. Abaixo da largura minima, a matriz
+// rola na horizontal em vez de espremer o texto.
+const COLUNA_MIN = 132
+const COLUNA_ANDAMENTO = 196
+const MOLDE_MATRIZ = `repeat(${PERGUNTAS.length}, minmax(${COLUNA_MIN}px, 1fr)) ${COLUNA_ANDAMENTO}px`
+const LARGURA_MIN_MATRIZ = PERGUNTAS.length * COLUNA_MIN + COLUNA_ANDAMENTO + PERGUNTAS.length
+const LINHA_SX = { display: "grid", gridTemplateColumns: MOLDE_MATRIZ, gap: "1px" }
+
+/**
+ * Estilo do cabecalho de uma pergunta. No claro, a coluna e preenchida com a
+ * cor viva e o texto de maior contraste (o lima leva preto, o roxo leva
+ * branco), como o botao principal do tema. No escuro, a cor viva numa faixa
+ * larga ofuscaria: o cabecalho vira um tom escuro da cor com a faixa de cima
+ * acesa, como a barra do topo.
+ */
+function estiloCabecalho(paleta, escuro) {
+  if (escuro) {
+    const veu = alpha(paleta.main, 0.3)
+    return {
+      fundo: { bgcolor: "background.paper", backgroundImage: `linear-gradient(${veu}, ${veu})`, boxShadow: `inset 0 3px 0 ${paleta.main}` },
+      texto: "text.primary",
+      ingles: paleta.main,
+      marca: alpha(paleta.main, 0.2),
+    }
+  }
+  return {
+    fundo: { bgcolor: paleta.vivo },
+    texto: paleta.vivoContraste,
+    ingles: alpha(paleta.vivoContraste, 0.8),
+    marca: alpha(paleta.vivoContraste, 0.16),
+  }
+}
+
+function MatrizAcoes({ itens, meta, onAbrirStatus, onExcluir, onNova }) {
+  const tema = useTheme()
+  const escuro = tema.palette.mode === "dark"
+  const colunas = useMemo(
+    () =>
+      PERGUNTAS.map((p) => {
+        const paleta = paletaDaCor(p.cor, escuro)
+        // O veu das celulas sai da cor crua no claro (pastel, como post-its) e
+        // do `main` clareado no escuro, onde a cor crua some sobre o preto.
+        const tinta = escuro ? paleta.main : p.cor
+        return {
+          ...p,
+          cabecalho: estiloCabecalho(paleta, escuro),
+          veu: alpha(tinta, escuro ? 0.1 : 0.13),
+          veuForte: alpha(tinta, escuro ? 0.17 : 0.22),
+        }
+      }),
+    [escuro]
+  )
+  const realceNeutro = alpha(tema.palette.text.primary, 0.04)
+
   return (
-    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 0 }}>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
+    <Box sx={{ overflowX: "auto", border: 1, borderColor: "divider" }}>
+      <Box sx={{ minWidth: LARGURA_MIN_MATRIZ, display: "flex", flexDirection: "column", gap: "1px", bgcolor: "divider" }}>
+        <Box role="table" aria-label="Matriz 5W2H" sx={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+          <Box role="row" sx={LINHA_SX}>
             {colunas.map((c) => (
-              <TableCell key={c.chave} sx={{ fontWeight: 700 }}>
-                {c.rotulo}
-              </TableCell>
+              <CabecalhoMatriz key={c.chave} rotulo={c.rotulo} ingles={c.ingles} dica={c.dica} estilo={c.cabecalho} />
             ))}
-            <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-            <TableCell align="center" width={64}>
-              Ações
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {itens.map((item) => (
-            <TableRow key={item.id_5w2h} hover>
-              {colunas.map((c) => (
-                <TableCell key={c.chave} sx={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {item[c.chave] || "—"}
-                </TableCell>
-              ))}
-              <TableCell>
-                <ChipStatus meta={metaDoItem(meta, item.id_5w2h)} onAbrir={(e) => onAbrirStatus(e.currentTarget, item.id_5w2h)} />
-              </TableCell>
-              <TableCell align="center">
-                <Tooltip title="Excluir">
-                  <IconButton size="small" onClick={() => onExcluir(item)} sx={{ color: "text.disabled", "&:hover": { color: "error.main" } }}>
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+            <CabecalhoMatriz
+              rotulo="Andamento"
+              ingles="Status"
+              estilo={{ fundo: { bgcolor: "background.paper" }, texto: "text.primary", ingles: "text.secondary" }}
+            />
+          </Box>
+
+          <AnimatePresence initial={false}>
+            {itens.map((item) => (
+              <Box
+                key={item.id_5w2h}
+                role="row"
+                className="linha-5w2h"
+                component={motion.div}
+                layout
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                sx={LINHA_SX}
+              >
+                {colunas.map((c) => (
+                  <CelulaMatriz key={c.chave} valor={item[c.chave]} veu={c.veu} veuForte={c.veuForte} destaque={c.chave === "o_que"} />
+                ))}
+                <CelulaAndamento
+                  meta={metaDoItem(meta, item.id_5w2h)}
+                  realce={realceNeutro}
+                  onAbrirStatus={(e) => onAbrirStatus(e.currentTarget, item.id_5w2h)}
+                  onExcluir={() => onExcluir(item)}
+                />
+              </Box>
+            ))}
+          </AnimatePresence>
+        </Box>
+
+        <Button
+          startIcon={<AddIcon />}
+          onClick={onNova}
+          sx={{
+            justifyContent: "flex-start",
+            textTransform: "none",
+            borderRadius: 0,
+            px: 1.5,
+            py: 1.25,
+            color: "text.secondary",
+            bgcolor: "background.paper",
+            "&:hover": { bgcolor: "background.paper", color: "primary.main" },
+          }}
+        >
+          Nova ação
+        </Button>
+      </Box>
+    </Box>
+  )
+}
+
+function CabecalhoMatriz({ rotulo, ingles, dica, estilo }) {
+  const cabecalho = (
+    <Box
+      role="columnheader"
+      sx={{ position: "relative", overflow: "hidden", px: 1.5, pt: 1.5, pb: 1.75, color: estilo.texto, ...estilo.fundo }}
+    >
+      {/* O "?" gigante ao fundo, como no quadro classico do 5W2H. */}
+      {estilo.marca && (
+        <Box
+          aria-hidden
+          sx={{
+            position: "absolute",
+            right: 6,
+            top: -14,
+            fontFamily: FONTES.titulo,
+            fontSize: 92,
+            lineHeight: 1,
+            color: estilo.marca,
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        >
+          ?
+        </Box>
+      )}
+      <Typography variant="overline" sx={{ position: "relative", display: "block", fontSize: 10, lineHeight: 1.6, color: estilo.ingles }}>
+        {ingles}
+      </Typography>
+      <Typography variant="h5" component="span" sx={{ position: "relative", display: "block", fontSize: 22 }}>
+        {rotulo}
+      </Typography>
+    </Box>
+  )
+  // describeChild: a dica descreve o cabecalho sem tomar o lugar do nome dele.
+  return dica ? (
+    <Tooltip title={dica} placement="top" describeChild>
+      {cabecalho}
+    </Tooltip>
+  ) : (
+    cabecalho
+  )
+}
+
+// O veu vai como gradiente sobre o papel, e nao como cor translucida: atras
+// das celulas esta o cinza das linhas da grade, que tingiria tudo.
+function CelulaMatriz({ valor, veu, veuForte, destaque }) {
+  return (
+    <Box
+      role="cell"
+      sx={{
+        p: 1.5,
+        minWidth: 0,
+        bgcolor: "background.paper",
+        backgroundImage: `linear-gradient(${veu}, ${veu})`,
+        ".linha-5w2h:hover &": { backgroundImage: `linear-gradient(${veuForte}, ${veuForte})` },
+      }}
+    >
+      <Typography
+        variant="body2"
+        fontWeight={destaque ? 700 : 400}
+        color={valor ? "text.primary" : "text.disabled"}
+        sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.55 }}
+      >
+        {valor || "—"}
+      </Typography>
+    </Box>
+  )
+}
+
+function CelulaAndamento({ meta, realce, onAbrirStatus, onExcluir }) {
+  return (
+    <Box
+      role="cell"
+      sx={{
+        p: 1.5,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.25,
+        bgcolor: "background.paper",
+        ".linha-5w2h:hover &": { backgroundImage: `linear-gradient(${realce}, ${realce})` },
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        <ChipStatus meta={meta} onAbrir={onAbrirStatus} />
+        <Tooltip title="Excluir ação">
+          <IconButton
+            size="small"
+            onClick={onExcluir}
+            aria-label="Excluir ação"
+            sx={{ ml: "auto", color: "text.disabled", "&:hover": { color: "error.main" } }}
+          >
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <LinearProgress
+          variant="determinate"
+          value={meta.progresso}
+          color={meta.status === "concluido" ? "success" : "primary"}
+          aria-label="Progresso da ação"
+          sx={{ flex: 1, height: 6, borderRadius: 3, bgcolor: (t) => alpha(t.palette.primary.main, 0.08) }}
+        />
+        <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ width: 32, textAlign: "right" }}>
+          {meta.progresso}%
+        </Typography>
+      </Box>
+    </Box>
   )
 }
 

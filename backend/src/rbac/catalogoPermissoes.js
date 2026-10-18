@@ -74,6 +74,14 @@ const CATALOGO_PERMISSOES = [
         ],
       },
       {
+        recurso: "swot",
+        rotulo: "Analise SWOT",
+        acoes: [
+          { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "editar", rotulo: "Editar" },
+        ],
+      },
+      {
         recurso: "gut",
         rotulo: "Matriz GUT",
         acoes: [
@@ -107,6 +115,42 @@ const CATALOGO_PERMISSOES = [
       { recurso: "trilha", rotulo: "Trilha do programa", acoes: ACOES_CRUD_PADRAO },
       { recurso: "biblioteca", rotulo: "Biblioteca de conteudos", acoes: ACOES_CRUD_PADRAO },
       { recurso: "questionarios", rotulo: "Questionarios", acoes: ACOES_CRUD_PADRAO },
+    ],
+  },
+  {
+    modulo: "mentoria",
+    rotulo: "Espaco do Mentor",
+    // A biblioteca PESSOAL do mentor e o compartilhamento de material com as
+    // startups que ele acompanha (migracao 020). Nao confundir com
+    // `programa.biblioteca`, que e o acervo da incubadora.
+    //
+    // As chaves dizem QUEM tem um Espaco do Mentor, e nao O QUE cada um
+    // alcanca dentro dele. A biblioteca e privada do dono — nenhuma chave da
+    // acesso ao material de outra pessoa — e com quem se compartilha continua
+    // sendo decidido por `mentor_startup`, como na fila de avaliacao: a chave
+    // diz O QUE a pessoa faz, o vinculo diz PARA QUEM.
+    //
+    // Duas chaves porque sao dois atos: guardar material para o proprio
+    // trabalho nao expoe nada a ninguem; entregar material a uma startup, sim.
+    recursos: [
+      {
+        recurso: "materiais",
+        rotulo: "Materiais do mentor",
+        acoes: [
+          { acao: "gerenciar", rotulo: "Manter a biblioteca pessoal" },
+          { acao: "compartilhar", rotulo: "Compartilhar com as startups que acompanha" },
+        ],
+      },
+      // O que a INCUBADORA disponibiliza aos mentores (migracao 021): guia do
+      // mentor, rubrica de avaliacao, modelos. CRUD padrao, como a Biblioteca:
+      // `visualizar` e de quem mentora (a role Mentor nasce com ela); publicar e
+      // mexer e da coordenacao. E separado de `programa.biblioteca` de
+      // proposito — aquela o incubado enxerga, esta nao.
+      {
+        recurso: "materiais_incubadora",
+        rotulo: "Materiais da incubadora para os mentores",
+        acoes: ACOES_CRUD_PADRAO,
+      },
     ],
   },
   {

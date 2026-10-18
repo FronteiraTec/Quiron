@@ -31,6 +31,9 @@ function filtrarPorPermissao(menu, pode) {
     .filter((item) => (item.filhos ? item.filhos.length > 0 : pode(item.permissao)))
 }
 
+// Grupos abertos da ultima Sidebar montada (ver o comentario em useSidebar).
+let gruposAbertosAnteriores = {}
+
 /**
  * @param {object} params
  * @param {() => void} [params.onNavegar] - Chamado apos navegar (fecha o drawer no mobile).
@@ -100,7 +103,19 @@ export function useSidebar({ onNavegar } = {}) {
 
   // --- Grupos abertos (accordion) ---
   // Inicia com o grupo do item ativo (ou a ultima secao aberta) expandido.
-  const [gruposAbertos, setGruposAbertos] = useState({})
+  //
+  // Cada pagina monta o proprio AppLayout, entao a Sidebar nasce de novo a
+  // cada navegacao. Comecando de `{}`, o grupo do item clicado renderizava
+  // fechado e o efeito abaixo o reabria com animacao: o submenu fechava e
+  // abria a cada clique. Por isso o estado nasce do que estava aberto na tela
+  // anterior, ja com o grupo da rota atual incluido.
+  const [gruposAbertos, setGruposAbertos] = useState(() => {
+    const grupoDoAtivo = itemAtivo?.grupoId
+    return grupoDoAtivo ? { ...gruposAbertosAnteriores, [grupoDoAtivo]: true } : gruposAbertosAnteriores
+  })
+  useEffect(() => {
+    gruposAbertosAnteriores = gruposAbertos
+  }, [gruposAbertos])
   useEffect(() => {
     const grupoDoAtivo = itemAtivo?.grupoId
     const inicial = grupoDoAtivo || prefs.ultimaSecao

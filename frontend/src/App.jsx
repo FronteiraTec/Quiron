@@ -55,6 +55,7 @@ import Membros from "./pages/Membros"
 import Mensagens from "./pages/Mensagens"
 import Tarefas from "./pages/Tarefas"
 import Avaliacoes from "./pages/Avaliacoes"
+import EspacoMentor from "./pages/EspacoMentor"
 import NotFound from "./pages/NotFound"
 import ProtectedRoute from "./components/ProtectedRoute"
 import RootRoute from "./components/RootRoute"
@@ -256,7 +257,7 @@ export default function App() {
               }
             />
             {/* Membros: as pessoas de todas as startups, e principalmente os
-                incubados que nao estao em nenhuma. Antes de "/startups/:id",
+                incubados que nao estao em nenhuma. Antes de "/startups/:uuid",
                 senao "membros" seria lido como o id de uma startup. */}
             <Route
               path="/startups/membros"
@@ -266,8 +267,11 @@ export default function App() {
                 </AdminOuRootRoute>
               }
             />
+            {/* Pelo UUID, e nao pelo id_startup: o id sequencial na barra de
+                endereco contaria quantas startups existem e convidaria a
+                trocar 42 por 43. */}
             <Route
-              path="/startups/:id"
+              path="/startups/:uuid"
               element={
                 <ProtectedRoute>
                   <StartupDetail />
@@ -327,6 +331,20 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Engajamento />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Espaco do Mentor: a biblioteca pessoal do mentor e o que ele
+                compartilha com as startups que acompanha (migracao 020).
+                ProtectedRoute e nao AdminOuRootRoute de proposito: quem entra
+                e decidido pelo RBAC (`mentoria.materiais.*`), e a propria tela
+                diz a quem nao tem as chaves por que nao ha nada ali. */}
+            <Route
+              path="/espaco-mentor"
+              element={
+                <ProtectedRoute>
+                  <EspacoMentor />
                 </ProtectedRoute>
               }
             />

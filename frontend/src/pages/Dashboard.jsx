@@ -15,6 +15,7 @@
  * a home de metade dos papeis numa tela de erro.
  */
 import { Box, Paper, Typography, CircularProgress } from "@mui/material"
+import { alpha } from "@mui/material/styles"
 import { ErrorOutline, WarningAmber } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import AgendaSemana from "../components/dashboard/AgendaSemana"
@@ -118,12 +119,38 @@ export default function Dashboard() {
         </Box>
       ) : (
         <Box>
-          {/* Saudacao */}
-          <Paper sx={{ p: 4, borderRadius: 0, mb: 3 }}>
-            <Typography variant="h4" fontWeight={700} gutterBottom>
+          {/* Saudacao: a "capa" da tela inicial, preta nas duas aparencias,
+              com o brilho e a faixa do modelo de apresentacao na cor
+              escolhida (o preenchimento vivo: lima no padrao). */}
+          <Paper
+            sx={{
+              position: "relative",
+              overflow: "hidden",
+              p: 4,
+              borderRadius: 0,
+              mb: 3,
+              bgcolor: "marca.preto",
+              color: "marca.branco",
+              backgroundImage: (t) =>
+                `radial-gradient(420px 260px at 100% 0%, ${alpha(t.palette.primary.vivo, 0.3)}, transparent 70%)`,
+            }}
+          >
+            <Box
+              aria-hidden
+              sx={{
+                position: "absolute",
+                right: -60,
+                bottom: 26,
+                width: { xs: 180, md: 320 },
+                height: 12,
+                bgcolor: "primary.vivo",
+                transform: "rotate(-12deg)",
+              }}
+            />
+            <Typography variant="h4" gutterBottom sx={{ position: "relative" }}>
               Bem-vindo(a){usuario?.nome ? `, ${usuario.nome}` : ""}!
             </Typography>
-            <Typography color="text.secondary">
+            <Typography sx={{ position: "relative", color: (t) => alpha(t.palette.marca.branco, 0.72) }}>
               Este é o painel inicial do Quiron.
               {usuario?.email && ` Você está logado como ${usuario.email}.`}
             </Typography>

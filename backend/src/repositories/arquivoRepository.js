@@ -41,4 +41,37 @@ async function excluir(idArquivo) {
   return rows[0]
 }
 
-module.exports = { criar, buscarPorId, excluir }
+/**
+ * Quantos vinculos com FK apontam para este arquivo: anexos de tarefa e os
+ * materiais do Espaco do Mentor (o da biblioteca pessoal e o que a incubadora
+ * publica para os mentores). E o que decide se ainda da para apagar os bytes
+ * (ver arquivoService.remover) e se o arquivo esta livre para virar o corpo de
+ * um material novo.
+ */
+async function contarReferencias(idArquivo) {
+  const { rows } = await query(
+    `SELECT (SELECT COUNT(*) FROM tarefa_anexo WHERE id_arquivo = $1)
+          + (SELECT COUNT(*) FROM mentor_material WHERE id_arquivo = $1)
+          + (SELECT COUNT(*) FROM mentor_material_incubadora WHERE id_arquivo = $1) AS total`,
+    [idArquivo]
+  )
+  return Number(rows[0].total)
+}
+
+/**
+ * O arquivo e o corpo de um material do Espaco do Mentor (migracoes 020 e
+ * 021)? Esses so abrem pelo proprio material, que sabe quem pode le-lo — ver
+ * arquivoService.abrir.
+ */
+async function ehDoEspacoMentor(idArquivo) {
+  const { rows } = await query(
+    `SELECT 1 FROM mentor_material WHERE id_arquivo = $1
+     UNION ALL
+     SELECT 1 FROM mentor_material_incubadora WHERE id_arquivo = $1
+     LIMIT 1`,
+    [idArquivo]
+  )
+  return rows.length > 0
+}
+
+module.exports = { criar, buscarPorId, excluir, contarReferencias, ehDoEspacoMentor }

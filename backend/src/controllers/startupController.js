@@ -11,6 +11,19 @@ async function listar(req, res, next) {
   }
 }
 
+/**
+ * `router.param("id")`: troca o UUID da URL pelo id_startup antes de qualquer
+ * handler. Daqui para frente, controllers e services so falam id_startup.
+ */
+async function resolverId(req, res, next, valor) {
+  try {
+    req.params.id = await startupService.resolverId(valor)
+    next()
+  } catch (err) {
+    next(err)
+  }
+}
+
 async function buscar(req, res, next) {
   try {
     res.json({ startup: await startupService.buscar(req.params.id, req.usuario) })
@@ -140,6 +153,7 @@ async function listarFasesConcluidas(req, res, next) {
 
 module.exports = {
   listar,
+  resolverId,
   buscar,
   criar,
   atualizar,

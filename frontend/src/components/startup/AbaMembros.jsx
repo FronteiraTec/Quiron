@@ -31,6 +31,7 @@ import {
 import { Add, Delete, LinkOff, PersonAddAlt1 } from "@mui/icons-material"
 import api from "../../services/api"
 import TabelaDados from "../tabela/TabelaDados"
+import CampoSenhaProvisoria from "../CampoSenhaProvisoria"
 import { celularValido, mascararCelular, MAX_CELULAR, somenteDigitos } from "../../utils/mascaras"
 import { SITUACAO_ATIVO } from "../mentores/vocabulario"
 
@@ -239,8 +240,94 @@ function DialogAdicionarMembro({
 
   const podeSalvar = modo === "existente" ? Boolean(idUsuario) : true
 
+  const campoPapel = (
+    <TextField
+      select
+      label="Papel"
+      fullWidth
+      value={lider ? "1" : "0"}
+      onChange={(e) => setLider(e.target.value === "1")}
+    >
+      <MenuItem value="0">Membro</MenuItem>
+      <MenuItem value="1">Líder</MenuItem>
+    </TextField>
+  )
+
+  const painelExistente = (
+    <>
+      <TextField
+        select
+        label="Usuário"
+        fullWidth
+        required
+        value={idUsuario}
+        onChange={(e) => setIdUsuario(e.target.value)}
+        sx={{ mb: 2 }}
+        helperText={
+          disponiveis.length === 0 && podeCadastrar
+            ? "Ninguém disponível. Use \"Cadastrar nova pessoa\"."
+            : undefined
+        }
+      >
+        {disponiveis.map((u) => (
+          <MenuItem key={u.id_usuario} value={u.id_usuario}>
+            {u.nome} ({u.email})
+          </MenuItem>
+        ))}
+      </TextField>
+      {campoPapel}
+    </>
+  )
+
+  const painelNovo = (
+    <>
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Nome"
+            fullWidth
+            required
+            value={pessoa.nome}
+            onChange={(e) => alterarPessoa("nome", e.target.value)}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Celular"
+            fullWidth
+            required
+            value={pessoa.celular}
+            onChange={(e) => alterarPessoa("celular", mascararCelular(e.target.value))}
+            placeholder="(11) 98765-4321"
+            inputProps={{ maxLength: MAX_CELULAR, inputMode: "numeric" }}
+            error={Boolean(pessoa.celular) && !celularValido(pessoa.celular)}
+          />
+        </Grid>
+        <Grid item xs={12}>
+          <TextField
+            label="E-mail"
+            type="email"
+            fullWidth
+            required
+            value={pessoa.email}
+            onChange={(e) => alterarPessoa("email", e.target.value)}
+          />
+        </Grid>
+        <Grid item xs={12}>
+          <CampoSenhaProvisoria
+            helperText="Ao menos 6 caracteres. A pessoa será obrigada a redefini-la no primeiro login."
+            value={pessoa.senha}
+            onChange={(senha) => alterarPessoa("senha", senha)}
+            email={pessoa.email}
+          />
+        </Grid>
+      </Grid>
+      {campoPapel}
+    </>
+  )
+
   return (
-    <Dialog open={aberto} onClose={onFechar} maxWidth={modo === "novo" ? "sm" : "xs"} fullWidth>
+    <Dialog open={aberto} onClose={onFechar} maxWidth={podeCadastrar ? "sm" : "xs"} fullWidth>
       <Box component="form" onSubmit={salvar}>
         <DialogTitle>Adicionar membro</DialogTitle>
         <DialogContent dividers>
@@ -265,84 +352,16 @@ function DialogAdicionarMembro({
             </ToggleButtonGroup>
           )}
 
-          {modo === "existente" ? (
-            <TextField
-              select
-              label="Usuário"
-              fullWidth
-              required
-              value={idUsuario}
-              onChange={(e) => setIdUsuario(e.target.value)}
-              sx={{ mb: 2 }}
-              helperText={
-                disponiveis.length === 0 && podeCadastrar
-                  ? "Ninguém disponível. Use \"Cadastrar nova pessoa\"."
-                  : undefined
-              }
-            >
-              {disponiveis.map((u) => (
-                <MenuItem key={u.id_usuario} value={u.id_usuario}>
-                  {u.nome} ({u.email})
-                </MenuItem>
-              ))}
-            </TextField>
+          {podeCadastrar ? (
+            // Os dois paineis dividem a mesma celula do grid: o card fica com a
+            // altura do maior e nao muda de tamanho ao trocar de aba.
+            <Box sx={{ display: "grid" }}>
+              <PainelModo ativo={modo === "existente"}>{painelExistente}</PainelModo>
+              <PainelModo ativo={modo === "novo"}>{painelNovo}</PainelModo>
+            </Box>
           ) : (
-            <Grid container spacing={2} sx={{ mb: 2 }}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Nome"
-                  fullWidth
-                  required
-                  value={pessoa.nome}
-                  onChange={(e) => alterarPessoa("nome", e.target.value)}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Celular"
-                  fullWidth
-                  required
-                  value={pessoa.celular}
-                  onChange={(e) => alterarPessoa("celular", mascararCelular(e.target.value))}
-                  placeholder="(11) 98765-4321"
-                  inputProps={{ maxLength: MAX_CELULAR, inputMode: "numeric" }}
-                  error={Boolean(pessoa.celular) && !celularValido(pessoa.celular)}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  label="E-mail"
-                  type="email"
-                  fullWidth
-                  required
-                  value={pessoa.email}
-                  onChange={(e) => alterarPessoa("email", e.target.value)}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  label="Senha provisória"
-                  type="password"
-                  fullWidth
-                  required
-                  helperText="Ao menos 6 caracteres. A pessoa será obrigada a redefini-la no primeiro login."
-                  value={pessoa.senha}
-                  onChange={(e) => alterarPessoa("senha", e.target.value)}
-                />
-              </Grid>
-            </Grid>
+            painelExistente
           )}
-
-          <TextField
-            select
-            label="Papel"
-            fullWidth
-            value={lider ? "1" : "0"}
-            onChange={(e) => setLider(e.target.value === "1")}
-          >
-            <MenuItem value="0">Membro</MenuItem>
-            <MenuItem value="1">Líder</MenuItem>
-          </TextField>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={onFechar}>Cancelar</Button>
@@ -358,6 +377,23 @@ function DialogAdicionarMembro({
         </DialogActions>
       </Box>
     </Dialog>
+  )
+}
+
+/**
+ * Um painel do DialogAdicionarMembro. O inativo continua no DOM (e o que segura
+ * a altura do card), mas invisivel e num fieldset desabilitado: assim os campos
+ * "required" dele nao barram o envio do formulario da outra aba.
+ */
+function PainelModo({ ativo, children }) {
+  return (
+    <Box
+      component="fieldset"
+      disabled={!ativo}
+      sx={{ gridArea: "1 / 1", visibility: ativo ? "visible" : "hidden", border: 0, m: 0, p: 0, minWidth: 0 }}
+    >
+      {children}
+    </Box>
   )
 }
 

@@ -37,6 +37,9 @@ HTTP  →  Routes  →  Controllers  →  Services  →  Repositories  →  Post
 | `avaliacaoRepository` | `avaliacao` |
 | `eventoRepository` | `evento`, `evento_confirmacao`, `evento_presenca` |
 | `auditLogRepository` | `audit_log` |
+| `mentorMaterialRepository` | `mentor_material` (biblioteca pessoal do mentor, migração 020) |
+| `mentorCompartilhamentoRepository` | `mentor_compartilhamento` (material → startup, trilha e etapa) |
+| `materialIncubadoraRepository` | `mentor_material_incubadora` (o que a incubadora publica para os mentores, migração 021) |
 
 ## Como adicionar uma nova feature (ex.: Startups)
 

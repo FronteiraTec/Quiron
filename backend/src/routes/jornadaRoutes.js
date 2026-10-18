@@ -9,6 +9,7 @@ const express = require("express")
 const router = express.Router()
 
 const ctrl = require("../controllers/jornadaController")
+const espacoMentor = require("../controllers/espacoMentorController")
 const { autenticar } = require("../middlewares/auth")
 
 router.use(autenticar)
@@ -18,6 +19,14 @@ router.use(autenticar)
 // uma trilha especifica.
 router.get("/trilhas", ctrl.listarTrilhas) // ?id_startup=
 router.get("/", ctrl.carregar) // ?id_startup=&id_trilha=
+
+// Os materiais que os mentores entregaram a startup (Espaco do Mentor,
+// migracao 020), lidos pelo mesmo vinculo com que ela le a propria trilha. O
+// arquivo de um material pessoal so sai por aqui — saber o UUID nao basta, e
+// preciso alcancar a startup que o recebeu.
+router.get("/materiais", espacoMentor.listarRecebidos) // ?id_startup=&id_trilha=
+router.get("/materiais/:id/arquivo", espacoMentor.baixarRecebido)
+router.get("/materiais/:id", espacoMentor.buscarRecebido)
 
 // Entregas do incubado. Rascunho e envio sao o mesmo upsert com status
 // diferente; reenviar tambem limpa as avaliacoes anteriores.

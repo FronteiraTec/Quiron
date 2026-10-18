@@ -206,7 +206,7 @@ function Conteudo({ idTenant, dias }) {
             linhas={dados.startups}
             ordemInicial="taxa_presenca_pct"
             direcaoInicial="asc"
-            onClickLinha={(l) => navigate(`/startups/${l.id_startup}`)}
+            onClickLinha={(l) => navigate(`/startups/${l.startup_uuid}`)}
             mensagemVazio="Nenhuma startup foi convidada a eventos no período."
             colunas={[
               { chave: "startup", rotulo: "Startup" },

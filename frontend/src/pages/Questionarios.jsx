@@ -5,6 +5,10 @@
  * de quatro tipos: Texto curto, Paragrafo, Escolha unica e Caixas de selecao.
  * Perguntas de escolha tem alternativas; as de texto, nao.
  *
+ * Dois modos: FORMULARIO (sem resposta certa, o mentor le) e PROVA (so
+ * perguntas de escolha, cada uma com o gabarito marcado; a entrega e corrigida
+ * sozinha). O gabarito so volta da API para quem pode criar/editar.
+ *
  * Regra de acesso: apenas ADMIN da incubadora pode criar/ativar questionarios.
  * Os demais papeis veem a lista (leitura) para saber o que existe.
  *
@@ -35,6 +39,10 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
+  Radio,
+  Checkbox,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material"
 import {
   Add,
@@ -46,6 +54,9 @@ import {
   Subject,
   RadioButtonChecked,
   CheckBox,
+  CheckCircle,
+  Assignment,
+  FactCheck,
 } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import api from "../services/api"
@@ -64,16 +75,28 @@ const TIPOS_PERGUNTA = [
 ]
 const TIPO_POR_VALOR = Object.fromEntries(TIPOS_PERGUNTA.map((t) => [t.valor, t]))
 const tipoTemAlternativas = (tipo) => !!TIPO_POR_VALOR[tipo]?.alternativas
+// Prova e de assinalar: so os tipos com alternativas (e gabarito).
+const TIPOS_PROVA = TIPOS_PERGUNTA.filter((t) => t.alternativas)
 
 // Fabricas de estado em branco para o construtor.
-const novaAlternativa = () => ({ descricao: "" })
-const novaPergunta = () => ({
+const novaAlternativa = () => ({ descricao: "", correta: false })
+const novaPergunta = (prova = false) => ({
   pergunta: "",
-  tipo: "TEXTO_CURTO",
+  tipo: prova ? "ESCOLHA_UNICA" : "TEXTO_CURTO",
   obrigatoria: false,
   alternativas: [novaAlternativa(), novaAlternativa()],
 })
-const FORM_VAZIO = () => ({ titulo: "", descricao: "", perguntas: [novaPergunta()] })
+const FORM_VAZIO = () => ({ titulo: "", descricao: "", prova: false, perguntas: [novaPergunta()] })
+
+/** Escolha unica tem uma correta so: ao virar escolha unica, fica a primeira. */
+function soPrimeiraCorreta(alternativas) {
+  let achou = false
+  return alternativas.map((a) => {
+    const correta = a.correta && !achou
+    if (correta) achou = true
+    return { ...a, correta }
+  })
+}
 
 export default function Questionarios() {
   const usuario = useAuthStore((s) => s.usuario)
@@ -135,8 +158,33 @@ export default function Questionarios() {
       perguntas: f.perguntas.map((p, i) => (i === indice ? { ...p, ...patch } : p)),
     }))
 
+  // Virar prova converte as perguntas de texto em escolha unica: prova nao tem
+  // texto livre. Voltar a formulario mantem tudo — o gabarito so e ignorado.
+  const alterarModo = (prova) =>
+    setForm((f) => ({
+      ...f,
+      prova,
+      perguntas: prova
+        ? f.perguntas.map((p) => (tipoTemAlternativas(p.tipo) ? p : { ...p, tipo: "ESCOLHA_UNICA" }))
+        : f.perguntas,
+    }))
+
+  const alterarTipo = (indice, tipo) =>
+    setForm((f) => ({
+      ...f,
+      perguntas: f.perguntas.map((p, i) =>
+        i !== indice
+          ? p
+          : {
+              ...p,
+              tipo,
+              alternativas: tipo === "ESCOLHA_UNICA" ? soPrimeiraCorreta(p.alternativas) : p.alternativas,
+            }
+      ),
+    }))
+
   const adicionarPergunta = () =>
-    setForm((f) => ({ ...f, perguntas: [...f.perguntas, novaPergunta()] }))
+    setForm((f) => ({ ...f, perguntas: [...f.perguntas, novaPergunta(f.prova)] }))
 
   const removerPergunta = (indice) =>
     setForm((f) => ({ ...f, perguntas: f.perguntas.filter((_, i) => i !== indice) }))
@@ -147,7 +195,30 @@ export default function Questionarios() {
       perguntas: f.perguntas.map((p, i) =>
         i !== pIndice
           ? p
-          : { ...p, alternativas: p.alternativas.map((a, j) => (j === aIndice ? { descricao: valor } : a)) }
+          : {
+              ...p,
+              alternativas: p.alternativas.map((a, j) => (j === aIndice ? { ...a, descricao: valor } : a)),
+            }
+      ),
+    }))
+
+  // Marca o gabarito. Na escolha unica, marcar uma desmarca as outras.
+  const marcarCorreta = (pIndice, aIndice, marcada) =>
+    setForm((f) => ({
+      ...f,
+      perguntas: f.perguntas.map((p, i) =>
+        i !== pIndice
+          ? p
+          : {
+              ...p,
+              alternativas: p.alternativas.map((a, j) =>
+                j === aIndice
+                  ? { ...a, correta: marcada }
+                  : p.tipo === "ESCOLHA_UNICA"
+                    ? { ...a, correta: false }
+                    : a
+              ),
+            }
       ),
     }))
 
@@ -172,20 +243,24 @@ export default function Questionarios() {
     setAviso(null)
     setSalvando(true)
     try {
-      // Envia so as alternativas dos tipos de escolha; o backend valida tudo.
+      // Envia so as alternativas dos tipos de escolha, e o gabarito so em
+      // prova; o backend valida tudo.
       const perguntas = form.perguntas.map((p) => ({
         pergunta: p.pergunta,
         tipo: p.tipo,
         obrigatoria: p.obrigatoria,
-        alternativas: tipoTemAlternativas(p.tipo) ? p.alternativas : [],
+        alternativas: tipoTemAlternativas(p.tipo)
+          ? p.alternativas.map((a) => ({ descricao: a.descricao, correta: form.prova && a.correta }))
+          : [],
       }))
       await api.post("/questionarios", {
         id_tenant: idTenant,
         titulo: form.titulo,
         descricao: form.descricao,
+        prova: form.prova,
         perguntas,
       })
-      setAviso({ tipo: "success", texto: "Questionário criado com sucesso." })
+      setAviso({ tipo: "success", texto: form.prova ? "Prova criada com sucesso." : "Questionário criado com sucesso." })
       setDialogAberto(false)
       await carregar()
     } catch (err) {
@@ -242,6 +317,20 @@ export default function Questionarios() {
       },
       { chave: "descricao", rotulo: "Descrição", visivelPadrao: false, largura: 320 },
       {
+        chave: "prova",
+        rotulo: "Tipo",
+        alinhamento: "center",
+        largura: 140,
+        valorOrdenacao: (q) => (q.prova ? 1 : 0),
+        valorTexto: (q) => (q.prova ? "Prova" : "Formulário"),
+        render: (q) =>
+          q.prova ? (
+            <Chip size="small" color="primary" icon={<FactCheck />} label="Prova" />
+          ) : (
+            <Chip size="small" variant="outlined" icon={<Assignment />} label="Formulário" />
+          ),
+      },
+      {
         chave: "total_perguntas",
         rotulo: "Perguntas",
         alinhamento: "center",
@@ -288,6 +377,8 @@ export default function Questionarios() {
     return questionarios.filter((q) => {
       const status = filtros.ativo || []
       if (status.length && !status.includes(q.ativo ? "sim" : "nao")) return false
+      const tipos = filtros.tipo || []
+      if (tipos.length && !tipos.includes(q.prova ? "prova" : "formulario")) return false
       if (!termo) return true
       return `${q.titulo} ${q.descricao || ""}`.toLowerCase().includes(termo)
     })
@@ -301,6 +392,15 @@ export default function Questionarios() {
       itens: [
         { id: "sim", rotulo: "Ativo" },
         { id: "nao", rotulo: "Inativo" },
+      ],
+    },
+    {
+      id: "tipo",
+      rotulo: "Tipo",
+      tipo: "checkbox",
+      itens: [
+        { id: "formulario", rotulo: "Formulário" },
+        { id: "prova", rotulo: "Prova" },
       ],
     },
   ]
@@ -322,8 +422,9 @@ export default function Questionarios() {
           )}
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Crie formulários com perguntas de texto e de escolha. Os questionários ficam disponíveis
-          para as tarefas do tipo Questionário.
+          Crie formulários com perguntas de texto e de escolha, ou provas de assinalar com
+          correção automática. Os questionários ficam disponíveis para as tarefas do tipo
+          Questionário.
         </Typography>
 
         {aviso && (
@@ -390,9 +491,30 @@ export default function Questionarios() {
       {/* ---------------- Construtor (dialog de criacao) ---------------- */}
       <Dialog open={dialogAberto} onClose={() => setDialogAberto(false)} maxWidth="md" fullWidth>
         <Box component="form" onSubmit={salvar}>
-          <DialogTitle>Novo questionário</DialogTitle>
+          <DialogTitle>{form.prova ? "Nova prova" : "Novo questionário"}</DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2}>
+              <Box>
+                <ToggleButtonGroup
+                  exclusive
+                  fullWidth
+                  size="small"
+                  value={form.prova ? "PROVA" : "FORMULARIO"}
+                  onChange={(_, v) => v && alterarModo(v === "PROVA")}
+                >
+                  <ToggleButton value="FORMULARIO" sx={{ textTransform: "none", gap: 1 }}>
+                    <Assignment fontSize="small" /> Formulário
+                  </ToggleButton>
+                  <ToggleButton value="PROVA" sx={{ textTransform: "none", gap: 1 }}>
+                    <FactCheck fontSize="small" /> Prova
+                  </ToggleButton>
+                </ToggleButtonGroup>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+                  {form.prova
+                    ? "Questões de assinalar com gabarito. A entrega é corrigida automaticamente: cada questão vale 1 ponto e, nas caixas de seleção, só pontua quem marcar exatamente as corretas."
+                    : "Perguntas sem resposta certa: o mentor lê as respostas da startup."}
+                </Typography>
+              </Box>
               <TextField
                 label="Título"
                 fullWidth
@@ -451,10 +573,10 @@ export default function Questionarios() {
                         label="Tipo"
                         select
                         value={p.tipo}
-                        onChange={(e) => alterarPergunta(i, { tipo: e.target.value })}
+                        onChange={(e) => alterarTipo(i, e.target.value)}
                         sx={{ minWidth: 220 }}
                       >
-                        {TIPOS_PERGUNTA.map((t) => (
+                        {(form.prova ? TIPOS_PROVA : TIPOS_PERGUNTA).map((t) => (
                           <MenuItem key={t.valor} value={t.valor}>
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                               {t.icone}
@@ -477,9 +599,37 @@ export default function Questionarios() {
                     {/* Alternativas (apenas para tipos de escolha) */}
                     {tipoTemAlternativas(p.tipo) && (
                       <Box sx={{ pl: 1 }}>
+                        {form.prova && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                            {p.tipo === "ESCOLHA_UNICA"
+                              ? "Marque a alternativa correta."
+                              : "Marque todas as alternativas corretas."}
+                          </Typography>
+                        )}
                         {p.alternativas.map((a, j) => (
                           <Box key={j} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                            {p.tipo === "ESCOLHA_UNICA" ? (
+                            {/* Em prova, o marcador vira o gabarito; no formulario, so ilustra o tipo. */}
+                            {form.prova ? (
+                              <Tooltip title={a.correta ? "Correta" : "Marcar como correta"}>
+                                {p.tipo === "ESCOLHA_UNICA" ? (
+                                  <Radio
+                                    size="small"
+                                    color="success"
+                                    checked={!!a.correta}
+                                    onChange={() => marcarCorreta(i, j, true)}
+                                    sx={{ p: 0.25 }}
+                                  />
+                                ) : (
+                                  <Checkbox
+                                    size="small"
+                                    color="success"
+                                    checked={!!a.correta}
+                                    onChange={(e) => marcarCorreta(i, j, e.target.checked)}
+                                    sx={{ p: 0.25 }}
+                                  />
+                                )}
+                              </Tooltip>
+                            ) : p.tipo === "ESCOLHA_UNICA" ? (
                               <RadioButtonChecked fontSize="small" sx={{ color: "text.disabled" }} />
                             ) : (
                               <CheckBox fontSize="small" sx={{ color: "text.disabled" }} />
@@ -490,6 +640,11 @@ export default function Questionarios() {
                               placeholder={`Alternativa ${j + 1}`}
                               value={a.descricao}
                               onChange={(e) => alterarAlternativa(i, j, e.target.value)}
+                              sx={
+                                form.prova && a.correta
+                                  ? { "& .MuiOutlinedInput-notchedOutline": { borderColor: "success.main" } }
+                                  : undefined
+                              }
                             />
                             <IconButton
                               size="small"
@@ -517,7 +672,13 @@ export default function Questionarios() {
           <DialogActions sx={{ px: 3, py: 2 }}>
             <Button onClick={() => setDialogAberto(false)}>Cancelar</Button>
             <Button type="submit" variant="contained" disabled={salvando}>
-              {salvando ? <CircularProgress size={22} color="inherit" /> : "Criar questionário"}
+              {salvando ? (
+                <CircularProgress size={22} color="inherit" />
+              ) : form.prova ? (
+                "Criar prova"
+              ) : (
+                "Criar questionário"
+              )}
             </Button>
           </DialogActions>
         </Box>
@@ -531,7 +692,10 @@ export default function Questionarios() {
           </Box>
         ) : preview ? (
           <>
-            <DialogTitle>{preview.titulo}</DialogTitle>
+            <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {preview.titulo}
+              {preview.prova && <Chip size="small" color="primary" icon={<FactCheck />} label="Prova" />}
+            </DialogTitle>
             <DialogContent dividers>
               {preview.descricao && (
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
@@ -562,10 +726,22 @@ export default function Questionarios() {
                       />
                       {p.alternativas?.length > 0 && (
                         <Stack sx={{ pl: 2, mt: 1 }} spacing={0.5}>
+                          {/* `correta` so vem da API para quem pode ver o gabarito. */}
                           {p.alternativas.map((a) => (
-                            <Typography key={a.id_alternativa} variant="body2" color="text.secondary">
-                              {p.tipo === "ESCOLHA_UNICA" ? "○" : "☐"} {a.descricao}
-                            </Typography>
+                            <Box key={a.id_alternativa} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                              <Typography
+                                variant="body2"
+                                color={a.correta ? "success.main" : "text.secondary"}
+                                fontWeight={a.correta ? 600 : 400}
+                              >
+                                {p.tipo === "ESCOLHA_UNICA" ? "○" : "☐"} {a.descricao}
+                              </Typography>
+                              {a.correta && (
+                                <Tooltip title="Correta">
+                                  <CheckCircle fontSize="inherit" color="success" />
+                                </Tooltip>
+                              )}
+                            </Box>
                           ))}
                         </Stack>
                       )}

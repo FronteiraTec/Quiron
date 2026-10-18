@@ -1,7 +1,6 @@
 /**
- * Barra superior do Construtor: seletor de trilha, startups da trilha e o
- * botao "Visualizar como incubada". (Expandir/recolher sairam junto com os
- * modulos: a arvore agora para na fase.)
+ * Barra superior do Construtor: seletor de trilha, acoes globais da arvore
+ * (expandir / recolher todos) e o botao "Visualizar como incubada".
  * Tambem exibe o botao de alternar a arvore em telas menores (tablet).
  *
  * O SELETOR e o que muda com varias trilhas. Ele carrega o nome da trilha
@@ -24,6 +23,8 @@ import {
   Chip,
 } from "@mui/material"
 import {
+  UnfoldMore,
+  UnfoldLess,
   Visibility,
   AccountTree,
   MenuOpen,
@@ -44,6 +45,8 @@ export default function Toolbar({
   onDuplicarTrilha,
   onDefinirPadrao,
   onGerenciarStartups,
+  onExpandirTodos,
+  onRecolherTodos,
   onPreview,
   onToggleArvore,
   mostrarToggleArvore,
@@ -133,6 +136,17 @@ export default function Toolbar({
           </IconButton>
         </Tooltip>
       )}
+
+      <Tooltip title="Expandir todos" arrow>
+        <IconButton data-tour="programa-expandir" onClick={onExpandirTodos} size="small">
+          <UnfoldMore />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Recolher todos" arrow>
+        <IconButton data-tour="programa-expandir" onClick={onRecolherTodos} size="small">
+          <UnfoldLess />
+        </IconButton>
+      </Tooltip>
 
       <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 1 }} />
 

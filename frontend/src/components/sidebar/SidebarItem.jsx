@@ -18,7 +18,6 @@ import {
   Badge,
   Box,
   IconButton,
-  alpha,
 } from "@mui/material"
 import { PushPin, PushPinOutlined } from "@mui/icons-material"
 
@@ -51,9 +50,10 @@ export default function SidebarItem({
         borderRadius: "10px",
         mx: 1.5,
         my: 0.375,
-        pl: recolhida ? 1.5 : 1.75 + nivel * 1.75,
+        // O icone fica no mesmo x nos dois modos (no meio dos 80px do menu
+        // recolhido), entao nao escorrega para o lado ao abrir/recolher.
+        pl: 2 + nivel * 1.75,
         pr: 1.25,
-        justifyContent: recolhida ? "center" : "flex-start",
         color: "text.primary",
         transition: "background-color 180ms ease, color 180ms ease",
         "&:hover": {
@@ -64,12 +64,8 @@ export default function SidebarItem({
           color: ativo ? "primary.main" : "text.secondary",
           transition: "color 180ms ease",
         },
-        "&.Mui-selected": {
-          bgcolor: (theme) => alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.18 : 0.09),
-        },
-        "&.Mui-selected:hover": {
-          bgcolor: (theme) => alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.24 : 0.13),
-        },
+        // O fundo do item ativo vem do tema (MuiListItemButton): o veu do
+        // preenchimento vivo, igual ao de menus e listas.
       }}
     >
       {/* Indicador deslizante do item ativo (barra vertical a esquerda). */}

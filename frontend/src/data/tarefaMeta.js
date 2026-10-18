@@ -37,6 +37,21 @@ export const prioridade = (chave) =>
 export const prazoBR = (valor) =>
   valor ? String(valor).slice(0, 10).split("-").reverse().join("/") : ""
 
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+
+/**
+ * O prazo curto do cartao: "12 mar", e "12 mar 2027" quando o ano nao e o
+ * corrente. Pelo mesmo corte de texto do prazoBR, e pelo mesmo motivo.
+ */
+export function prazoCurto(valor) {
+  if (!valor) return ""
+  const [ano, mes, dia] = String(valor).slice(0, 10).split("-")
+  const nomeMes = MESES[Number(mes) - 1]
+  if (!nomeMes || !dia) return prazoBR(valor)
+  const curto = `${Number(dia)} ${nomeMes}`
+  return ano === String(new Date().getFullYear()) ? curto : `${curto} ${ano}`
+}
+
 /** Hoje como "YYYY-MM-DD", no fuso de quem esta olhando. */
 function hojeISO() {
   const agora = new Date()

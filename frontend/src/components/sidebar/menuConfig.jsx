@@ -53,11 +53,17 @@ import {
   HourglassBottom,
   TaskAlt,
   EmojiEvents,
+  CoPresent,
 } from "@mui/icons-material"
 
 // Larguras do menu (compartilhadas com a Navbar e o conteudo).
 export const SIDEBAR_WIDTH = 300
 export const SIDEBAR_MINI_WIDTH = 80
+
+// Abrir/recolher: a Sidebar, a Navbar e o conteudo andam com a mesma curva e a
+// mesma duracao. Com curvas diferentes as bordas se separam no meio do
+// caminho e abre um vao na faixa preta do topo.
+export const SIDEBAR_TRANSICAO = { duration: 225, easing: "cubic-bezier(0.4, 0, 0.2, 1)" }
 
 // ---------------------------------------------------------------------------
 // ADMIN
@@ -104,6 +110,10 @@ const MENU_ADMIN = [
       { id: "programa-builder", texto: "Construtor", icone: <AccountTree />, rota: "/programa", permissao: "programa.trilha.visualizar" },
       { id: "biblioteca", texto: "Biblioteca", icone: <LocalLibrary />, rota: "/biblioteca", permissao: "programa.biblioteca.visualizar" },
       { id: "questionarios", texto: "Questionários", icone: <Quiz />, rota: "/questionarios", permissao: "programa.questionarios.visualizar" },
+      // O admin acompanha a incubadora inteira (ver mentorCompartilhamentoService):
+      // daqui ele entrega material a qualquer startup e ve tudo o que os
+      // mentores compartilharam.
+      { id: "espaco-mentor", texto: "Espaço do Mentor", icone: <CoPresent />, rota: "/espaco-mentor", permissao: "mentoria.materiais.gerenciar" },
     ],
   },
   {
@@ -163,6 +173,10 @@ const MENU_MENTOR = [
   // reduz o que ele VE, nao tira dele a tela — ele continua com as tarefas que
   // lhe atribuirem.
   { id: "tarefas", texto: "Tarefas", icone: <TaskAlt />, rota: "/tarefas", novo: true },
+  // O ambiente de trabalho do mentor (migracao 020): a biblioteca pessoal e o
+  // que ele entrega a cada startup que acompanha. Item proprio, e nao dentro de
+  // Programa: e a tela que o mentor abre todo dia, nao uma configuracao.
+  { id: "espaco-mentor", texto: "Espaço do Mentor", icone: <CoPresent />, rota: "/espaco-mentor", permissao: "mentoria.materiais.gerenciar", novo: true },
   {
     id: "startups",
     texto: "Startups",

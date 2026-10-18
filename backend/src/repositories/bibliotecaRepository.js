@@ -61,7 +61,12 @@ async function listarPorTenant(idTenant, filtros = {}) {
 
   const { rows } = await query(
     `SELECT ${cols("c.", COLUNAS_LISTA)},
-            COALESCE(u.usos, '[]'::json) AS usos
+            COALESCE(u.usos, '[]'::json) AS usos,
+            -- Quantas vezes mentores entregaram este conteudo a uma startup
+            -- (Espaco do Mentor, migracao 020). Excluir o conteudo leva esses
+            -- vinculos junto, e a tela avisa antes.
+            (SELECT COUNT(*)::int FROM mentor_compartilhamento mc
+              WHERE mc.id_conteudo = c.id_conteudo) AS compartilhamentos
        FROM conteudo c
        LEFT JOIN LATERAL (
          SELECT json_agg(
@@ -121,8 +126,23 @@ async function buscarPorId(id) {
     conteudo.documento = documentoDe(conteudo, conteudo.blocos)
   }
   conteudo.usos = await listarUsos(id)
+  conteudo.compartilhamentos = await contarCompartilhamentos(id)
 
   return conteudo
+}
+
+/**
+ * Quantas vezes mentores entregaram este conteudo a uma startup (Espaco do
+ * Mentor, migracao 020). Nao bloqueia a exclusao como `usos`: o acervo e da
+ * incubadora, e o vinculo sai junto com o conteudo (CASCADE) — o numero existe
+ * para a tela avisar antes.
+ */
+async function contarCompartilhamentos(idConteudo) {
+  const { rows } = await query(
+    `SELECT COUNT(*)::int AS total FROM mentor_compartilhamento WHERE id_conteudo = $1`,
+    [idConteudo]
+  )
+  return rows[0].total
 }
 
 /** Blocos de uma aula, em ordem. */

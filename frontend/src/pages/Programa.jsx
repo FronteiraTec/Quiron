@@ -3,13 +3,10 @@
  * trilhas de incubacao numa unica tela, estilo Notion/ClickUp.
  *
  * Duas areas:
- *   - Painel esquerdo (ProgramTree): a trilha e suas fases, com criacao
- *     rapida, drag and drop, busca e menu de contexto.
- *   - Painel direito (InspectorPanel): edicao da fase selecionada e dos
- *     materiais dela, sem modal e sem trocar de pagina.
- *
- * Modulos e passos nao aparecem mais aqui: a fase guarda o material num
- * modulo/passo "Materiais" que o servidor cria por baixo (ver trilhaMeta).
+ *   - Painel esquerdo (ProgramTree): a arvore Programa -> Fases -> Modulos ->
+ *     Tarefas, com criacao rapida, drag and drop, busca e menu de contexto.
+ *   - Painel direito (InspectorPanel): edicao das propriedades do no
+ *     selecionado, sem modal e sem trocar de pagina.
  *
  * A incubadora pode ter VARIAS trilhas. A troca acontece no seletor da
  * Toolbar, e a tela mostra uma por vez — editar duas arvores lado a lado nao
@@ -253,7 +250,7 @@ export default function Programa() {
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 3 }}>
               Sua incubadora ainda não tem nenhuma trilha. Crie uma para
-              começar a montar as fases e seus materiais — depois é possível ter
+              começar a montar fases, módulos e passos — depois é possível ter
               quantas quiser, reaproveitando o mesmo material da Biblioteca.
             </Typography>
             {prog.erro && (
@@ -323,6 +320,8 @@ export default function Programa() {
             onDuplicarTrilha={duplicarTrilha}
             onDefinirPadrao={definirPadrao}
             onGerenciarStartups={() => setStartupsAberto(true)}
+            onExpandirTodos={prog.expandirTodos}
+            onRecolherTodos={prog.recolherTodos}
             onPreview={() => setPreview(true)}
             onToggleArvore={() => setArvoreMobile(true)}
             mostrarToggleArvore={!mdUp}
@@ -361,7 +360,6 @@ export default function Programa() {
                 registro={inspetor}
                 onSalvar={feedbackSalvo}
                 onExcluir={pedirExclusao}
-                onErro={(texto) => setToast({ texto, severidade: "error" })}
               />
             </Box>
           </Box>
@@ -392,7 +390,7 @@ export default function Programa() {
           confirmar
             ? `Tem certeza que deseja excluir "${confirmar.no.nome}"?${
                 TIPO_META[confirmar.no.tipo].childTipo
-                  ? " Tudo o que está dentro dele será removido (os materiais continuam na Biblioteca)."
+                  ? " Todo o conteúdo dentro dele será removido."
                   : ""
               } Esta ação não pode ser desfeita.`
             : ""
@@ -515,8 +513,8 @@ function DialogNovaTrilha({ estado, salvando, onChange, onCriar, onFechar }) {
       <DialogContent dividers>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Uma trilha nova nasce vazia. O material da Biblioteca continua o
-          mesmo — as fases desta trilha podem usar os materiais que você
-          já tem.
+          mesmo — os passos desta trilha podem apontar para os conteúdos que
+          você já tem.
         </Typography>
         <TextField
           autoFocus

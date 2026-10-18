@@ -55,7 +55,7 @@ import { useAuthStore } from "../../store/authStore"
 // editor de aula — ele chega quando uma AULA e realmente aberta.
 const EditorDocumento = lazy(() => import("../editor/EditorDocumento"))
 
-// Titulo que o servidor da a um conteudo recem-criado (MateriaisDaFase.criar).
+// Titulo que o servidor da a um conteudo recem-criado (useBiblioteca.criar).
 // Serve para reconhecer "acabou de nascer" e so entao focar o campo do nome.
 const TITULO_NOVO = "Sem título"
 
