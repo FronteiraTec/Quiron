@@ -249,46 +249,6 @@ async function desvincularConteudo(idNo, idConteudo, usuario) {
   if (!removido) throw erroNegocio(404, "Este conteudo nao esta vinculado ao passo.")
 }
 
-/**
- * Materiais por fase: de uma trilha inteira (PROGRAMA) ou de uma fase so.
- * E a leitura do Construtor e da Biblioteca, que mostram a trilha so ate a
- * fase — o modulo e o passo ficam por baixo (ver o repositorio).
- */
-async function materiais(idNo, usuario) {
-  const no = await buscarComPermissao(idNo, usuario, "programa.trilha.visualizar")
-  if (no.tipo !== "PROGRAMA" && no.tipo !== "FASE") {
-    throw erroNegocio(400, "Os materiais sao listados por trilha ou por fase.")
-  }
-  return trilhaRepository.materiaisPorFase(idNo)
-}
-
-/** Vincula um conteudo da Biblioteca a uma FASE. */
-async function vincularMaterial(idFase, idConteudo, usuario) {
-  const fase = await exigirFase(idFase, usuario, "programa.trilha.editar")
-  if (!idConteudo) throw erroNegocio(400, "Informe o id_conteudo.")
-
-  const tenant = await trilhaRepository.tenantDoConteudo(idConteudo)
-  if (tenant === null) throw erroNegocio(404, "Conteudo nao encontrado.")
-  if (Number(tenant) !== Number(fase.id_tenant)) {
-    throw erroNegocio(400, "O conteudo pertence a outra incubadora.")
-  }
-
-  return trilhaRepository.vincularMaterialNaFase(fase, idConteudo)
-}
-
-/** Tira um conteudo da fase (de todos os passos dela). Ele continua na Biblioteca. */
-async function desvincularMaterial(idFase, idConteudo, usuario) {
-  await exigirFase(idFase, usuario, "programa.trilha.editar")
-  const removidos = await trilhaRepository.desvincularMaterialDaFase(idFase, idConteudo)
-  if (!removidos) throw erroNegocio(404, "Este conteudo nao esta nesta fase.")
-}
-
-async function exigirFase(idNo, usuario, chave) {
-  const no = await buscarComPermissao(idNo, usuario, chave)
-  if (no.tipo !== "FASE") throw erroNegocio(400, "Materiais sao adicionados a uma FASE.")
-  return no
-}
-
 /** Conteudo so se pendura em PASSO — fase e modulo sao agrupadores. */
 async function exigirPasso(idNo, usuario, chave) {
   const no = await buscarComPermissao(idNo, usuario, chave)
@@ -434,9 +394,6 @@ module.exports = {
   listarConteudos,
   vincularConteudo,
   desvincularConteudo,
-  materiais,
-  vincularMaterial,
-  desvincularMaterial,
   listarProgramas,
   arvoreDoPrograma,
   definirPadrao,

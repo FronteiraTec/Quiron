@@ -4,10 +4,8 @@
  *   - cabecalho com icone/tipo, breadcrumb, status e indicador de alteracoes
  *     nao salvas
  *   - nome (obrigatorio, com validacao) e descricao
- *   - para a Fase: os materiais dela (MateriaisDaFase) — criar um novo ou
- *     reaproveitar um da Biblioteca. A arvore do Construtor para na fase; os
- *     campos de Modulo/Passo abaixo so aparecem para trilhas antigas que
- *     alguem abra por outro caminho
+ *   - para Fase/Modulo: resumo e lista clicavel do que ja existe dentro dele,
+ *     com atalho para adicionar o proximo filho sem voltar para a arvore
  *   - para o Passo: o conteudo ensinado (puxado da Biblioteca), o que a
  *     startup faz nele (se entrega algo, em que forma e sob qual
  *     questionario), a moldura pedagogica e prazo/carga/entregavel
@@ -67,7 +65,6 @@ import { useAuthStore } from "../../store/authStore"
 import Breadcrumb from "./Breadcrumb"
 import EmptyState from "./EmptyState"
 import SeletorConteudo from "./SeletorConteudo"
-import MateriaisDaFase from "./MateriaisDaFase"
 import LogoConteudo from "../biblioteca/LogoConteudo"
 
 // Rotulo de cada tipo de entrega na voz de quem monta a trilha: a pergunta
@@ -129,7 +126,6 @@ export default function InspectorPanel({
   acoes,
   onSalvar,
   onExcluir,
-  onErro,
   // Ref onde este painel publica o estado do rascunho. E por ela que o
   // Construtor sabe que ha alteracao por salvar antes de trocar de no.
   registro,
@@ -293,7 +289,7 @@ export default function InspectorPanel({
         <EmptyState
           variante="selecao"
           titulo="Nenhum item selecionado"
-          descricao="Escolha uma fase na árvore à esquerda para editar seus dados e materiais aqui."
+          descricao="Escolha uma fase, módulo ou tarefa na árvore à esquerda para editar suas propriedades aqui."
         />
       </Box>
     )
@@ -453,20 +449,8 @@ export default function InspectorPanel({
             />
           </Box>
 
-          {/* --------- Materiais da Fase --------- */}
-          {no.tipo === "FASE" && (
-            <>
-              <Divider textAlign="left">
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  MATERIAIS
-                </Typography>
-              </Divider>
-              <MateriaisDaFase fase={no} onErro={onErro} />
-            </>
-          )}
-
-          {/* --------- Conteudo de um Modulo (lista de filhos) --------- */}
-          {childMeta && no.tipo !== "FASE" && (
+          {/* --------- Conteudo desta Fase/Modulo (lista de filhos) --------- */}
+          {childMeta && (
             <>
               <Divider textAlign="left">
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>

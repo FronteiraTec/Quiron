@@ -1,25 +1,26 @@
 /**
- * Biblioteca de Conhecimento — o que cada trilha tem de material, por fase.
+ * Biblioteca de Conhecimento — o acervo reutilizavel da incubadora.
  *
- * Ate a mudanca do Construtor, a Biblioteca era onde o material NASCIA ("Novo
- * conteudo") e o passo da trilha so apontava para ele. Agora o material nasce
- * na fase, no Construtor, e aqui e o lugar de OLHAR: escolhe-se a trilha e os
- * materiais aparecem agrupados pelas fases dela. "Fora das trilhas" junta o
- * que nao esta em fase nenhuma (o acervo antigo, copias), para nada sumir.
+ * Aqui a incubadora GUARDA tudo o que ensina aos incubados: aulas (paginas
+ * ricas de blocos), videos, materiais, templates de entregavel e links. Cada
+ * conteudo e independente e reutilizavel — os Passos da trilha (Construtor de
+ * Programa) apenas o referenciam.
  *
- * Abrir um card ainda leva ao editor: corrigir um material nao deveria exigir
- * voltar ao Construtor e achar a fase dele.
+ * Layout: cabecalho com "Novo conteudo" + busca, faixa de filtros (tipo + tag)
+ * e uma grade de cards. Editar/criar abre o editor em tela cheia (EditorConteudo)
+ * que, nas aulas, usa o editor de blocos (components/editor/, motor BlockNote).
  *
- * Dados: /trilha/programas (as trilhas), /trilha/:id/materiais (as fases da
- * trilha com seus materiais) e /conteudos (o acervo, que traz os `usos` que o
- * card mostra e diz o que esta fora das trilhas).
+ * Os dados vem da API (/conteudos) via useBiblioteca.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState } from "react"
 import {
   Box,
   Typography,
   Button,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
   TextField,
   InputAdornment,
   Chip,
@@ -28,181 +29,102 @@ import {
   Stack,
   CircularProgress,
 } from "@mui/material"
-import { AccountTree, Search, LocalLibrary } from "@mui/icons-material"
+import { Add, Search, LocalLibrary } from "@mui/icons-material"
+import { motion } from "framer-motion"
 import AppLayout from "../components/AppLayout"
 import ContentCard from "../components/biblioteca/ContentCard"
 import EditorConteudo from "../components/biblioteca/EditorConteudo"
 import ConfirmDialog from "../components/programa/ConfirmDialog"
 import EmptyState from "../components/programa/EmptyState"
-import api from "../services/api"
-import { useAuthStore } from "../store/authStore"
-import { TIPO_META } from "../data/trilhaMeta"
-
-// Valor do seletor para o que nao esta em trilha nenhuma.
-const FORA = "fora"
+import { useBiblioteca } from "../hooks/useBiblioteca"
+import { TIPO_CONTEUDO, TIPOS_ORDEM, TAGS } from "../data/bibliotecaMeta"
 
 export default function Biblioteca() {
-  const idTenant = useAuthStore((s) => s.usuario?.id_tenant ?? null)
-  const navigate = useNavigate()
+  const bib = useBiblioteca()
 
-  const [trilhas, setTrilhas] = useState([])
-  const [trilhaSel, setTrilhaSel] = useState(null) // id_no da trilha | FORA
-  const [fases, setFases] = useState([]) // da trilha selecionada
-  const [acervo, setAcervo] = useState([]) // /conteudos, com `usos`
-  const [carregando, setCarregando] = useState(true)
-  const [carregandoFases, setCarregandoFases] = useState(false)
-  const [erro, setErro] = useState(null)
-  const [termo, setTermo] = useState("")
-
-  const [editando, setEditando] = useState(null)
-  const [confirmar, setConfirmar] = useState(null)
+  const [novoMenu, setNovoMenu] = useState(null)
+  const [editando, setEditando] = useState(null) // conteudo aberto no Drawer
+  const [confirmar, setConfirmar] = useState(null) // conteudo a excluir
   const [toast, setToast] = useState(null)
 
-  const carregarAcervo = useCallback(async () => {
-    const { data } = await api.get("/conteudos", { params: { id_tenant: idTenant } })
-    setAcervo(data.conteudos)
-  }, [idTenant])
-
-  // Trilhas + acervo, uma vez. Abre a trilha padrao (ou a primeira).
-  useEffect(() => {
-    if (!idTenant) return
-    let cancelado = false
-    setCarregando(true)
-    Promise.all([
-      api.get("/trilha/programas", { params: { id_tenant: idTenant } }),
-      api.get("/conteudos", { params: { id_tenant: idTenant } }),
-    ])
-      .then(([t, c]) => {
-        if (cancelado) return
-        setTrilhas(t.data.programas)
-        setAcervo(c.data.conteudos)
-        const inicial = t.data.programas.find((p) => p.padrao) ?? t.data.programas[0]
-        setTrilhaSel(inicial ? inicial.id_no : FORA)
-        setErro(null)
-      })
-      .catch((err) => {
-        if (!cancelado) setErro(err.response?.data?.erro || "Erro ao carregar a biblioteca.")
-      })
-      .finally(() => {
-        if (!cancelado) setCarregando(false)
-      })
-    return () => {
-      cancelado = true
-    }
-  }, [idTenant])
-
-  const carregarFases = useCallback(async (idTrilha) => {
-    if (!idTrilha || idTrilha === FORA) {
-      setFases([])
-      return
-    }
-    setCarregandoFases(true)
+  const criar = async (tipo) => {
+    setNovoMenu(null)
     try {
-      const { data } = await api.get(`/trilha/${idTrilha}/materiais`)
-      setFases(data.fases)
-    } catch (err) {
-      setFases([])
-      setToast({ texto: err.response?.data?.erro || "Erro ao carregar as fases.", severidade: "error" })
-    } finally {
-      setCarregandoFases(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    carregarFases(trilhaSel)
-  }, [trilhaSel, carregarFases])
-
-  // O card precisa do conteudo completo do acervo (usos, data); o endpoint de
-  // materiais traz so o essencial.
-  const porId = useMemo(() => new Map(acervo.map((c) => [c.id_conteudo, c])), [acervo])
-  const casa = useCallback(
-    (c) => {
-      const t = termo.trim().toLowerCase()
-      if (!t) return true
-      return (
-        c.titulo?.toLowerCase().includes(t) ||
-        c.resumo?.toLowerCase().includes(t) ||
-        (c.tags || []).some((tag) => tag.toLowerCase().includes(t))
-      )
-    },
-    [termo]
-  )
-
-  const secoes = useMemo(() => {
-    if (trilhaSel === FORA) {
-      return [
-        {
-          id: FORA,
-          nome: "Materiais fora das trilhas",
-          conteudos: acervo.filter((c) => !c.usos?.length).filter(casa),
-        },
-      ]
-    }
-    return fases.map((f) => ({
-      id: f.id_no,
-      nome: f.nome,
-      ativo: f.ativo,
-      conteudos: f.conteudos.map((c) => porId.get(c.id_conteudo) ?? c).filter(casa),
-    }))
-  }, [trilhaSel, fases, acervo, porId, casa])
-
-  const foraDasTrilhas = acervo.filter((c) => !c.usos?.length).length
-
-  /** Abre o editor. O card nao traz os blocos da aula; busca o completo. */
-  const abrir = async (conteudo) => {
-    setEditando(conteudo)
-    try {
-      const { data } = await api.get(`/conteudos/${conteudo.id_conteudo}`)
-      setEditando(data.conteudo)
-    } catch {
-      setToast({ texto: "Erro ao carregar o conteúdo.", severidade: "error" })
-    }
-  }
-
-  /** O editor grava sozinho; o erro sobe para ele marcar o estado e tentar de novo. */
-  const salvar = async (id, patch) => {
-    await api.patch(`/conteudos/${id}`, patch)
-  }
-
-  const fecharEditor = async () => {
-    setEditando(null)
-    // Titulo e logo podem ter mudado.
-    await Promise.all([carregarAcervo(), carregarFases(trilhaSel)]).catch(() => {})
-  }
-
-  const duplicar = async (conteudo) => {
-    try {
-      await api.post(`/conteudos/${conteudo.id_conteudo}/duplicar`)
-      await carregarAcervo()
-      setToast({
-        texto: "Conteúdo duplicado. A cópia está em \"Fora das trilhas\".",
-        severidade: "success",
-      })
-    } catch (err) {
-      setToast({ texto: err.response?.data?.erro || "Erro ao duplicar.", severidade: "error" })
-    }
-  }
-
-  /**
-   * Exclui de fato. O servidor recusa (409) conteudo em uso numa fase, e a
-   * confirmacao avisa antes.
-   */
-  const excluirConfirmado = async () => {
-    const alvo = confirmar
-    setConfirmar(null)
-    try {
-      await api.delete(`/conteudos/${alvo.id_conteudo}`)
-      await carregarAcervo()
-      setToast({ texto: `"${alvo.titulo || "Conteúdo"}" excluído.`, severidade: "info" })
+      setEditando(await bib.criar(tipo))
     } catch (err) {
       setToast({
-        texto: err.response?.data?.erro || "Erro ao excluir o conteúdo.",
+        texto: err.response?.data?.erro || "Erro ao criar o conteúdo.",
         severidade: "error",
       })
     }
   }
 
-  const totalNaTela = secoes.reduce((n, s) => n + s.conteudos.length, 0)
+  /**
+   * Abre o editor. O card da listagem nao traz os blocos da aula (a lista
+   * ficaria pesada a toa), entao o conteudo completo e buscado aqui.
+   */
+  const abrir = async (conteudo) => {
+    setEditando(conteudo) // resposta imediata, com o que ja temos
+    try {
+      setEditando(await bib.carregarCompleto(conteudo.id_conteudo))
+    } catch {
+      setToast({ texto: "Erro ao carregar o conteúdo.", severidade: "error" })
+    }
+  }
+
+  /**
+   * Grava as alteracoes do editor.
+   *
+   * NAO avisa em caso de sucesso: quem salva e o proprio editor, sozinho, a
+   * cada pausa na digitacao — um toast por gravacao viraria um desfile de
+   * "Conteúdo salvo" no canto da tela. O aviso de estado fica dentro do
+   * editor (IndicadorSalvamento).
+   *
+   * O erro SOBE em vez de virar toast aqui: o editor precisa saber que a
+   * gravacao falhou para marcar o estado e tentar de novo.
+   *
+   * Tambem nao mexe em `editando`: devolver o conteudo gravado para o editor
+   * reiniciaria o formulario no meio da digitacao seguinte.
+   */
+  const salvar = async (id, patch) => {
+    await bib.atualizar(id, patch)
+  }
+
+  const duplicar = async (conteudo) => {
+    try {
+      await bib.duplicar(conteudo.id_conteudo)
+      setToast({ texto: "Conteúdo duplicado.", severidade: "success" })
+    } catch (err) {
+      setToast({
+        texto: err.response?.data?.erro || "Erro ao duplicar.",
+        severidade: "error",
+      })
+    }
+  }
+
+  /**
+   * Exclui de fato. Nao ha "Desfazer" como antes: com o conteudo no servidor,
+   * desfazer significaria recriar registro e blocos com outros ids, e qualquer
+   * passo que o referenciava continuaria orfao. Em vez disso o servidor recusa
+   * (409) a exclusao de conteudo em uso, e a confirmacao avisa antes.
+   */
+  const excluirConfirmado = async () => {
+    const alvo = confirmar
+    setConfirmar(null)
+
+    const r = await bib.excluir(alvo.id_conteudo)
+
+    if (!r.ok) {
+      setToast({ texto: r.erro, severidade: "error" })
+      return
+    }
+
+    if (editando?.id_conteudo === alvo.id_conteudo) setEditando(null)
+    setToast({
+      texto: `"${alvo.titulo || "Conteúdo"}" excluído.`,
+      severidade: "info",
+    })
+  }
 
   return (
     <AppLayout>
@@ -225,41 +147,19 @@ export default function Biblioteca() {
             </Typography>
           </Box>
           <Button
-            data-tour="biblioteca-construtor"
-            variant="outlined"
-            startIcon={<AccountTree />}
-            onClick={() => navigate("/programa")}
+            data-tour="biblioteca-novo"
+            variant="contained"
+            startIcon={<Add />}
+            onClick={(e) => setNovoMenu(e.currentTarget)}
             sx={{ textTransform: "none" }}
           >
-            Adicionar material no Construtor
+            Novo conteúdo
           </Button>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          O material de cada trilha, separado pelas fases. Para adicionar um material,
-          abra a fase no Construtor.
+          Tudo o que sua incubadora ensina, em um só lugar. Crie uma vez e reutilize
+          em qualquer passo da trilha.
         </Typography>
-
-        {/* Trilha */}
-        <Stack
-          data-tour="biblioteca-trilhas"
-          direction="row"
-          sx={{ mb: 2, flexWrap: "wrap", gap: 1 }}
-        >
-          {trilhas.map((t) => (
-            <FiltroChip
-              key={t.id_no}
-              ativo={trilhaSel === t.id_no}
-              cor={TIPO_META.PROGRAMA.cor}
-              label={t.nome}
-              onClick={() => setTrilhaSel(t.id_no)}
-            />
-          ))}
-          <FiltroChip
-            ativo={trilhaSel === FORA}
-            label={`Fora das trilhas (${foraDasTrilhas})`}
-            onClick={() => setTrilhaSel(FORA)}
-          />
-        </Stack>
 
         {/* Busca */}
         <TextField
@@ -267,9 +167,9 @@ export default function Biblioteca() {
           fullWidth
           size="small"
           placeholder="Buscar por título, resumo ou tag…"
-          value={termo}
-          onChange={(e) => setTermo(e.target.value)}
-          sx={{ mb: 3, maxWidth: 480 }}
+          value={bib.termo}
+          onChange={(e) => bib.setTermo(e.target.value)}
+          sx={{ mb: 2, maxWidth: 480 }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -279,76 +179,114 @@ export default function Biblioteca() {
           }}
         />
 
-        {carregando || carregandoFases ? (
+        {/* Filtro por tipo */}
+        <Stack data-tour="biblioteca-tipos" direction="row" spacing={1} sx={{ mb: 1.5, flexWrap: "wrap", gap: 1 }}>
+          <FiltroChip
+            ativo={bib.tipoFiltro === "TODOS"}
+            label={`Todos (${bib.contagem.TODOS || 0})`}
+            onClick={() => bib.setTipoFiltro("TODOS")}
+          />
+          {TIPOS_ORDEM.map((tipo) => (
+            <FiltroChip
+              key={tipo}
+              ativo={bib.tipoFiltro === tipo}
+              cor={TIPO_CONTEUDO[tipo].cor}
+              label={`${TIPO_CONTEUDO[tipo].plural} (${bib.contagem[tipo] || 0})`}
+              onClick={() => bib.setTipoFiltro(tipo)}
+            />
+          ))}
+        </Stack>
+
+        {/* Filtro por tag */}
+        <Box data-tour="biblioteca-tags" sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 3 }}>
+          <Chip
+            label="Todas as tags"
+            size="small"
+            variant={bib.tagFiltro ? "outlined" : "filled"}
+            color={bib.tagFiltro ? "default" : "primary"}
+            onClick={() => bib.setTagFiltro(null)}
+            sx={{ cursor: "pointer" }}
+          />
+          {TAGS.map((tag) => (
+            <Chip
+              key={tag}
+              label={tag}
+              size="small"
+              variant={bib.tagFiltro === tag ? "filled" : "outlined"}
+              color={bib.tagFiltro === tag ? "primary" : "default"}
+              onClick={() => bib.setTagFiltro(bib.tagFiltro === tag ? null : tag)}
+              sx={{ cursor: "pointer" }}
+            />
+          ))}
+        </Box>
+
+        {/* Grade de cards */}
+        {bib.carregando ? (
           <Box sx={{ py: 8, display: "grid", placeItems: "center" }}>
             <CircularProgress />
           </Box>
-        ) : erro ? (
+        ) : bib.erro ? (
           <Alert severity="error" sx={{ borderRadius: "6px" }}>
-            {erro}
+            {bib.erro}
           </Alert>
-        ) : secoes.length === 0 ? (
+        ) : bib.filtrados.length === 0 ? (
           <Box sx={{ py: 8, display: "grid", placeItems: "center" }}>
             <EmptyState
-              variante="fases"
-              titulo="Esta trilha ainda não tem fases"
-              descricao="Crie as fases no Construtor e adicione os materiais de cada uma."
-            />
-          </Box>
-        ) : termo.trim() && totalNaTela === 0 ? (
-          <Box sx={{ py: 8, display: "grid", placeItems: "center" }}>
-            <EmptyState
-              variante="busca"
-              titulo="Nada encontrado"
-              descricao={`Nenhum material corresponde a "${termo}".`}
+              variante="selecao"
+              titulo="Nenhum conteúdo aqui"
+              descricao="Ajuste os filtros ou crie um novo conteúdo para começar seu acervo."
             />
           </Box>
         ) : (
-          <Stack data-tour="biblioteca-grade" spacing={4}>
-            {secoes.map((secao) => (
-              <Box key={secao.id}>
-                <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mb: 1.5 }}>
-                  <Typography variant="h6" fontWeight={700} sx={{ opacity: secao.ativo === false ? 0.55 : 1 }}>
-                    {secao.nome}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {secao.conteudos.length} material{secao.conteudos.length === 1 ? "" : "is"}
-                    {secao.ativo === false ? " · fase inativa" : ""}
-                  </Typography>
-                </Box>
-                {secao.conteudos.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    {secao.id === FORA
-                      ? "Todo o acervo está em alguma fase."
-                      : "Nenhum material nesta fase ainda."}
-                  </Typography>
-                ) : (
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gap: 2,
-                      gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                    }}
-                  >
-                    {secao.conteudos.map((c) => (
-                      <ContentCard
-                        key={c.id_conteudo}
-                        conteudo={c}
-                        onAbrir={abrir}
-                        onDuplicar={duplicar}
-                        onExcluir={setConfirmar}
-                      />
-                    ))}
-                  </Box>
-                )}
-              </Box>
+          <Box
+            component={motion.div}
+            layout
+            data-tour="biblioteca-grade"
+            sx={{
+              display: "grid",
+              gap: 2,
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, 1fr)",
+                md: "repeat(3, 1fr)",
+              },
+            }}
+          >
+            {bib.filtrados.map((c) => (
+              <ContentCard
+                key={c.id_conteudo}
+                conteudo={c}
+                onAbrir={abrir}
+                onDuplicar={duplicar}
+                onExcluir={setConfirmar}
+              />
             ))}
-          </Stack>
+          </Box>
         )}
       </Box>
 
+      {/* Menu "Novo conteudo" */}
+      <Menu anchorEl={novoMenu} open={Boolean(novoMenu)} onClose={() => setNovoMenu(null)}>
+        {TIPOS_ORDEM.map((tipo) => {
+          const meta = TIPO_CONTEUDO[tipo]
+          const I = meta.icon
+          return (
+            <MenuItem key={tipo} onClick={() => criar(tipo)}>
+              <ListItemIcon>
+                <I fontSize="small" sx={{ color: meta.cor }} />
+              </ListItemIcon>
+              <ListItemText primary={meta.label} secondary={meta.descricao} />
+            </MenuItem>
+          )
+        })}
+      </Menu>
+
       {/* Editor lateral */}
-      <EditorConteudo conteudo={editando} onSalvar={salvar} onFechar={fecharEditor} />
+      <EditorConteudo
+        conteudo={editando}
+        onSalvar={salvar}
+        onFechar={() => setEditando(null)}
+      />
 
       {/* Confirmacao de exclusao */}
       <ConfirmDialog
@@ -356,9 +294,9 @@ export default function Biblioteca() {
         mensagem={
           confirmar
             ? confirmar.usos?.length
-              ? `"${confirmar.titulo || "Este conteúdo"}" está em ${
+              ? `"${confirmar.titulo || "Este conteúdo"}" é usado em ${
                   confirmar.usos.length
-                } fase(s) de trilha. Tire-o das fases no Construtor antes de excluir.`
+                } passo(s) da trilha. Desvincule-o antes de excluir.`
               : `Excluir "${confirmar.titulo || "este conteúdo"}"? Esta ação não pode ser desfeita.`
             : ""
         }
@@ -390,7 +328,7 @@ export default function Biblioteca() {
   )
 }
 
-// Chip de filtro, com cor de acento opcional.
+// Chip de filtro por tipo, com cor de acento opcional.
 function FiltroChip({ ativo, label, cor, onClick }) {
   return (
     <Chip

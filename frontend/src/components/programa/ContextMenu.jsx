@@ -11,12 +11,11 @@ import {
   ContentCopy,
   DeleteOutline,
 } from "@mui/icons-material"
-import { TIPO_META, filhoNoConstrutor } from "../../data/trilhaMeta"
+import { TIPO_META } from "../../data/trilhaMeta"
 
 export default function ContextMenu({ ancora, no, onFechar, acoes }) {
   if (!no) return null
   const meta = TIPO_META[no.tipo]
-  const tipoFilho = filhoNoConstrutor(no.tipo)
 
   const fechar = (fn) => () => {
     fn?.()
@@ -32,8 +31,8 @@ export default function ContextMenu({ ancora, no, onFechar, acoes }) {
       anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
       slotProps={{ paper: { sx: { minWidth: 210, borderRadius: "8px", mt: 0.5 } } }}
     >
-      {tipoFilho && (
-        <MenuItem onClick={fechar(() => acoes.adicionar(no.id_no, tipoFilho))}>
+      {meta.childTipo && (
+        <MenuItem onClick={fechar(() => acoes.adicionar(no.id_no, meta.childTipo))}>
           <ListItemIcon>
             <Add fontSize="small" />
           </ListItemIcon>
@@ -52,9 +51,7 @@ export default function ContextMenu({ ancora, no, onFechar, acoes }) {
         </ListItemIcon>
         <ListItemText
           primary="Duplicar"
-          secondary={
-            tipoFilho ? `Leva as ${meta.childLabel}s junto` : meta.childTipo ? "Leva os materiais junto" : null
-          }
+          secondary={meta.childTipo ? `Leva os ${meta.childLabel}s junto` : null}
           secondaryTypographyProps={{ fontSize: 12 }}
         />
       </MenuItem>
