@@ -241,11 +241,11 @@ async function carregar(idStartup, idPrograma, usuario) {
     // sequencia sem precisar de uma coluna "bloqueada" que teria de ser
     // mantida a mao a cada aprovacao.
     //
-    // So os passos COM entrega contam: o passo so de conteudo (o "Materiais"
-    // que o Construtor cria por baixo da fase) nunca tem entrega, nunca chega
-    // a APROVADO e prendia a fase — e com ela todas as seguintes — para
-    // sempre. Fase sem nenhuma entrega fica em andamento, mas nao bloqueia a
-    // proxima: nao ha o que aprovar nela.
+    // So os passos COM entrega contam: o passo so de conteudo (permite_entrega
+    // = FALSE, uma aula para ler) nunca tem entrega, nunca chega a APROVADO e
+    // prendia a fase — e com ela todas as seguintes — para sempre. Fase sem
+    // nenhuma entrega fica em andamento, mas nao bloqueia a proxima: nao ha o
+    // que aprovar nela.
     const registrada = statusFase.get(fase.id_no)
     const avaliaveis = passos.filter((p) => p.permite_entrega)
     const concluida =

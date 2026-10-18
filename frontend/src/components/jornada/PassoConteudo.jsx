@@ -42,10 +42,12 @@ import {
   SellOutlined,
   CircleOutlined,
   FormatListNumbered,
+  CoPresent,
 } from "@mui/icons-material"
 import { motion } from "framer-motion"
 import StatusPasso from "./StatusPasso"
 import BlocoView from "./BlocoView"
+import { MaterialNoPasso } from "./MateriaisDoMentor"
 import { documentoVazio } from "../editor/documento"
 import PlayerYoutube from "../biblioteca/PlayerYoutube"
 import { ehYoutube } from "../../utils/youtube"
@@ -89,6 +91,9 @@ const raioPlano = (theme) => `${Math.min(theme.shape.borderRadius, 4)}px`
 export default function PassoConteudo({
   passo,
   conteudos,
+  // Materiais que um mentor entregou a startup NESTE passo (Espaco do Mentor).
+  materiaisMentor = [],
+  onAbrirMaterial,
   posicao,
   onSalvarRascunho,
   onEnviar,
@@ -271,6 +276,19 @@ export default function PassoConteudo({
           <Stack spacing={4}>
             {conteudos.map((c) => (
               <ConteudoEnsinado key={c.id_conteudo} conteudo={c} />
+            ))}
+          </Stack>
+        </SecaoBloco>
+      )}
+
+      {/* O que o mentor separou para a startup NESTA atividade. Vem depois do
+          conteudo da incubadora (que e o mesmo para todas as startups) e antes
+          da entrega: e a orientacao de quem acompanha, para fazer o passo. */}
+      {materiaisMentor.length > 0 && (
+        <SecaoBloco icone={<CoPresent />} titulo="Do seu mentor">
+          <Stack spacing={2.5}>
+            {materiaisMentor.map((m) => (
+              <MaterialNoPasso key={m.id_compartilhamento} material={m} onAbrir={onAbrirMaterial} />
             ))}
           </Stack>
         </SecaoBloco>

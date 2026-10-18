@@ -1,11 +1,28 @@
 /**
- * Pecas compartilhadas entre os modelos (Canvas, GUT e 5W2H):
- * toast de feedback, empty state, dialogo de confirmacao e as faixas de
- * prioridade da matriz GUT (cores validadas para acessibilidade em tema
- * claro e escuro).
+ * Pecas compartilhadas entre os modelos (Canvas, SWOT, GUT e 5W2H):
+ * toast de feedback, empty state, dialogo de confirmacao, os indicadores do
+ * salvamento automatico e o conteudo do popover de ajuda dos modelos de texto
+ * livre, e as faixas de prioridade da matriz GUT (cores validadas para
+ * acessibilidade em tema claro e escuro).
  */
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Snackbar, Typography } from "@mui/material"
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Snackbar,
+  Typography,
+} from "@mui/material"
 import { alpha } from "@mui/material/styles"
+import CloudDoneOutlinedIcon from "@mui/icons-material/CloudDoneOutlined"
+import CloudOffOutlinedIcon from "@mui/icons-material/CloudOffOutlined"
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded"
+import TipsAndUpdatesOutlinedIcon from "@mui/icons-material/TipsAndUpdatesOutlined"
 
 /**
  * Faixas de prioridade da GUT (prioridade = G x U x T, de 1 a 125).
@@ -124,5 +141,120 @@ export function DialogConfirmar({ aberto, titulo, descricao, onConfirmar, onCanc
         </Button>
       </DialogActions>
     </Dialog>
+  )
+}
+
+/** Chip do cabecalho com o estado geral do salvamento automatico. */
+export function IndicadorAutoSave({ salvando, comErro }) {
+  if (comErro) {
+    return (
+      <Chip
+        size="small"
+        icon={<CloudOffOutlinedIcon />}
+        label="Erro ao salvar — revise sua conexão"
+        color="warning"
+        variant="outlined"
+      />
+    )
+  }
+  if (salvando) {
+    return (
+      <Chip
+        size="small"
+        icon={<CircularProgress size={12} thickness={5} sx={{ ml: 0.5 }} />}
+        label="Salvando..."
+        variant="outlined"
+        sx={{ color: "text.secondary" }}
+      />
+    )
+  }
+  return (
+    <Chip
+      size="small"
+      icon={<CloudDoneOutlinedIcon sx={{ fontSize: 16 }} />}
+      label="Salvo automaticamente"
+      variant="outlined"
+      sx={{ color: "success.main", borderColor: (t) => alpha(t.palette.success.main, 0.4), "& .MuiChip-icon": { color: "success.main" } }}
+    />
+  )
+}
+
+/** Status do salvamento de um bloco, no rodape dele. */
+export function StatusBloco({ status }) {
+  if (status === "saving") {
+    return (
+      <Typography variant="caption" color="text.disabled" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        <CircularProgress size={10} thickness={5} /> salvando
+      </Typography>
+    )
+  }
+  if (status === "saved") {
+    return (
+      <Typography variant="caption" color="success.main" sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+        <CheckRoundedIcon sx={{ fontSize: 13 }} /> salvo
+      </Typography>
+    )
+  }
+  if (status === "error") {
+    return (
+      <Typography variant="caption" color="error.main">
+        erro ao salvar
+      </Typography>
+    )
+  }
+  return null
+}
+
+/**
+ * Conteudo do popover de ajuda de um bloco: o que e, exemplos reais, erros
+ * comuns e uma dica pratica (`bloco.titulo` + `bloco.ajuda`).
+ */
+export function ConteudoAjuda({ bloco }) {
+  return (
+    <>
+      <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+        {bloco.titulo}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        {bloco.ajuda.oQueE}
+      </Typography>
+
+      <Typography variant="caption" fontWeight={700} color="text.primary">
+        Exemplos reais
+      </Typography>
+      <Box component="ul" sx={{ m: 0, mb: 1.5, pl: 2.25 }}>
+        {bloco.ajuda.exemplos.map((ex) => (
+          <Typography key={ex} component="li" variant="caption" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+            {ex}
+          </Typography>
+        ))}
+      </Box>
+
+      <Typography variant="caption" fontWeight={700} color="text.primary">
+        Erros comuns
+      </Typography>
+      <Box component="ul" sx={{ m: 0, mb: 1.5, pl: 2.25 }}>
+        {bloco.ajuda.errosComuns.map((erro) => (
+          <Typography key={erro} component="li" variant="caption" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+            {erro}
+          </Typography>
+        ))}
+      </Box>
+
+      <Box
+        sx={{
+          display: "flex",
+          gap: 1,
+          p: 1.25,
+          borderRadius: 2,
+          bgcolor: (t) => alpha(t.palette.primary.main, 0.06),
+        }}
+      >
+        <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 18, color: "primary.main", mt: 0.25 }} />
+        <Typography variant="caption" sx={{ lineHeight: 1.6 }}>
+          {bloco.ajuda.dica}
+        </Typography>
+      </Box>
+    </>
   )
 }

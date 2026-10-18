@@ -162,6 +162,23 @@ async function listar(idTenant, idUsuario, usuario) {
   return startupRepository.listarPorTenant(idTenant, idsPermitidos)
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Traduz o `:id` da rota para o id_startup: a URL da tela de detalhe leva o
+ * UUID da startup (migracao 022), as chamadas internas seguem com o id.
+ *
+ * Nao checa acesso, de proposito: o UUID e so outro nome da startup. Quem
+ * decide se a pessoa a alcanca e o buscarComPermissao do handler, que roda em
+ * seguida com o id ja traduzido — e responde do mesmo jeito para os dois.
+ */
+async function resolverId(valor) {
+  if (!UUID.test(valor)) return valor
+  const id = await startupRepository.buscarIdPorUuid(valor)
+  if (!id) throw erroNegocio(404, "Startup nao encontrada.")
+  return id
+}
+
 /** Busca sem checar nada — primitiva interna (ver trilhaService.buscarNo). */
 async function buscarStartup(id) {
   const startup = await startupRepository.buscarPorId(id)
@@ -383,6 +400,7 @@ async function listarFasesConcluidas(idStartup, usuario) {
 
 module.exports = {
   listar,
+  resolverId,
   buscar,
   // Usado pelos services dos modelos de gestao (canvas/gut/5w2h), que precisam
   // da mesma checagem com a chave DELES.

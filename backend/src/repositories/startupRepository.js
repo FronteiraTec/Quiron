@@ -109,7 +109,7 @@ async function listarPorTenant(idTenant, idsPermitidos = null) {
   }
 
   const { rows } = await query(
-    `SELECT s.id_startup, s.nome, s.cnpj, s.email, s.status, s.tipo, s.situacao,
+    `SELECT s.id_startup, s.uuid, s.nome, s.cnpj, s.email, s.status, s.tipo, s.situacao,
             s.cidade, s.uf, s.campos_extras, s.criado_ts,
             ${CAMPOS_VOCABULARIO},
             COALESCE(tf.total_fases, 0) AS total_fases,
@@ -139,6 +139,12 @@ async function buscarPorId(id) {
     [id]
   )
   return rows[0] && comProgresso(rows[0])
+}
+
+/** O id_startup por tras do UUID que a URL da tela de detalhe carrega. */
+async function buscarIdPorUuid(uuid) {
+  const { rows } = await query(`SELECT id_startup FROM startup WHERE uuid = $1`, [uuid])
+  return rows[0]?.id_startup
 }
 
 /**
@@ -346,7 +352,7 @@ async function listarMembros(idStartup) {
 async function listarMembrosPorTenant(idTenant) {
   const { rows } = await query(
     `SELECT u.id_usuario, u.nome, u.email, u.foto_url,
-            s.id_startup, s.nome AS startup, s.status AS startup_status,
+            s.id_startup, s.uuid AS startup_uuid, s.nome AS startup, s.status AS startup_status,
             st_sit.rotulo AS startup_situacao_rotulo, st_sit.cor AS startup_situacao_cor,
             sm.lider, sm.entrada_dt
        FROM startup s
@@ -511,7 +517,7 @@ async function removerMembro(idStartup, idUsuario) {
 /** Lista as fases ja concluidas (aprovadas) de uma startup, em ordem da trilha. */
 async function listarFasesConcluidas(idStartup) {
   const { rows } = await query(
-    `SELECT st.id_startup_fase, f.nome, f.descricao, f.ordem, st.fim_ts,
+    `SELECT st.id_startup_trilha, f.nome, f.descricao, f.ordem, st.fim_ts,
             u.nome AS aprovado_por_nome
        FROM startup_trilha st
        JOIN trilha_no f ON f.id_no = st.id_no AND f.tipo = 'FASE'
@@ -526,6 +532,7 @@ async function listarFasesConcluidas(idStartup) {
 module.exports = {
   listarPorTenant,
   buscarPorId,
+  buscarIdPorUuid,
   criar,
   atualizar,
   atualizarSituacao,

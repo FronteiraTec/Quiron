@@ -1,11 +1,16 @@
 /**
- * Matriz GUT guiada.
+ * Matriz GUT guiada, no formato do canvas de workshop.
  *
- * Cada problema vira um card com notas em estrelas (Gravidade, Urgencia,
- * Tendencia), prioridade calculada (G x U x T, 1 a 125) com faixa de cor,
- * ranking com medalhas e um grafico de barras com a distribuicao das
- * prioridades. A criacao usa estrelas com legendas e mostra a prioridade
- * em tempo real.
+ * A matriz e uma folha pintada na cor da barra do topo (que segue a cor
+ * escolhida e a aparencia): em cima, o titulo e o grupo (a startup); embaixo,
+ * a tabela Problema | Gravidade | Urgencia | Tendencia | G x U x T |
+ * Classificacao. As celulas sao papel e o vao entre elas deixa a cor da folha
+ * aparecer, como as linhas do quadro impresso.
+ *
+ * Os problemas ficam ordenados pela prioridade (G x U x T, 1 a 125), com a
+ * faixa de cor e a posicao no ranking. Linhas em branco completam a folha e
+ * abrem o cadastro de um problema novo. Abaixo da folha, um grafico de barras
+ * compara as prioridades.
  *
  * API (inalterada): GET/POST /startups/:id/gut e DELETE /startups/:id/gut/:idGut.
  */
@@ -34,7 +39,6 @@ import { alpha } from "@mui/material/styles"
 import AddIcon from "@mui/icons-material/Add"
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline"
-import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Bar,
@@ -47,7 +51,8 @@ import {
   YAxis,
 } from "recharts"
 import api from "../../../services/api"
-import { DialogConfirmar, EmptyState, ToastFeedback, faixaPrioridade, legendaFaixas } from "./comum"
+import { FONTES } from "../../../theme"
+import { DialogConfirmar, ToastFeedback, faixaPrioridade, legendaFaixas } from "./comum"
 
 const CRITERIOS = [
   {
@@ -70,7 +75,30 @@ const CRITERIOS = [
   },
 ]
 
-export default function MatrizGut({ idStartup }) {
+// As colunas da folha, na ordem do quadro impresso. A dica vira o tooltip do
+// cabecalho; a sigla e o rotulo pequeno em cima do nome.
+const COLUNAS = [
+  { chave: "problema", rotulo: "Problema", sigla: "O que trava", dica: "O problema que a startup precisa resolver." },
+  ...CRITERIOS.map((c) => ({ chave: c.chave, rotulo: c.rotulo, sigla: `${c.rotulo[0]} · 1 a 5`, dica: c.pergunta, centro: true })),
+  { chave: "prioridade", rotulo: "G × U × T", sigla: "Prioridade", dica: "A multiplicação das três notas, de 1 a 125.", centro: true },
+  { chave: "classificacao", rotulo: "Classificação", sigla: "Ranking", dica: "A posição na fila de ataque e a faixa da prioridade.", centro: true },
+]
+
+// A folha impressa tem seis linhas: com menos problemas, linhas em branco
+// completam o quadro; com a folha cheia, sobra sempre uma para o proximo.
+const LINHAS_DA_FOLHA = 6
+const ALTURA_LINHA = 76
+
+// Molde das colunas, igual em todas as linhas: como nenhuma coluna mede pelo
+// conteudo, as linhas ficam alinhadas entre si e cada uma pode entrar e sair
+// animada. Abaixo da largura minima, a tabela rola na horizontal dentro da
+// folha em vez de espremer o texto.
+const VAO = 4
+const MOLDE_GUT = "minmax(220px, 2.6fr) repeat(3, minmax(104px, 1fr)) minmax(112px, 1fr) minmax(150px, 1.3fr)"
+const LARGURA_MIN_GUT = 220 + 3 * 104 + 112 + 150 + (COLUNAS.length - 1) * VAO
+const LINHA_SX = { display: "grid", gridTemplateColumns: MOLDE_GUT, gap: `${VAO}px` }
+
+export default function MatrizGut({ idStartup, nomeStartup }) {
   const [itens, setItens] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [aviso, setAviso] = useState(null)
@@ -111,7 +139,6 @@ export default function MatrizGut({ idStartup }) {
 
   // O backend ja ordena por prioridade, mas reordenamos por garantia.
   const ordenados = useMemo(() => [...itens].sort((a, b) => b.prioridade - a.prioridade), [itens])
-  const faixas = legendaFaixas(tema.palette.mode)
 
   return (
     <Box>
@@ -143,52 +170,19 @@ export default function MatrizGut({ idStartup }) {
         </Button>
       </Box>
 
-      {/* Legenda das faixas de prioridade */}
-      {ordenados.length > 0 && (
-        <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
-          {faixas.map((f) => (
-            <Chip
-              key={f.rotulo}
-              size="small"
-              variant="outlined"
-              label={`${f.intervalo} · ${f.rotulo}`}
-              sx={{
-                borderColor: alpha(f.cor, 0.5),
-                color: "text.secondary",
-                "& .MuiChip-label": { display: "flex", alignItems: "center", gap: 0.5 },
-              }}
-              icon={<Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: f.cor, ml: 1 }} />}
-            />
-          ))}
-        </Box>
-      )}
-
       {carregando ? (
         <GutSkeleton />
-      ) : ordenados.length === 0 ? (
-        <EmptyState
-          icone={ReportProblemOutlinedIcon}
-          titulo="Nenhum problema priorizado ainda"
-          descricao="Liste os problemas que tiram o sono da sua startup e descubra, com a matriz GUT, qual deles resolver primeiro."
-          rotuloAcao="Adicionar primeiro problema"
-          onAcao={() => setDialogAberto(true)}
-        />
       ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          <AnimatePresence>
-            {ordenados.map((item, i) => (
-              <CardProblema
-                key={item.id_gut}
-                item={item}
-                posicao={i}
-                modo={tema.palette.mode}
-                onExcluir={() => setExcluindo(item)}
-              />
-            ))}
-          </AnimatePresence>
-
+        <>
+          <FolhaGut
+            itens={ordenados}
+            nomeStartup={nomeStartup}
+            modo={tema.palette.mode}
+            onNovo={() => setDialogAberto(true)}
+            onExcluir={setExcluindo}
+          />
           {ordenados.length >= 2 && <GraficoPrioridades itens={ordenados} modo={tema.palette.mode} />}
-        </Box>
+        </>
       )}
 
       {/* Popover "como funciona" */}
@@ -240,77 +234,243 @@ export default function MatrizGut({ idStartup }) {
   )
 }
 
-function CardProblema({ item, posicao, modo, onExcluir }) {
-  const faixa = faixaPrioridade(item.prioridade, modo)
+/**
+ * A folha do canvas. Pinta com as cores da barra do topo (palette.barra): no
+ * claro, a cor viva com texto preto ou branco (lima + preto); no escuro, um
+ * tom escuro da cor, com o rotulo "Canvas" aceso na cor clareada.
+ */
+function FolhaGut({ itens, nomeStartup, modo, onNovo, onExcluir }) {
+  const tema = useTheme()
+  const { barra } = tema.palette
+  const escuro = modo === "dark"
+  const realce = alpha(tema.palette.primary.vivo, escuro ? 0.1 : 0.12)
+  const vazias = Math.max(1, LINHAS_DA_FOLHA - itens.length)
+  const faixas = legendaFaixas(modo)
+
   return (
-    <Paper
-      component={motion.div}
-      layout
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
-      variant="outlined"
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 2,
-        p: 2,
-        borderRadius: 0,
-        borderLeft: `4px solid ${faixa.cor}`,
-        flexWrap: { xs: "wrap", sm: "nowrap" },
-        transition: "box-shadow .2s ease",
-        "&:hover": { boxShadow: (t) => t.shadows[2] },
-      }}
-    >
-      {/* Ranking */}
-      <Box sx={{ width: 36, textAlign: "center", flexShrink: 0 }}>
-        <Typography
-          variant="subtitle2"
-          fontWeight={700}
-          color={posicao < 3 ? "primary.main" : "text.disabled"}
+    <Box sx={{ bgcolor: barra.fundo, color: barra.texto, p: { xs: 1.5, sm: 2 } }}>
+      {/* Titulo e grupo */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+        <Box sx={{ flex: 1, minWidth: 200 }}>
+          <Typography
+            variant="overline"
+            sx={{ display: "block", lineHeight: 1.6, color: escuro ? barra.destaque : alpha(barra.texto, 0.72) }}
+          >
+            Canvas
+          </Typography>
+          <Typography variant="h4" component="h2" sx={{ fontSize: { xs: 28, sm: 34 } }}>
+            Matriz GUT
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            bgcolor: "background.paper",
+            color: "text.primary",
+            px: 2,
+            py: 1,
+            width: { xs: "100%", sm: 320 },
+            maxWidth: "100%",
+          }}
         >
-          {posicao + 1}º
-        </Typography>
+          <Typography variant="overline" color="text.secondary" sx={{ display: "block", fontSize: 10, lineHeight: 1.6 }}>
+            Grupo
+          </Typography>
+          <Typography variant="body1" fontWeight={700} noWrap>
+            {nomeStartup || "—"}
+          </Typography>
+        </Box>
       </Box>
 
-      {/* Problema + notas */}
-      <Box sx={{ flex: 1, minWidth: 200 }}>
-        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.75, lineHeight: 1.3 }}>
-          {item.problema}
-        </Typography>
-        <Box sx={{ display: "flex", gap: 2.5, flexWrap: "wrap" }}>
-          {CRITERIOS.map((c) => (
-            <Tooltip key={c.chave} title={`${c.rotulo}: ${c.niveis[item[c.chave] - 1] || item[c.chave]}`}>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.2 }}>
-                  {c.rotulo}
-                </Typography>
-                <Rating value={item[c.chave]} readOnly size="small" />
-              </Box>
-            </Tooltip>
+      {/* Tabela */}
+      <Box sx={{ overflowX: "auto" }}>
+        <Box
+          role="table"
+          aria-label="Matriz GUT"
+          sx={{ minWidth: LARGURA_MIN_GUT, display: "flex", flexDirection: "column", gap: `${VAO}px` }}
+        >
+          <Box role="row" sx={LINHA_SX}>
+            {COLUNAS.map((c) => (
+              <CabecalhoGut key={c.chave} {...c} />
+            ))}
+          </Box>
+
+          <AnimatePresence initial={false}>
+            {itens.map((item, i) => (
+              <LinhaGut key={item.id_gut} item={item} posicao={i} modo={modo} realce={realce} onExcluir={() => onExcluir(item)} />
+            ))}
+          </AnimatePresence>
+
+          {Array.from({ length: vazias }, (_, i) => (
+            <LinhaVazia key={`vazia-${i}`} primeira={i === 0} folhaVazia={itens.length === 0} realce={realce} onNovo={onNovo} />
           ))}
         </Box>
       </Box>
 
-      {/* Prioridade */}
-      <Box sx={{ textAlign: "center", minWidth: 92, flexShrink: 0 }}>
-        <Typography variant="h4" fontWeight={800} sx={{ color: faixa.cor, lineHeight: 1 }}>
+      {/* Rodape: a formula e a legenda das faixas */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2, flexWrap: "wrap" }}>
+        <Typography variant="caption" fontWeight={600} sx={{ flex: 1, minWidth: 220 }}>
+          Prioridade = G × U × T (máx. 125) · ataque primeiro o topo da lista
+        </Typography>
+        {faixas.map((f) => (
+          <Box
+            key={f.rotulo}
+            sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, px: 1, py: 0.25, bgcolor: "background.paper", color: "text.secondary" }}
+          >
+            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: f.cor }} />
+            <Typography variant="caption" fontWeight={600}>
+              {f.intervalo} · {f.rotulo}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  )
+}
+
+function CabecalhoGut({ rotulo, sigla, dica, centro }) {
+  // describeChild: a dica descreve o cabecalho sem tomar o lugar do nome dele.
+  return (
+    <Tooltip title={dica} placement="top" describeChild>
+      <Box
+        role="columnheader"
+        sx={{ bgcolor: "background.paper", color: "text.primary", px: 1.5, py: 1, textAlign: centro ? "center" : "left" }}
+      >
+        <Typography variant="overline" color="text.secondary" sx={{ display: "block", fontSize: 10, lineHeight: 1.6 }}>
+          {sigla}
+        </Typography>
+        <Typography variant="h5" component="span" sx={{ display: "block", fontSize: 20 }}>
+          {rotulo}
+        </Typography>
+      </Box>
+    </Tooltip>
+  )
+}
+
+// A tinta e o realce vao como gradiente sobre o papel, e nao como cor
+// translucida: atras das celulas esta a cor da folha, que tingiria tudo.
+function CelulaGut({ children, realce, tinta, centro, sx }) {
+  const camadas = (...cores) =>
+    cores.filter(Boolean).map((c) => `linear-gradient(${c}, ${c})`).join(", ") || "none"
+  return (
+    <Box
+      role="cell"
+      sx={{
+        p: 1.5,
+        minWidth: 0,
+        minHeight: ALTURA_LINHA,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: centro ? "center" : "stretch",
+        textAlign: centro ? "center" : "left",
+        bgcolor: "background.paper",
+        color: "text.primary",
+        backgroundImage: camadas(tinta),
+        ".linha-gut:hover &": { backgroundImage: camadas(realce, tinta) },
+        ...sx,
+      }}
+    >
+      {children}
+    </Box>
+  )
+}
+
+function LinhaGut({ item, posicao, modo, realce, onExcluir }) {
+  const faixa = faixaPrioridade(item.prioridade, modo)
+  return (
+    <Box
+      role="row"
+      className="linha-gut"
+      component={motion.div}
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      sx={LINHA_SX}
+    >
+      <CelulaGut realce={realce}>
+        <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.5 }}>
+          {item.problema}
+        </Typography>
+      </CelulaGut>
+
+      {CRITERIOS.map((c) => (
+        <CelulaGut key={c.chave} realce={realce} centro>
+          <Typography variant="h5" component="span" sx={{ display: "block", fontSize: 28, lineHeight: 1 }}>
+            {item[c.chave]}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, lineHeight: 1.3 }}>
+            {c.niveis[item[c.chave] - 1]}
+          </Typography>
+        </CelulaGut>
+      ))}
+
+      <CelulaGut realce={realce} tinta={alpha(faixa.cor, modo === "dark" ? 0.16 : 0.1)} centro>
+        <Typography variant="h4" component="span" sx={{ display: "block", fontSize: 32, lineHeight: 1, color: faixa.cor }}>
           {item.prioridade}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+          de 125
+        </Typography>
+      </CelulaGut>
+
+      <CelulaGut realce={realce} centro sx={{ position: "relative" }}>
+        {/* O "º" da Anton parece um zero sobrescrito ("1⁰"): vai na fonte do corpo. */}
+        <Typography variant="h5" component="span" sx={{ display: "block", fontSize: 26, lineHeight: 1 }}>
+          {posicao + 1}
+          <Box component="span" sx={{ fontFamily: FONTES.corpo, fontWeight: 800, fontSize: "0.6em", verticalAlign: "top" }}>
+            º
+          </Box>
         </Typography>
         <Chip
           size="small"
-          label={`Prioridade ${faixa.rotulo.toLowerCase()}`}
-          sx={{ mt: 0.5, bgcolor: alpha(faixa.cor, 0.12), color: faixa.cor, fontWeight: 600 }}
+          label={faixa.rotulo}
+          sx={{ mt: 0.75, height: 22, bgcolor: alpha(faixa.cor, 0.12), color: faixa.cor, fontWeight: 700 }}
         />
-      </Box>
+        <Tooltip title="Excluir problema">
+          <IconButton
+            size="small"
+            onClick={onExcluir}
+            aria-label="Excluir problema"
+            sx={{ position: "absolute", top: 4, right: 4, color: "text.disabled", "&:hover": { color: "error.main" } }}
+          >
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </CelulaGut>
+    </Box>
+  )
+}
 
-      <Tooltip title="Excluir problema">
-        <IconButton size="small" onClick={onExcluir} sx={{ color: "text.disabled", "&:hover": { color: "error.main" } }}>
-          <DeleteOutlineIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-    </Paper>
+// Linha em branco da folha: clicar em qualquer ponto abre o cadastro. So a
+// primeira tem o botao (e e a unica que o leitor de tela anuncia).
+function LinhaVazia({ primeira, folhaVazia, realce, onNovo }) {
+  return (
+    <Box role="row" className="linha-gut" aria-hidden={primeira ? undefined : true} onClick={onNovo} sx={{ ...LINHA_SX, cursor: "pointer" }}>
+      <CelulaGut realce={realce}>
+        {primeira && (
+          <Button
+            startIcon={<AddIcon />}
+            onClick={(e) => {
+              e.stopPropagation()
+              onNovo()
+            }}
+            sx={{
+              alignSelf: "flex-start",
+              textTransform: "none",
+              color: "text.secondary",
+              ".linha-gut:hover &": { color: "primary.main" },
+            }}
+          >
+            {folhaVazia ? "Adicionar o primeiro problema" : "Novo problema"}
+          </Button>
+        )}
+      </CelulaGut>
+      {COLUNAS.slice(1).map((c) => (
+        <CelulaGut key={c.chave} realce={realce} />
+      ))}
+    </Box>
   )
 }
 
@@ -329,7 +489,7 @@ function GraficoPrioridades({ itens, modo }) {
   const altura = 32 + dados.length * 34
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 0, p: 2, mt: 0.5 }}>
+    <Paper variant="outlined" sx={{ borderRadius: 0, p: 2, mt: 2 }}>
       <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.25 }}>
         Problemas por prioridade
       </Typography>
@@ -485,11 +645,5 @@ function DialogNovoProblema({ aberto, idStartup, modo, onFechar, onCriado }) {
 }
 
 function GutSkeleton() {
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-      {[0, 1, 2].map((i) => (
-        <Skeleton key={i} variant="rounded" height={96} />
-      ))}
-    </Box>
-  )
+  return <Skeleton variant="rectangular" height={ALTURA_LINHA * (LINHAS_DA_FOLHA + 1) + 180} />
 }

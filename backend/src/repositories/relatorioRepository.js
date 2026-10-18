@@ -26,6 +26,7 @@ const { query } = require("../config/db")
 // ---------------------------------------------------------------------------
 const SQL_ESTADO_PASSOS = `
   SELECT s.id_startup,
+         s.uuid   AS startup_uuid,
          s.nome   AS startup,
          s.status AS startup_status,
 
@@ -86,7 +87,7 @@ async function progressoStartups(idTenant) {
   const { rows } = await query(
     `WITH estado AS (${SQL_ESTADO_PASSOS}),
      agg AS (
-       SELECT id_startup, startup, startup_status,
+       SELECT id_startup, startup_uuid, startup, startup_status,
               COUNT(*)                                              AS total_passos,
               COUNT(*) FILTER (WHERE estado = 'APROVADO')           AS aprovados,
               COUNT(*) FILTER (WHERE estado = 'AGUARDANDO')         AS aguardando,
@@ -105,7 +106,7 @@ async function progressoStartups(idTenant) {
               -- cai em NULL, e a service traduz para "nunca".
               MAX(GREATEST(entrega_atualizado_ts, avaliacao_ts)) AS ultima_atividade_ts
          FROM estado
-        GROUP BY id_startup, startup, startup_status
+        GROUP BY id_startup, startup_uuid, startup, startup_status
      )
      SELECT agg.*,
             prox.nome        AS fase_atual,
@@ -181,7 +182,7 @@ async function filaAvaliacao(idTenant, limite = 50) {
     `SELECT e.id_entrega,
             e.atualizado_ts AS enviada_ts,
             EXTRACT(DAY FROM (NOW() - e.atualizado_ts))::INTEGER AS dias_parada,
-            s.id_startup, s.nome AS startup,
+            s.id_startup, s.uuid AS startup_uuid, s.nome AS startup,
             n.id_no, n.nome AS passo,
             COALESCE(mt.mentores, '{}') AS mentores
 
@@ -429,7 +430,7 @@ async function engajamentoEventos(idTenant, dias) {
 async function engajamentoStartups(idTenant, dias) {
   const { rows } = await query(
     `WITH publico AS (${SQL_PUBLICO_EVENTOS})
-     SELECT s.id_startup, s.nome AS startup,
+     SELECT s.id_startup, s.uuid AS startup_uuid, s.nome AS startup,
 
             COUNT(DISTINCT pu.id_evento)                                AS eventos_convidada,
             COUNT(DISTINCT pu.id_evento) FILTER (WHERE p.presente)      AS eventos_presente,
@@ -445,7 +446,7 @@ async function engajamentoStartups(idTenant, dias) {
        LEFT JOIN evento_presenca p
               ON p.id_evento = pu.id_evento AND p.id_usuario = pu.id_usuario
 
-      GROUP BY s.id_startup, s.nome
+      GROUP BY s.id_startup, s.uuid, s.nome
       ORDER BY s.nome`,
     [idTenant, dias]
   )

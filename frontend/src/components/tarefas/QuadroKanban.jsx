@@ -7,10 +7,17 @@
  * ninguem puxou, o que atravessou a semana parado. Nenhuma das duas substitui a
  * outra, e por isso a tela alterna entre elas sem recarregar nada.
  *
+ * AS COLUNAS DIVIDEM A LARGURA. Cada uma tem 280px no minimo e cresce ate
+ * ocupar a tela: com as quatro colunas padrao num notebook, o quadro cabe
+ * inteiro sem rolagem lateral; com oito colunas (a incubadora configura as
+ * suas), ele rola. No celular cada coluna ocupa quase a tela toda e a rolagem
+ * encaixa coluna por coluna.
+ *
  * ARRASTO EM HTML5 PURO (draggable + dataTransfer), sem biblioteca. E o mesmo
  * mecanismo que a TabelaDados ja usa para reordenar colunas, e adicionar uma
  * dependencia de drag-and-drop ao projeto para um quadro de quatro colunas
- * custaria mais do que resolve.
+ * custaria mais do que resolve. Para quem nao arrasta (teclado, toque), o
+ * cartao tem o menu "Mover para" — ver CartaoTarefa.
  *
  * A POSICAO DE SOLTURA e calculada pelo ponto medio de cada cartao: solto na
  * metade de cima, entra antes dele; na de baixo, depois. E o que faz o indicador
@@ -21,13 +28,29 @@
  * o terceiro e o quarto" significar a mesma coisa dos dois lados.
  */
 import { useState } from "react"
-import { Box, Chip, IconButton, Tooltip, Typography } from "@mui/material"
-import { Add } from "@mui/icons-material"
+import { Box, Button, IconButton, Skeleton, Tooltip, Typography } from "@mui/material"
+import { alpha } from "@mui/material/styles"
+import { Add, EventBusy } from "@mui/icons-material"
 import CartaoTarefa from "./CartaoTarefa"
+import { estaAtrasada } from "../../data/tarefaMeta"
+
+/** Quantos cartoes-esqueleto cada coluna mostra enquanto a lista carrega. */
+const ESQUELETOS = [3, 2, 2, 1]
+
+/** O que dizer numa coluna vazia, pelo papel dela no fluxo. */
+const VAZIO_POR_CATEGORIA = {
+  PENDENTE: "Nenhuma tarefa esperando para começar.",
+  EM_ANDAMENTO: "Nada nesta etapa agora.",
+  CONCLUIDA: "As tarefas concluídas aparecem aqui.",
+}
 
 export default function QuadroKanban({
   colunas = [],
   tarefas = [],
+  carregando = false,
+  // Ha busca, filtro ou indicador ativo? Muda o que a coluna vazia diz: "nada
+  // aqui" e "nada aqui COM ESTE FILTRO" pedem gestos diferentes.
+  filtrando = false,
   onAbrirTarefa,
   onCriarEm,
   onMover,
@@ -93,63 +116,140 @@ export default function QuadroKanban({
     onMover?.(id, chave, indiceParaApi(chave, fenda.indice))
   }
 
+  if (!carregando && colunas.length === 0) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <Typography fontWeight={600}>Nenhuma coluna configurada</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Crie as colunas do quadro em Configurações › Quadro de tarefas.
+        </Typography>
+      </Box>
+    )
+  }
+
+  // Enquanto as colunas nem chegaram, desenha quatro colunas-esqueleto: o
+  // quadro ja tem o formato certo quando os dados chegam, e nada pula.
+  const colunasDesenho = colunas.length
+    ? colunas
+    : ESQUELETOS.map((_, i) => ({ chave: `esqueleto-${i}`, rotulo: "", cor: "transparent" }))
+  const mostrarEsqueleto = carregando && tarefas.length === 0
+
   return (
     <Box
+      role="region"
+      aria-label="Quadro de tarefas"
       sx={{
         display: "flex",
-        gap: 2,
-        alignItems: "flex-start",
+        gap: 1.5,
+        // Colunas da mesma altura: o quadro le como quadro, e a coluna curta
+        // continua sendo um alvo de soltura do tamanho da mais cheia.
+        alignItems: "stretch",
         overflowX: "auto",
-        p: 2,
-        // As colunas rolam por dentro; a pagina nao cresce sem fim.
+        p: { xs: 1.5, sm: 2 },
         minHeight: 420,
+        // No celular a rolagem encaixa coluna por coluna.
+        scrollSnapType: { xs: "x mandatory", sm: "none" },
+        scrollPaddingInline: 12,
       }}
     >
-      {colunas.map((coluna) => {
+      {colunasDesenho.map((coluna, posicao) => {
         const cartoes = daColuna(coluna.chave)
         const recebendo = alvo?.status === coluna.chave && arrastando
+        const atrasadas =
+          coluna.categoria === "CONCLUIDA" ? 0 : cartoes.filter((t) => estaAtrasada(t)).length
+        const idTitulo = `coluna-kanban-${coluna.chave}`
 
         return (
           <Box
             key={coluna.chave}
+            component="section"
+            aria-labelledby={idTitulo}
             sx={{
-              width: 300,
-              flexShrink: 0,
+              flex: { xs: "0 0 86%", sm: "1 0 280px" },
+              maxWidth: { sm: 420 },
+              minWidth: 0,
+              scrollSnapAlign: "start",
               display: "flex",
               flexDirection: "column",
-              maxHeight: "calc(100vh - 300px)",
+              // As colunas rolam por dentro; a pagina nao cresce sem fim.
+              maxHeight: "max(420px, calc(100vh - 260px))",
               borderRadius: 1,
-              bgcolor: "action.hover",
+              bgcolor: (t) => (t.palette.mode === "dark" ? alpha("#fff", 0.03) : alpha("#000", 0.025)),
+              border: 1,
+              borderColor: recebendo ? "primary.main" : "divider",
+              // A cor da coluna numa faixa no alto: identifica o status antes
+              // de ler o nome, e repete a cor do ponto na tabela.
+              borderTop: "3px solid",
+              borderTopColor: coluna.cor || "divider",
               // A coluna que vai receber o cartao se destaca inteira: com quatro
               // colunas iguais lado a lado, so o risquinho da fenda seria facil
               // de perder de vista.
-              outline: recebendo ? "2px solid" : "none",
-              outlineColor: "primary.main",
+              boxShadow: (t) => (recebendo ? `0 0 0 1px ${t.palette.primary.main}` : "none"),
+              transition: "border-color .15s, box-shadow .15s",
             }}
           >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 1.5,
-                py: 1.25,
-                borderBottom: 1,
-                borderColor: "divider",
-                flexShrink: 0,
-              }}
-            >
-              <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: coluna.cor }} />
-              <Typography variant="subtitle2" fontWeight={700} noWrap sx={{ flex: 1 }}>
-                {coluna.rotulo}
-              </Typography>
-              <Chip size="small" label={cartoes.length} sx={{ height: 20, fontSize: 11 }} />
-              {podeCriar && (
-                <Tooltip title={`Nova tarefa em "${coluna.rotulo}"`}>
-                  <IconButton size="small" onClick={() => onCriarEm?.(coluna.chave)}>
-                    <Add sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
+            {/* Cabecalho: o nome, a contagem e, quando ha, quantas ali estao
+                atrasadas — e o que faz o gargalo aparecer sem abrir cartao
+                nenhum. */}
+            <Box sx={{ flexShrink: 0, px: 1.5, pt: 1, pb: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, minHeight: 30 }}>
+                {coluna.rotulo ? (
+                  <>
+                    <Typography
+                      id={idTitulo}
+                      component="h3"
+                      variant="subtitle2"
+                      fontWeight={700}
+                      noWrap
+                      sx={{ flex: 1, minWidth: 0 }}
+                    >
+                      {coluna.rotulo}
+                    </Typography>
+                    <Box
+                      component="span"
+                      aria-label={`${cartoes.length} tarefa${cartoes.length === 1 ? "" : "s"}`}
+                      sx={{
+                        minWidth: 24,
+                        height: 22,
+                        px: 0.75,
+                        borderRadius: 11,
+                        bgcolor: "action.selected",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {mostrarEsqueleto ? "–" : cartoes.length}
+                    </Box>
+                    {podeCriar && (
+                      <Tooltip title={`Nova tarefa em "${coluna.rotulo}"`}>
+                        <IconButton
+                          size="small"
+                          onClick={() => onCriarEm?.(coluna.chave)}
+                          aria-label={`Nova tarefa em ${coluna.rotulo}`}
+                        >
+                          <Add sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </>
+                ) : (
+                  <Skeleton width={posicao % 2 ? 90 : 120} height={22} />
+                )}
+              </Box>
+
+              {atrasadas > 0 && (
+                <Typography
+                  variant="caption"
+                  fontWeight={600}
+                  sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: "error.main" }}
+                >
+                  <EventBusy sx={{ fontSize: 13 }} aria-hidden />
+                  {atrasadas} atrasada{atrasadas > 1 ? "s" : ""}
+                </Typography>
               )}
             </Box>
 
@@ -169,8 +269,13 @@ export default function QuadroKanban({
                 setAlvo((atual) => (atual?.status === coluna.chave ? null : atual))
               }}
               onDrop={(e) => soltar(e, coluna.chave)}
-              sx={{ flex: 1, overflowY: "auto", p: 1, minHeight: 120 }}
+              sx={{ flex: 1, overflowY: "auto", px: 1, pb: 1, minHeight: 120 }}
             >
+              {mostrarEsqueleto &&
+                Array.from({ length: ESQUELETOS[posicao % ESQUELETOS.length] }).map((_, i) => (
+                  <Skeleton key={i} variant="rounded" height={92} sx={{ mb: 1, borderRadius: 1 }} />
+                ))}
+
               {cartoes.map((tarefa, i) => (
                 <Box key={tarefa.id_tarefa} data-cartao>
                   {recebendo && alvo.indice === i && <Fenda />}
@@ -179,6 +284,11 @@ export default function QuadroKanban({
                     arrastavel={podeMover(tarefa)}
                     arrastando={arrastando === tarefa.id_tarefa}
                     onClick={() => onAbrirTarefa?.(tarefa)}
+                    colunas={colunas}
+                    // `ordem: 9999` poe a tarefa no FIM da coluna de destino (o
+                    // backend limita o indice ao tamanho da lista) — o mesmo da
+                    // acao em massa da tabela.
+                    onMoverPara={podeMover(tarefa) ? (status) => onMover?.(tarefa.id_tarefa, status, 9999) : undefined}
                     onDragStart={(e) => {
                       // Cartao que esta pessoa nao pode mover simplesmente nao
                       // inicia arrasto: e mais honesto que deixar arrastar e
@@ -199,26 +309,38 @@ export default function QuadroKanban({
 
               {recebendo && alvo.indice >= cartoes.length && <Fenda />}
 
-              {cartoes.length === 0 && !recebendo && (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "block", textAlign: "center", py: 3 }}
+              {cartoes.length === 0 && !recebendo && !mostrarEsqueleto && (
+                <Box
+                  sx={{
+                    textAlign: "center",
+                    px: 1.5,
+                    py: 3,
+                    border: "1px dashed",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                  }}
                 >
-                  Nada aqui.
-                </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    {filtrando
+                      ? "Nenhuma tarefa desta coluna com os filtros atuais."
+                      : VAZIO_POR_CATEGORIA[coluna.categoria] || "Nenhuma tarefa nesta coluna."}
+                  </Typography>
+                  {podeCriar && !filtrando && coluna.categoria !== "CONCLUIDA" && (
+                    <Button
+                      size="small"
+                      startIcon={<Add />}
+                      onClick={() => onCriarEm?.(coluna.chave)}
+                      sx={{ mt: 1, letterSpacing: 0 }}
+                    >
+                      Adicionar tarefa
+                    </Button>
+                  )}
+                </Box>
               )}
             </Box>
           </Box>
         )
       })}
-
-      {colunas.length === 0 && (
-        <Typography color="text.secondary" sx={{ p: 4 }}>
-          Nenhuma coluna configurada. Crie as colunas do quadro em Configurações › Quadro de
-          tarefas.
-        </Typography>
-      )}
     </Box>
   )
 }

@@ -40,6 +40,10 @@ router.use("/trilha", require("./trilhaRoutes"))
 router.use("/conteudos", require("./bibliotecaRoutes"))
 // Jornada: a mesma trilha, vista pela startup, com o estado das entregas.
 router.use("/jornada", require("./jornadaRoutes"))
+// Espaco do Mentor: a biblioteca pessoal do mentor e o compartilhamento de
+// material com as startups que ele acompanha (migracao 020). O que a startup
+// recebeu e lido em /jornada/materiais.
+router.use("/espaco-mentor", require("./espacoMentorRoutes"))
 
 router.use("/questionarios", require("./questionarioRoutes"))
 router.use("/entregas", require("./entregaRoutes"))

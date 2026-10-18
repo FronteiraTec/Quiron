@@ -92,7 +92,7 @@ export default function AbaFasesConcluidas({ idStartup }) {
       <TabelaDados
         dados={fases}
         colunas={colunas}
-        chaveId="id_startup_fase"
+        chaveId="id_startup_trilha"
         chaveStorage="startup-fases-concluidas"
         ordemInicial="ordem"
         larguraMinima={720}

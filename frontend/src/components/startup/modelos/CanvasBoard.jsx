@@ -9,11 +9,10 @@
  *
  * API (inalterada): GET /startups/:id/canvas e PUT /startups/:id/canvas/:bloco.
  */
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import {
   Alert,
   Box,
-  Chip,
   CircularProgress,
   IconButton,
   InputBase,
@@ -29,17 +28,14 @@ import {
 } from "@mui/material"
 import { alpha } from "@mui/material/styles"
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline"
-import CloudDoneOutlinedIcon from "@mui/icons-material/CloudDoneOutlined"
-import CloudOffOutlinedIcon from "@mui/icons-material/CloudOffOutlined"
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded"
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked"
-import CheckRoundedIcon from "@mui/icons-material/CheckRounded"
-import TipsAndUpdatesOutlinedIcon from "@mui/icons-material/TipsAndUpdatesOutlined"
 import { motion } from "framer-motion"
-import api from "../../../services/api"
 import { BLOCOS_CANVAS, ZONAS_CANVAS } from "./canvasConfig"
+import { ConteudoAjuda, IndicadorAutoSave, StatusBloco } from "./comum"
+import { useBlocosAutoSave } from "./useBlocosAutoSave"
 
-const ATRASO_AUTOSAVE_MS = 900
+const FORMATO_API = { lista: "blocos", campo: "bloco", erroCarregar: "Erro ao carregar o canvas." }
 
 // Grade do canvas: reproduz as proporcoes do Business Model Canvas oficial
 // (Strategyzer) — nas telas grandes, os 5 blocos superiores dividem 10
@@ -79,60 +75,10 @@ const GRADE_SX = {
 const linhasMinimas = (area) => (area === "custos" || area === "receita" ? 3 : 4)
 
 export default function CanvasBoard({ idStartup }) {
-  const [blocos, setBlocos] = useState({})
-  const [statusBlocos, setStatusBlocos] = useState({}) // chave -> saving | saved | error
-  const [carregando, setCarregando] = useState(true)
-  const [aviso, setAviso] = useState(null)
+  const { blocos, statusBlocos, carregando, aviso, setAviso, aoDigitar, aoSairDoCampo, salvando, comErro } =
+    useBlocosAutoSave(`/startups/${idStartup}/canvas`, FORMATO_API)
   const [ajuda, setAjuda] = useState(null) // { ancora, bloco }
-
-  const timersRef = useRef({}) // debounce por bloco
-  const salvosRef = useRef({}) // ultimo conteudo confirmado no servidor
   const areasRef = useRef({}) // textareas, para foco via checklist
-
-  useEffect(() => {
-    setCarregando(true)
-    api
-      .get(`/startups/${idStartup}/canvas`)
-      .then(({ data }) => {
-        const mapa = {}
-        data.blocos.forEach((b) => (mapa[b.bloco] = b.conteudo))
-        setBlocos(mapa)
-        salvosRef.current = { ...mapa }
-      })
-      .catch((err) => setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar o canvas." }))
-      .finally(() => setCarregando(false))
-  }, [idStartup])
-
-  // Limpa os debounces pendentes ao desmontar.
-  useEffect(() => () => Object.values(timersRef.current).forEach(clearTimeout), [])
-
-  const salvarBloco = async (chave, conteudo) => {
-    if ((salvosRef.current[chave] || "") === conteudo) {
-      setStatusBlocos((s) => ({ ...s, [chave]: "saved" }))
-      return
-    }
-    try {
-      await api.put(`/startups/${idStartup}/canvas/${chave}`, { conteudo })
-      salvosRef.current[chave] = conteudo
-      setStatusBlocos((s) => ({ ...s, [chave]: "saved" }))
-    } catch {
-      setStatusBlocos((s) => ({ ...s, [chave]: "error" }))
-    }
-  }
-
-  const aoDigitar = (chave, valor) => {
-    setBlocos((b) => ({ ...b, [chave]: valor }))
-    setStatusBlocos((s) => ({ ...s, [chave]: "saving" }))
-    clearTimeout(timersRef.current[chave])
-    timersRef.current[chave] = setTimeout(() => salvarBloco(chave, valor), ATRASO_AUTOSAVE_MS)
-  }
-
-  const aoSairDoCampo = (chave, valor) => {
-    if (!timersRef.current[chave]) return
-    clearTimeout(timersRef.current[chave])
-    delete timersRef.current[chave]
-    salvarBloco(chave, valor)
-  }
 
   const focarBloco = (chave) => {
     const area = areasRef.current[chave]
@@ -146,8 +92,6 @@ export default function CanvasBoard({ idStartup }) {
     [blocos]
   )
   const progresso = Math.round((preenchidos / BLOCOS_CANVAS.length) * 100)
-  const salvando = Object.values(statusBlocos).some((s) => s === "saving")
-  const comErro = Object.values(statusBlocos).some((s) => s === "error")
 
   if (carregando) return <CanvasSkeleton />
 
@@ -231,42 +175,13 @@ export default function CanvasBoard({ idStartup }) {
   )
 }
 
-function IndicadorAutoSave({ salvando, comErro }) {
-  if (comErro) {
-    return (
-      <Chip
-        size="small"
-        icon={<CloudOffOutlinedIcon />}
-        label="Erro ao salvar — revise sua conexão"
-        color="warning"
-        variant="outlined"
-      />
-    )
-  }
-  if (salvando) {
-    return (
-      <Chip
-        size="small"
-        icon={<CircularProgress size={12} thickness={5} sx={{ ml: 0.5 }} />}
-        label="Salvando..."
-        variant="outlined"
-        sx={{ color: "text.secondary" }}
-      />
-    )
-  }
-  return (
-    <Chip
-      size="small"
-      icon={<CloudDoneOutlinedIcon sx={{ fontSize: 16 }} />}
-      label="Salvo automaticamente"
-      variant="outlined"
-      sx={{ color: "success.main", borderColor: (t) => alpha(t.palette.success.main, 0.4), "& .MuiChip-icon": { color: "success.main" } }}
-    />
-  )
-}
-
 function BlocoCanvas({ bloco, indice, minRows, valor, status, inputRef, onDigitar, onSair, onAjuda }) {
   const Icone = bloco.icone
+  // Bloco vazio fica com o tom apagado da zona; respondido, ganha o fundo
+  // limpo do papel — o canvas "acende" conforme e preenchido.
+  const preenchido = valor.trim().length > 0
+  const fundo = (claro, escuro) => (t) =>
+    preenchido ? t.palette.background.paper : alpha(bloco.acento, t.palette.mode === "dark" ? escuro : claro)
   return (
     <Box component={motion.div} sx={{ gridArea: bloco.area, display: "flex", minWidth: 0 }}
       initial={{ opacity: 0 }}
@@ -281,12 +196,12 @@ function BlocoCanvas({ bloco, indice, minRows, valor, status, inputRef, onDigita
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
-          bgcolor: (t) => alpha(bloco.acento, t.palette.mode === "dark" ? 0.1 : 0.05),
+          bgcolor: fundo(0.05, 0.1),
           borderTop: `3px solid ${bloco.acento}`,
           transition: "background-color .15s ease",
-          "&:hover": { bgcolor: (t) => alpha(bloco.acento, t.palette.mode === "dark" ? 0.17 : 0.09) },
+          "&:hover": { bgcolor: fundo(0.09, 0.17) },
           "&:focus-within": {
-            bgcolor: (t) => alpha(bloco.acento, t.palette.mode === "dark" ? 0.2 : 0.11),
+            bgcolor: fundo(0.11, 0.2),
             boxShadow: (t) => `inset 0 0 0 2px ${alpha(bloco.acento, 0.4)}`,
           },
         }}
@@ -359,31 +274,6 @@ function BlocoCanvas({ bloco, indice, minRows, valor, status, inputRef, onDigita
       </Paper>
     </Box>
   )
-}
-
-function StatusBloco({ status }) {
-  if (status === "saving") {
-    return (
-      <Typography variant="caption" color="text.disabled" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-        <CircularProgress size={10} thickness={5} /> salvando
-      </Typography>
-    )
-  }
-  if (status === "saved") {
-    return (
-      <Typography variant="caption" color="success.main" sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-        <CheckRoundedIcon sx={{ fontSize: 13 }} /> salvo
-      </Typography>
-    )
-  }
-  if (status === "error") {
-    return (
-      <Typography variant="caption" color="error.main">
-        erro ao salvar
-      </Typography>
-    )
-  }
-  return null
 }
 
 function ChecklistCanvas({ blocos, preenchidos, progresso, onIr }) {
@@ -463,56 +353,6 @@ function ChecklistCanvas({ blocos, preenchidos, progresso, onIr }) {
         </Typography>
       )}
     </Paper>
-  )
-}
-
-function ConteudoAjuda({ bloco }) {
-  return (
-    <>
-      <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-        {bloco.titulo}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        {bloco.ajuda.oQueE}
-      </Typography>
-
-      <Typography variant="caption" fontWeight={700} color="text.primary">
-        Exemplos reais
-      </Typography>
-      <Box component="ul" sx={{ m: 0, mb: 1.5, pl: 2.25 }}>
-        {bloco.ajuda.exemplos.map((ex) => (
-          <Typography key={ex} component="li" variant="caption" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-            {ex}
-          </Typography>
-        ))}
-      </Box>
-
-      <Typography variant="caption" fontWeight={700} color="text.primary">
-        Erros comuns
-      </Typography>
-      <Box component="ul" sx={{ m: 0, mb: 1.5, pl: 2.25 }}>
-        {bloco.ajuda.errosComuns.map((erro) => (
-          <Typography key={erro} component="li" variant="caption" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-            {erro}
-          </Typography>
-        ))}
-      </Box>
-
-      <Box
-        sx={{
-          display: "flex",
-          gap: 1,
-          p: 1.25,
-          borderRadius: 2,
-          bgcolor: (t) => alpha(t.palette.primary.main, 0.06),
-        }}
-      >
-        <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 18, color: "primary.main", mt: 0.25 }} />
-        <Typography variant="caption" sx={{ lineHeight: 1.6 }}>
-          {bloco.ajuda.dica}
-        </Typography>
-      </Box>
-    </>
   )
 }
 

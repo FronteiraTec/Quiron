@@ -17,7 +17,9 @@ import {
   Stack,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
+  useTheme,
 } from "@mui/material"
 import {
   LightMode,
@@ -34,19 +36,9 @@ import {
 import { useAuthStore } from "../store/authStore"
 import { usePreferenciaStore } from "../store/preferenciaStore"
 import { useTour } from "../tour/TourProvider"
+import { CORES_PRINCIPAIS, paletaDaCor } from "../theme"
 
 const ROTULO_PAPEL = { admin: "Administrador", mentor: "Mentor", usuario: "Usuário" }
-
-const CORES_ACCENT = [
-  { nome: "Azul", cor: "#4f46e5" },
-  { nome: "Verde", cor: "#16a34a" },
-  { nome: "Laranja", cor: "#f97316" },
-  { nome: "Vermelho", cor: "#dc2626" },
-  { nome: "Roxo", cor: "#9333ea" },
-  { nome: "Rosa", cor: "#db2777" },
-  { nome: "Ciano", cor: "#0891b2" },
-  { nome: "Amarelo", cor: "#ca8a04" },
-]
 
 const AJUDA_ITENS = [
   { chave: "conversar", label: "Conversar conosco", Icone: ChatBubbleOutline },
@@ -96,6 +88,7 @@ export default function UserPanel({
   const atualizarLocal = usePreferenciaStore((s) => s.atualizarLocal)
   const salvarPreferencias = usePreferenciaStore((s) => s.salvar)
   const tour = useTour()
+  const escuro = useTheme().palette.mode === "dark"
 
   const [anchorEl, setAnchorEl] = useState(null)
   const aberto = Boolean(anchorEl)
@@ -170,10 +163,15 @@ export default function UserPanel({
         aria-label="Menu da conta"
         sx={{
           borderRadius: "50%",
-          "&:focus-visible": { outline: (t) => `2px solid ${alpha(t.palette.common.white, 0.8)}`, outlineOffset: 2 },
+          "&:focus-visible": { outline: (t) => `2px solid ${t.palette.barra.destaque}`, outlineOffset: 2 },
         }}
       >
-        <Avatar src={usuario?.avatar || undefined} sx={{ width: 36, height: 36, bgcolor: "secondary.main" }}>
+        {/* O destaque da barra (ver paletaDaBarra): no claro, preto com letra
+            lima sobre a barra lima — o circulo da seta do modelo, invertido. */}
+        <Avatar
+          src={usuario?.avatar || undefined}
+          sx={{ width: 36, height: 36, bgcolor: "barra.destaque", color: "barra.destaqueTexto", fontWeight: 700, fontSize: 15 }}
+        >
           {iniciais(usuario?.nome)}
         </Avatar>
       </ButtonBase>
@@ -200,40 +198,56 @@ export default function UserPanel({
               boxShadow:
                 t.palette.mode === "dark"
                   ? "0 16px 40px rgba(0,0,0,0.55)"
-                  : "0 16px 40px rgba(15,23,42,0.14)",
+                  : "0 16px 40px rgba(0,0,0,0.14)",
             }),
           },
         }}
       >
-        {/* Cabecalho solido na cor primaria */}
+        {/* Cabecalho nas cores da barra do topo, de onde o painel abre, com a
+            faixa diagonal do modelo de apresentacao. */}
         <Box
           sx={{
+            position: "relative",
+            overflow: "hidden",
             px: 3,
             pt: 3,
             pb: 2.5,
-            bgcolor: "primary.main",
-            color: (t) => t.palette.primary.contrastText,
+            bgcolor: "barra.fundo",
+            color: "barra.texto",
           }}
         >
+          <Box
+            aria-hidden
+            sx={{
+              position: "absolute",
+              right: -48,
+              top: 34,
+              width: 210,
+              height: 10,
+              bgcolor: "barra.destaque",
+              transform: "rotate(-24deg)",
+            }}
+          />
           <Avatar
             src={usuario?.avatar || undefined}
             sx={{
+              position: "relative",
               width: 60,
               height: 60,
               mb: 1.5,
-              bgcolor: "rgba(255,255,255,0.16)",
-              border: "3px solid rgba(255,255,255,0.35)",
+              bgcolor: "barra.destaque",
+              color: "barra.destaqueTexto",
               fontSize: 22,
               fontWeight: 700,
             }}
           >
             {iniciais(usuario?.nome)}
           </Avatar>
-          <Typography variant="subtitle1" fontWeight={700} noWrap>
+          <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ position: "relative" }}>
             {usuario?.nome || "Usuário"}
           </Typography>
           {(rotuloPapel || empresa) && (
-            <Typography variant="body2" sx={{ opacity: 0.85 }} noWrap>
+            <Typography variant="body2" sx={{ position: "relative", opacity: 0.72 }} noWrap>
               {[rotuloPapel, empresa].filter(Boolean).join(" - ")}
             </Typography>
           )}
@@ -270,12 +284,15 @@ export default function UserPanel({
                 transition: "all .18s ease",
               },
               "& .Mui-selected": {
-                bgcolor: (t) => `${t.palette.background.paper} !important`,
+                // No escuro o popover fica acima do papel (tema: MuiPopover),
+                // entao o papel ali pareceria um buraco, e nao a opcao ativa.
+                bgcolor: (t) =>
+                  `${t.palette.mode === "dark" ? "rgba(255,255,255,0.12)" : t.palette.background.paper} !important`,
                 color: "text.primary !important",
                 boxShadow: (t) =>
                   t.palette.mode === "dark"
                     ? "0 1px 4px rgba(0,0,0,0.5)"
-                    : "0 1px 4px rgba(15,23,42,0.16)",
+                    : "0 1px 4px rgba(0,0,0,0.16)",
               },
             }}
           >
@@ -293,29 +310,34 @@ export default function UserPanel({
             Cor principal
           </Typography>
           <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
-            {CORES_ACCENT.map(({ nome, cor }) => {
+            {CORES_PRINCIPAIS.map(({ nome, cor }) => {
               const ativo = preferencias.cor_primaria?.toLowerCase() === cor.toLowerCase()
+              // A amostra mostra a cor como ela fica NESTA aparencia (o
+              // preenchimento dos botoes), e nao o hex salvo: no claro o
+              // amarelo e o lima ficam vivos, no escuro o magenta clareia.
+              const { vivo, vivoContraste } = paletaDaCor(cor, escuro)
               return (
-                <ButtonBase
-                  key={cor}
-                  onClick={() => mudarCorPrimaria(cor)}
-                  aria-label={`Cor ${nome}`}
-                  aria-pressed={ativo}
-                  sx={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: "50%",
-                    bgcolor: cor,
-                    transition: "transform .15s ease, box-shadow .15s ease",
-                    boxShadow: ativo
-                      ? (t) => `0 0 0 2px ${t.palette.background.paper}, 0 0 0 4px ${cor}`
-                      : "none",
-                    "&:hover": { transform: "scale(1.1)" },
-                    "&:focus-visible": { outline: "2px solid", outlineColor: "text.primary", outlineOffset: 2 },
-                  }}
-                >
-                  {ativo && <Check sx={{ fontSize: 14, color: "#fff" }} />}
-                </ButtonBase>
+                <Tooltip key={cor} title={nome} arrow>
+                  <ButtonBase
+                    onClick={() => mudarCorPrimaria(cor)}
+                    aria-label={`Cor ${nome}`}
+                    aria-pressed={ativo}
+                    sx={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      bgcolor: vivo,
+                      transition: "transform .15s ease, box-shadow .15s ease",
+                      boxShadow: ativo
+                        ? (t) => `0 0 0 2px ${t.palette.background.paper}, 0 0 0 4px ${vivo}`
+                        : "none",
+                      "&:hover": { transform: "scale(1.1)" },
+                      "&:focus-visible": { outline: "2px solid", outlineColor: "text.primary", outlineOffset: 2 },
+                    }}
+                  >
+                    {ativo && <Check sx={{ fontSize: 14, color: vivoContraste }} />}
+                  </ButtonBase>
+                </Tooltip>
               )
             })}
           </Stack>

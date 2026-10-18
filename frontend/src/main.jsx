@@ -1,5 +1,10 @@
 import React from "react"
 import ReactDOM from "react-dom/client"
+// Fontes da identidade visual (ver FONTES em theme.js), servidas junto com o
+// build em vez de buscadas no Google Fonts.
+import "@fontsource/anton"
+import "@fontsource-variable/unbounded"
+import "@fontsource-variable/plus-jakarta-sans"
 import App from "./App"
 
 const rootElement = document.getElementById("root")

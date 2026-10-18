@@ -297,7 +297,13 @@ export default function Biblioteca() {
               ? `"${confirmar.titulo || "Este conteúdo"}" é usado em ${
                   confirmar.usos.length
                 } passo(s) da trilha. Desvincule-o antes de excluir.`
-              : `Excluir "${confirmar.titulo || "este conteúdo"}"? Esta ação não pode ser desfeita.`
+              : confirmar.compartilhamentos > 0
+                ? // Compartilhado por mentores (Espaco do Mentor): o vinculo sai
+                  // junto com o conteudo, e quem exclui precisa saber disso antes.
+                  `Excluir "${confirmar.titulo || "este conteúdo"}"? Mentores o compartilharam com startups ${
+                    confirmar.compartilhamentos
+                  } vez(es) — esses compartilhamentos também serão removidos, e as startups deixam de vê-lo. Esta ação não pode ser desfeita.`
+                : `Excluir "${confirmar.titulo || "este conteúdo"}"? Esta ação não pode ser desfeita.`
             : ""
         }
         onConfirmar={excluirConfirmado}

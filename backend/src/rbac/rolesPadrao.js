@@ -35,6 +35,7 @@ const PERMISSOES_MENTOR = [
   "startups.startups.visualizar",
   "startups.membros.visualizar",
   "startups.canvas.visualizar",
+  "startups.swot.visualizar",
   "startups.gut.visualizar",
   "startups.cinco_w2h.visualizar",
 
@@ -49,6 +50,15 @@ const PERMISSOES_MENTOR = [
   "programa.biblioteca.visualizar",
   "programa.biblioteca.editar",
   "programa.questionarios.visualizar",
+
+  // Espaco do Mentor (migracao 020): e o ambiente de trabalho do mentor, e ele
+  // nasce com as duas chaves. O compartilhamento continua recortado por
+  // `mentor_startup` — so alcanca as startups que ele acompanha.
+  "mentoria.materiais.gerenciar",
+  "mentoria.materiais.compartilhar",
+  // O que a incubadora publica para os mentores (migracao 021): o mentor le;
+  // publicar e mexer fica com o Administrador.
+  "mentoria.materiais_incubadora.visualizar",
 
   "eventos.agenda.visualizar",
 
@@ -94,6 +104,8 @@ const PERMISSOES_COLABORADOR = [
   "startups.membros.visualizar",
   "startups.canvas.visualizar",
   "startups.canvas.editar",
+  "startups.swot.visualizar",
+  "startups.swot.editar",
   "startups.gut.visualizar",
   "startups.gut.criar",
   "startups.gut.excluir",

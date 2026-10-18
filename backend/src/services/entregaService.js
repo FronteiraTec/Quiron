@@ -3,7 +3,8 @@
  *
  * Alem da entrega simples (texto/arquivo), trata a entrega de QUESTIONARIO:
  * valida as respostas contra a estrutura do questionario (obrigatoriedade,
- * tipo da pergunta e pertencimento das alternativas) e persiste tudo.
+ * tipo da pergunta e pertencimento das alternativas) e persiste tudo. Quando
+ * o questionario e uma PROVA, corrige as respostas contra o gabarito.
  */
 const entregaRepository = require("../repositories/entregaRepository")
 const trilhaRepository = require("../repositories/trilhaRepository")
@@ -13,10 +14,26 @@ const tenantRepository = require("../repositories/tenantRepository")
 const rbacService = require("./rbacService")
 const startupService = require("./startupService")
 const notificacaoService = require("./notificacaoService")
+const prova = require("../questionarios/prova")
 const { erroNegocio } = require("../utils/erros")
 
 const TIPOS_TEXTO = ["TEXTO_CURTO", "PARAGRAFO"]
 const TIPOS_ESCOLHA = ["ESCOLHA_UNICA", "CAIXAS_SELECAO"]
+
+/**
+ * Agrupa as alternativas marcadas por pergunta, no formato que
+ * `prova.corrigir` le. Caixas de selecao geram um par por alternativa.
+ * @param {Array<[number, number|null]>} pares - [id_pergunta, id_alternativa]
+ */
+function marcadasPorPergunta(pares) {
+  const mapa = new Map()
+  for (const [idPergunta, idAlternativa] of pares) {
+    if (idAlternativa == null) continue
+    if (!mapa.has(idPergunta)) mapa.set(idPergunta, [])
+    mapa.get(idPergunta).push(idAlternativa)
+  }
+  return mapa
+}
 
 /** Lista as entregas de uma startup — para quem tem vinculo com ela (QRN-04). */
 async function listar(idStartup, usuario) {
@@ -81,7 +98,9 @@ async function buscar(id, usuario) {
 
 /**
  * Entrega com todo o contexto do painel de avaliacao: passo, startup, autor,
- * ultima avaliacao e — quando o passo e um questionario — as respostas.
+ * ultima avaliacao e — quando o passo e um questionario — as respostas. Se o
+ * questionario for uma prova, vem tambem a correcao, com o gabarito: quem
+ * chega aqui e quem avalia.
  *
  * O tenant nao vem do cliente: e lido da startup da propria entrega. Confiar
  * num id_tenant enviado na requisicao deixaria qualquer um alegar ser admin de
@@ -106,7 +125,24 @@ async function buscarDetalhe(id, usuario) {
   }
 
   const respostas = await entregaRepository.listarRespostasPorEntrega(id)
-  return { ...comSituacao(entrega), respostas }
+
+  // Corrige contra o questionario que foi RESPONDIDO (o das perguntas), e nao
+  // o que o passo aponta hoje: o passo pode ter trocado de questionario depois
+  // da entrega. Sem respostas (entrega de texto), nao ha o que corrigir.
+  let resultado = null
+  if (respostas.length > 0) {
+    const questionario = await questionarioRepository.buscarPorIdComPerguntas(
+      respostas[0].id_questionario
+    )
+    if (questionario?.prova) {
+      resultado = prova.corrigir(
+        questionario.perguntas,
+        marcadasPorPergunta(respostas.map((r) => [r.id_pergunta, r.id_alternativa]))
+      )
+    }
+  }
+
+  return { ...comSituacao(entrega), respostas, resultado }
 }
 
 /**
@@ -155,7 +191,8 @@ async function exigirPasso(idNo) {
  * @param {number} dados.idUsuario - Autor (vem do token).
  * @param {Array<{idPergunta:number, texto?:string, alternativas?:number[]}>} dados.respostas
  * @param {{id:number, root?:boolean}} usuario - autenticado; precisa ser membro.
- * @returns {Promise<object>} A entrega criada.
+ * @returns {Promise<{entrega:object, resultado:object|null}>} A entrega criada
+ *   e, se o questionario for uma prova, a nota — sem o gabarito.
  */
 async function responderQuestionario({ idNo, idStartup, idUsuario, respostas }, usuario) {
   if (!idNo || !idStartup) {
@@ -230,7 +267,16 @@ async function responderQuestionario({ idNo, idStartup, idUsuario, respostas }, 
 
   notificacaoService.entregaEnviada({ idStartup, idNo, idUsuario })
 
-  return entrega
+  const resultado = questionario.prova
+    ? prova.resumoParaQuemResponde(
+        prova.corrigir(
+          questionario.perguntas,
+          marcadasPorPergunta(linhas.map((l) => [l.idPergunta, l.idAlternativa]))
+        )
+      )
+    : null
+
+  return { entrega, resultado }
 }
 
 module.exports = { listar, listarFila, buscar, buscarDetalhe, criar, responderQuestionario }

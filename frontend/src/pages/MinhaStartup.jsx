@@ -93,7 +93,7 @@ export default function MinhaStartup() {
               </Tabs>
               <Box data-tour="minha-startup-conteudo" sx={{ p: 3 }}>
                 {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={idTenant} />}
-                {aba === "modelos" && <AbaModelos idStartup={startup.id_startup} />}
+                {aba === "modelos" && <AbaModelos idStartup={startup.id_startup} nomeStartup={startup.nome} />}
                 {aba === "fases" && <AbaFasesConcluidas idStartup={startup.id_startup} />}
                 {aba === "evolucao" && <AbaEvolucao />}
               </Box>

@@ -613,7 +613,7 @@ const TOUR_MEMBROS = {
 }
 
 // ---------------------------------------------------------------------------
-// Detalhe de uma startup (/startups/:id)
+// Detalhe de uma startup (/startups/:uuid)
 // ---------------------------------------------------------------------------
 const TOUR_STARTUP_DETALHE = {
   titulo: "A página da startup",
@@ -1491,7 +1491,7 @@ export const TOURS = {
   "/eventos/presenca": TOUR_PRESENCA,
   "/startups": TOUR_STARTUPS,
   "/startups/membros": TOUR_MEMBROS,
-  "/startups/:id": TOUR_STARTUP_DETALHE,
+  "/startups/:uuid": TOUR_STARTUP_DETALHE,
   "/mentores": TOUR_MENTORES,
   "/entregas": TOUR_ENTREGAS,
   "/feedback": TOUR_FEEDBACK,
@@ -1513,14 +1513,14 @@ export const TOURS = {
   "/enviar-feedback": TOUR_ENVIAR_FEEDBACK,
 }
 
-/** Regex de uma rota com parametro: "/startups/:id" casa "/startups/42". */
+/** Regex de uma rota com parametro: "/startups/:uuid" casa "/startups/9f1c…". */
 function regexDaRota(rota) {
   return new RegExp(`^${rota.replace(/:[^/]+/g, "[^/]+")}$`)
 }
 
 /**
  * Tour da rota informada, na ordem: rota exata, rota com parametro
- * ("/startups/:id") e, por fim, a rota-pai mais especifica (uma subrota sem
+ * ("/startups/:uuid") e, por fim, a rota-pai mais especifica (uma subrota sem
  * tour proprio cai no tour da rota de cima).
  *
  * A rota exata vem antes da rota com parametro de proposito: "/startups/membros"

@@ -4,7 +4,8 @@
  * Fluxo: o passo e do tipo QUESTIONARIO e aponta para um questionario. Esta
  * tela carrega o questionario, renderiza cada pergunta conforme seu tipo
  * (texto curto, paragrafo, escolha unica, caixas de selecao) e envia as
- * respostas como uma ENTREGA da startup.
+ * respostas como uma ENTREGA da startup. Se o questionario for uma PROVA, a
+ * API devolve a nota junto da entrega — sem o gabarito, que fica com o mentor.
  *
  * Endpoints:
  *   GET  /trilha/:id              -> o passo (tem tipo_passo e id_questionario)
@@ -31,8 +32,9 @@ import {
   Stack,
   Alert,
   CircularProgress,
+  Chip,
 } from "@mui/material"
-import { Quiz, ArrowBack } from "@mui/icons-material"
+import { Quiz, ArrowBack, FactCheck, CheckCircle, Cancel } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
@@ -53,6 +55,8 @@ export default function ResponderQuestionario() {
   const [aviso, setAviso] = useState(null) // { tipo, texto }
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
+  // Nota da prova, devolvida pela API ao enviar: { acertos, total, perguntas }.
+  const [resultado, setResultado] = useState(null)
 
   // Respostas em edicao, indexadas por id_pergunta:
   //   texto -> string (tipos de texto)
@@ -121,11 +125,12 @@ export default function ResponderQuestionario() {
 
     setEnviando(true)
     try {
-      await api.post("/entregas/questionario", {
+      const { data } = await api.post("/entregas/questionario", {
         id_no: Number(idNo),
         id_startup: startupId,
         respostas: payload,
       })
+      setResultado(data.resultado ?? null)
       setEnviado(true)
     } catch (err) {
       setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao enviar as respostas." })
@@ -160,6 +165,37 @@ export default function ResponderQuestionario() {
             <Typography color="text.secondary" sx={{ mb: 2 }}>
               A entrega do questionário foi registrada com sucesso.
             </Typography>
+
+            {resultado && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h4" fontWeight={700}>
+                  {resultado.acertos} de {resultado.total}
+                </Typography>
+                <Typography color="text.secondary">
+                  {resultado.acertos === 1 ? "questão certa" : "questões certas"} (
+                  {Math.round((resultado.acertos / resultado.total) * 100)}%)
+                </Typography>
+                {/* Diz quais errou, nao qual era a certa: o gabarito fica com o mentor. */}
+                <Stack spacing={0.75} sx={{ mt: 2, maxWidth: 520, mx: "auto", textAlign: "left" }}>
+                  {questionario.perguntas.map((p, i) => {
+                    const acertou = resultado.perguntas.find((r) => r.id_pergunta === p.id_pergunta)?.acertou
+                    return (
+                      <Box key={p.id_pergunta} sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                        {acertou ? (
+                          <CheckCircle fontSize="small" color="success" sx={{ mt: 0.25 }} />
+                        ) : (
+                          <Cancel fontSize="small" color="error" sx={{ mt: 0.25 }} />
+                        )}
+                        <Typography variant="body2">
+                          {i + 1}. {p.pergunta}
+                        </Typography>
+                      </Box>
+                    )
+                  })}
+                </Stack>
+              </Box>
+            )}
+
             <Button variant="contained" onClick={() => navigate(-1)}>
               Concluir
             </Button>
@@ -173,6 +209,7 @@ export default function ResponderQuestionario() {
                 <Typography variant="h5" fontWeight={700}>
                   {questionario.titulo}
                 </Typography>
+                {questionario.prova && <Chip size="small" color="primary" icon={<FactCheck />} label="Prova" />}
               </Box>
               {passo?.nome && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -183,6 +220,12 @@ export default function ResponderQuestionario() {
                 <Typography color="text.secondary" sx={{ mt: 1 }}>
                   {questionario.descricao}
                 </Typography>
+              )}
+              {questionario.prova && (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  Cada questão vale 1 ponto. Nas caixas de seleção, marque todas as alternativas
+                  corretas: marcar a mais ou a menos zera a questão. Questão em branco conta como erro.
+                </Alert>
               )}
 
               <TextField

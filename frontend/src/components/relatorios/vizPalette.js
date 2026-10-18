@@ -5,8 +5,10 @@
  * primaria do painel (preferenciaStore), e cor de dado nao pode depender de
  * gosto — uma primaria clarinha deixaria as series indistinguiveis para quem
  * tem daltonismo. As cores abaixo foram validadas contra as duas superficies
- * reais do app (#ffffff no claro, #1e293b no escuro) nas checagens de banda de
- * luminosidade, piso de croma, separacao sob CVD e contraste.
+ * do app de entao (#ffffff no claro, #1e293b no escuro) nas checagens de banda
+ * de luminosidade, piso de croma, separacao sob CVD e contraste. O papel
+ * escuro da identidade atual (#141414) e mais escuro que aquele: o contraste
+ * das series contra ele so aumentou.
  *
  * A cor do tema continua mandando em tudo que e interface (botoes, links,
  * barras de progresso). Aqui so os dados.
@@ -49,7 +51,9 @@ export function paletaViz(modo) {
     funil: escuro ? FUNIL_ESCURO : FUNIL_CLARO,
     series: escuro ? SERIES_ESCURO : SERIES_CLARO,
     chrome: escuro ? CHROME_ESCURO : CHROME_CLARO,
-    superficie: escuro ? "#1e293b" : "#ffffff",
+    // O papel dos paineis (SUPERFICIES em theme.js): o anel dos pontos dos
+    // graficos de linha tem a cor do fundo para "recortar" a linha.
+    superficie: escuro ? "#141414" : "#ffffff",
     status: STATUS,
   }
 }

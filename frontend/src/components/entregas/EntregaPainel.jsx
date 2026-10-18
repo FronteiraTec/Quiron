@@ -2,8 +2,8 @@
  * Coluna direita da tela de Entregas: o que a startup entregou e a devolutiva.
  *
  * Duas metades. Em cima, o conteudo entregue — texto, anexos e, quando o passo
- * e um questionario, as respostas pergunta a pergunta. Embaixo, a decisao do
- * mentor.
+ * e um questionario, as respostas pergunta a pergunta (numa prova, ja
+ * corrigidas contra o gabarito). Embaixo, a decisao do mentor.
  *
  * Se a entrega ja foi avaliada, o painel mostra a devolutiva anterior em vez do
  * formulario: o reenvio da startup apaga as avaliacoes antigas
@@ -31,6 +31,8 @@ import {
   OpenInNew,
   CalendarMonth,
   Person,
+  CheckCircle,
+  Cancel,
 } from "@mui/icons-material"
 
 import SituacaoChip from "./SituacaoChip"
@@ -85,6 +87,71 @@ function Respostas({ respostas }) {
           ))}
         </Box>
       ))}
+    </Stack>
+  )
+}
+
+/**
+ * Respostas de uma PROVA, ja corrigidas. Percorre as perguntas da correcao, e
+ * nao as respostas, para que a pergunta deixada em branco tambem apareca — ela
+ * conta como erro na nota.
+ */
+function RespostasProva({ respostas, resultado }) {
+  const percentual = resultado.total ? Math.round((resultado.acertos / resultado.total) * 100) : 0
+
+  return (
+    <Stack spacing={2}>
+      <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 0 }}>
+        <Typography variant="caption" fontWeight={700} color="text.secondary">
+          CORREÇÃO AUTOMÁTICA
+        </Typography>
+        <Typography variant="h6" fontWeight={700}>
+          {resultado.acertos} de {resultado.total} ({percentual}%)
+        </Typography>
+      </Paper>
+
+      {resultado.perguntas.map((p) => {
+        const marcadas = respostas.filter((r) => r.id_pergunta === p.id_pergunta && r.id_alternativa != null)
+        return (
+          <Box key={p.id_pergunta}>
+            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75, mb: 0.5 }}>
+              {p.acertou ? (
+                <CheckCircle fontSize="small" color="success" sx={{ mt: 0.125 }} />
+              ) : (
+                <Cancel fontSize="small" color="error" sx={{ mt: 0.125 }} />
+              )}
+              <Typography variant="body2" fontWeight={700}>
+                {p.pergunta}
+              </Typography>
+            </Box>
+            <Box sx={{ pl: 3.5 }}>
+              {marcadas.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                  Em branco
+                </Typography>
+              ) : (
+                marcadas.map((r) => {
+                  const certa = p.corretas.includes(r.id_alternativa)
+                  return (
+                    <Typography
+                      key={r.id_resposta}
+                      variant="body2"
+                      color={certa ? "success.main" : "error.main"}
+                    >
+                      {certa ? "✓" : "✗"} {r.alternativa_descricao}
+                    </Typography>
+                  )
+                })
+              )}
+              {!p.acertou && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  Gabarito: {p.gabarito.join(" · ")}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )
+      })}
     </Stack>
   )
 }
@@ -216,7 +283,9 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
         </Typography>
 
         <Box sx={{ mt: 1.5 }}>
-          {entrega.respostas?.length > 0 ? (
+          {entrega.resultado ? (
+            <RespostasProva respostas={entrega.respostas} resultado={entrega.resultado} />
+          ) : entrega.respostas?.length > 0 ? (
             <Respostas respostas={entrega.respostas} />
           ) : entrega.texto_resposta ? (
             <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>

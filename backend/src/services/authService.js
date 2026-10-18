@@ -224,7 +224,7 @@ async function solicitarResetSenha(email) {
 
     // Remetente definido nas configuracoes da incubadora do usuario.
     const remetente = await resolverRemetente(usuario.id_usuario)
-    await enviarEmailReset(usuario.email, link, remetente)
+    await enviarEmailReset(usuario.email, link, remetente, usuario.nome)
   }
 }
 

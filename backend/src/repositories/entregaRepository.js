@@ -147,7 +147,7 @@ async function criarComRespostas({ idNo, idStartup, idUsuario, respostas }) {
 /** Lista as respostas de uma entrega (com o enunciado da pergunta). */
 async function listarRespostasPorEntrega(idEntrega) {
   const { rows } = await query(
-    `SELECT r.id_resposta, r.id_pergunta, p.pergunta, p.tipo,
+    `SELECT r.id_resposta, r.id_pergunta, p.id_questionario, p.pergunta, p.tipo,
             r.texto_resposta, r.id_alternativa, a.descricao AS alternativa_descricao
        FROM resposta r
        JOIN pergunta p ON p.id_pergunta = r.id_pergunta

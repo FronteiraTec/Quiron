@@ -54,7 +54,15 @@ export function useSidebarPreferences() {
   )
 
   // --- Estado local por usuario (pinned / ultima secao) ---
-  const [pinned, setPinned] = useState([])
+  // Favoritos lidos ja na montagem, e nao so no efeito abaixo: a Sidebar e
+  // montada de novo a cada navegacao, e nascer vazia fazia a secao Favoritos
+  // sumir e voltar a cada troca de tela. A ultima secao fica no efeito de
+  // proposito: lida na montagem, ela reabriria um grupo que o usuario acabou de
+  // fechar sempre que ele fosse para uma tela fora de grupo (ex.: Dashboard).
+  const [pinned, setPinned] = useState(() => {
+    const dados = lerLocal(idUsuario)
+    return Array.isArray(dados.pinned) ? dados.pinned : []
+  })
   const [ultimaSecao, setUltimaSecao] = useState(null)
   const carregado = useRef(false)
 
