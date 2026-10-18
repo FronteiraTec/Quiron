@@ -8,9 +8,13 @@
  *  - Um questionario segue a ideia do Google Forms: tem perguntas de tipos
  *    variados (texto curto, paragrafo, escolha unica, caixas de selecao).
  *    Perguntas de escolha exigem ao menos 2 alternativas.
+ *  - Um questionario pode ser PROVA (migracao 024): so perguntas de escolha,
+ *    cada uma com o gabarito marcado. O gabarito so sai para quem cria/edita
+ *    questionarios; quem responde recebe as alternativas sem ele.
  */
 const questionarioRepository = require("../repositories/questionarioRepository")
 const rbacService = require("./rbacService")
+const prova = require("../questionarios/prova")
 const { erroNegocio } = require("../utils/erros")
 
 // Tipos de pergunta aceitos e quais deles possuem alternativas.
@@ -26,8 +30,9 @@ const TIPOS_COM_ALTERNATIVAS = ["ESCOLHA_UNICA", "CAIXAS_SELECAO"]
 /**
  * Valida e normaliza a lista de perguntas recebida do cliente.
  * Devolve as perguntas prontas para persistir (sem campos irrelevantes).
+ * Em prova, confere tambem o gabarito; fora dela, `correta` sai sempre FALSE.
  */
-function normalizarPerguntas(perguntas) {
+function normalizarPerguntas(perguntas, ehProva) {
   if (!Array.isArray(perguntas) || perguntas.length === 0) {
     throw erroNegocio(400, "Inclua ao menos uma pergunta no questionario.")
   }
@@ -46,18 +51,32 @@ function normalizarPerguntas(perguntas) {
 
     // Perguntas de texto nao tem alternativas.
     if (!TIPOS_COM_ALTERNATIVAS.includes(p.tipo)) {
+      if (ehProva) prova.validarGabarito(base, numero) // recusa: prova nao tem texto livre
       return { ...base, alternativas: [] }
     }
 
     // Perguntas de escolha exigem ao menos 2 alternativas com descricao.
     const alternativas = (p.alternativas || [])
-      .map((a) => ({ descricao: (a.descricao || "").trim() }))
+      .map((a) => ({ descricao: (a.descricao || "").trim(), correta: ehProva && !!a.correta }))
       .filter((a) => a.descricao)
     if (alternativas.length < 2) {
       throw erroNegocio(400, `A pergunta ${numero} precisa de ao menos 2 alternativas.`)
     }
-    return { ...base, alternativas }
+    const normalizada = { ...base, alternativas }
+    if (ehProva) prova.validarGabarito(normalizada, numero)
+    return normalizada
   })
+}
+
+/**
+ * Quem pode ver o gabarito: quem cria ou edita questionarios. O incubado tem
+ * so "visualizar" — precisa abrir a prova para faze-la, nao a resposta.
+ */
+async function podeVerGabarito(idTenant, usuario) {
+  return (
+    (await rbacService.temPermissao(idTenant, usuario, "programa.questionarios.editar")) ||
+    (await rbacService.temPermissao(idTenant, usuario, "programa.questionarios.criar"))
+  )
 }
 
 /** Lista os questionarios de um tenant. */
@@ -67,7 +86,10 @@ async function listar(idTenant, usuario) {
   return questionarioRepository.listarPorTenant(idTenant)
 }
 
-/** Busca um questionario com suas perguntas e alternativas. */
+/**
+ * Busca um questionario com suas perguntas e alternativas. Numa prova, o
+ * gabarito (alternativa.correta) so vem para quem pode ve-lo.
+ */
 async function buscar(id, usuario) {
   const questionario = await questionarioRepository.buscarPorIdComPerguntas(id)
   if (!questionario) throw erroNegocio(404, "Questionario nao encontrado.")
@@ -76,12 +98,15 @@ async function buscar(id, usuario) {
     usuario,
     "programa.questionarios.visualizar"
   )
+  if (questionario.prova && !(await podeVerGabarito(questionario.id_tenant, usuario))) {
+    return prova.semGabarito(questionario)
+  }
   return questionario
 }
 
 /**
  * Cria um questionario completo. Exige programa.questionarios.criar.
- * @param {object} dados - { idTenant, titulo, descricao, perguntas }
+ * @param {object} dados - { idTenant, titulo, descricao, prova, perguntas }
  * @param {object} usuario - Payload do token (req.usuario).
  */
 async function criar(dados, usuario) {
@@ -91,11 +116,13 @@ async function criar(dados, usuario) {
   }
   await rbacService.garantirPermissao(idTenant, usuario, "programa.questionarios.criar")
 
-  const perguntasNormalizadas = normalizarPerguntas(perguntas)
+  const ehProva = !!dados.prova
+  const perguntasNormalizadas = normalizarPerguntas(perguntas, ehProva)
   return questionarioRepository.criarCompleto({
     idTenant,
     titulo: titulo.trim(),
     descricao: descricao.trim(),
+    prova: ehProva,
     perguntas: perguntasNormalizadas,
   })
 }

@@ -41,18 +41,7 @@ export async function enviarArquivo(file, { idTenant, visibilidade = "PRIVADO" }
  * @param {string} [nome] - usado como titulo do download, quando o browser baixa.
  */
 export async function abrirArquivo(url, nome) {
-  const token = localStorage.getItem(TOKEN_KEY)
-  const resposta = await fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
-
-  if (!resposta.ok) {
-    // A API responde JSON de erro; se nem isso vier, cai na mensagem generica.
-    const detalhe = await resposta.json().catch(() => null)
-    throw new Error(detalhe?.erro || "Não foi possível abrir o arquivo.")
-  }
-
-  const blob = await resposta.blob()
+  const blob = await buscarArquivo(url)
   const objectUrl = URL.createObjectURL(blob)
 
   const aba = window.open(objectUrl, "_blank", "noopener")
@@ -64,6 +53,44 @@ export async function abrirArquivo(url, nome) {
     link.click()
   }
 
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+}
+
+/**
+ * Os bytes de um arquivo privado, com o token — para quem desenha o arquivo
+ * na propria tela (o visualizador do Espaco do Mentor) em vez de abri-lo numa
+ * aba.
+ *
+ * @param {string} url - caminho vindo da API
+ * @returns {Promise<Blob>} com o tipo que o servidor declarou
+ */
+export async function buscarArquivo(url) {
+  const token = localStorage.getItem(TOKEN_KEY)
+  const resposta = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+
+  if (!resposta.ok) {
+    // A API responde JSON de erro; se nem isso vier, cai na mensagem generica.
+    const detalhe = await resposta.json().catch(() => null)
+    throw new Error(detalhe?.erro || "Não foi possível abrir o arquivo.")
+  }
+  return resposta.blob()
+}
+
+/**
+ * Baixa um arquivo privado com o nome original — o "Baixar" de quem ja esta
+ * vendo o arquivo e quer a copia, e nao outra aba.
+ */
+export async function baixarArquivo(url, nome) {
+  const blob = await buscarArquivo(url)
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = objectUrl
+  link.download = nome || "arquivo"
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
   setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
 }
 

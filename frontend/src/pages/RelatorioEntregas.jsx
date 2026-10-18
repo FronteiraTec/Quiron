@@ -287,7 +287,7 @@ function Conteudo({ idTenant, dias }) {
               chaveStorage="relatorio-entregas-fila"
               linhas={dados.fila}
               ordemInicial="dias_parada"
-              onClickLinha={(l) => navigate(`/startups/${l.id_startup}`)}
+              onClickLinha={(l) => navigate(`/startups/${l.startup_uuid}`)}
               mensagemVazio="Nenhuma entrega esperando avaliação. A fila está zerada."
               colunas={[
                 { chave: "startup", rotulo: "Startup" },

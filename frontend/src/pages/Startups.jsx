@@ -514,7 +514,7 @@ export default function Startups() {
             ordemInicial="nome"
             carregando={carregando}
             mensagemVazio="Nenhuma startup encontrada."
-            onClickLinha={(s) => navigate(`/startups/${s.id_startup}`)}
+            onClickLinha={(s) => navigate(`/startups/${s.uuid}`)}
             onColunasVisiveisChange={setColunasVisiveis}
             selecionavel={podeEditar}
             selecionados={selecionados}

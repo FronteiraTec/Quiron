@@ -3,36 +3,45 @@
  *
  * O QUE ENTRA NO CARTAO e a pergunta inteira deste arquivo. Um cartao que
  * mostra tudo vira um formulario deitado e o quadro perde a unica coisa que ele
- * faz melhor que a tabela: ser lido de relance, a dois metros da tela. Entao so
- * o que muda uma decisao de quem esta olhando:
+ * faz melhor que a tabela: ser lido de relance. Entao so o que muda uma decisao
+ * de quem esta olhando, em tres pesos:
  *
- *   PRIORIDADE  -> uma faixa colorida na borda esquerda, sem texto. E o que se
- *                  ve antes de ler qualquer palavra.
- *   TITULO      -> ate duas linhas; o resto se le abrindo.
+ *   TITULO      -> o maior peso do cartao, ate duas linhas; o resto se le abrindo.
+ *   PRIORIDADE  -> icone + rotulo no alto. So Alta e Urgente ganham cor: se as
+ *                  quatro chamassem atencao, nenhuma chamaria.
  *   STARTUP     -> sobre quem e a tarefa, quando ha uma.
- *   PRAZO       -> so quando ele DIZ algo (atrasado, hoje, esta semana). Um
- *                  "12/03/2027" em cada cartao seria ruido em 90% deles.
- *   RESPONSAVEL -> as iniciais, num circulo. O nome inteiro ocuparia meia
- *                  largura do cartao para repetir o que a foto ja diz.
- *   ANEXOS      -> so o clipe e a contagem. Que documentos sao, e assunto de
- *                  quem abriu a tarefa; o que o quadro precisa dizer e "tem
- *                  material aqui dentro".
+ *   PRAZO       -> data curta em cinza; ambar quando esta perto; vermelho, com
+ *                  fundo, quando venceu. E o unico vermelho do cartao.
+ *   RESPONSAVEL -> foto ou iniciais. Sem ninguem, um circulo tracejado.
+ *   ANEXOS      -> so o clipe e a contagem.
  *
  * Nada de descricao, campos personalizados ou datas de criacao: isso e o painel
- * de edicao, a um clique de distancia.
+ * de edicao, a um clique de distancia. E nada de subtarefas ou comentarios — o
+ * modulo nao os tem, e um contador zerado em cada cartao seria uma promessa.
+ *
+ * TECLADO E TOQUE. O arrasto em HTML5 nao funciona no celular nem no teclado,
+ * entao o cartao tem um menu "Mover para" (o botao de tres pontos) que faz o
+ * mesmo PATCH do arrasto. O corpo do cartao e um `role="button"` focavel que
+ * abre a tarefa com Enter/Espaco; o menu e IRMAO dele, e nao filho, para nao
+ * aninhar um botao dentro de outro.
  */
-import { Avatar, Box, Chip, Tooltip, Typography } from "@mui/material"
-import { AccessTime, Business } from "@mui/icons-material"
+import { useState } from "react"
+import { Box, IconButton, ListSubheader, Menu, MenuItem, Typography } from "@mui/material"
+import { Business, MoreHoriz } from "@mui/icons-material"
 import { SeloAnexos } from "./AnexosTarefa"
-import { prioridade as metaPrioridade, situacaoPrazo } from "../../data/tarefaMeta"
+import { AvatarResponsavel, PrazoTarefa, PrioridadeTarefa } from "./MarcadoresTarefa"
+import { prioridade as metaPrioridade, situacaoPrazo, prazoBR } from "../../data/tarefaMeta"
 
-/** "Ana Paula Souza" -> "AS". Duas letras: tres viram borrão no circulo. */
-function iniciais(nome) {
-  const partes = String(nome || "").trim().split(/\s+/).filter(Boolean)
-  if (!partes.length) return "?"
-  const primeira = partes[0][0]
-  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ""
-  return (primeira + ultima).toUpperCase()
+/** O que o leitor de tela anuncia ao focar o cartao: o cartao inteiro, numa frase. */
+function descrever(tarefa) {
+  const partes = [tarefa.titulo, `prioridade ${metaPrioridade(tarefa.prioridade).rotulo}`]
+  const prazo = situacaoPrazo(tarefa)
+  if (prazo.tipo === "atrasada" || prazo.tipo === "hoje" || prazo.tipo === "proxima") partes.push(prazo.rotulo)
+  else if (prazo.tipo !== "sem-prazo") partes.push(`prazo ${prazoBR(tarefa.prazo)}`)
+  partes.push(tarefa.responsavel_nome ? `responsável ${tarefa.responsavel_nome}` : "sem responsável")
+  if (tarefa.startup_nome) partes.push(`startup ${tarefa.startup_nome}`)
+  if (tarefa.total_anexos) partes.push(`${tarefa.total_anexos} anexo${tarefa.total_anexos > 1 ? "s" : ""}`)
+  return partes.join(", ")
 }
 
 export default function CartaoTarefa({
@@ -42,136 +51,167 @@ export default function CartaoTarefa({
   onDragEnd,
   arrastando,
   arrastavel = true,
+  // Para o menu "Mover para": as colunas do quadro e o que fazer ao escolher.
+  // Sem `onMoverPara` (sem direito de mover), o menu nao aparece.
+  colunas = [],
+  onMoverPara,
 }) {
-  const prio = metaPrioridade(tarefa.prioridade)
-  const prazo = situacaoPrazo(tarefa)
+  const [ancoraMenu, setAncoraMenu] = useState(null)
   const concluida = tarefa.status_categoria === "CONCLUIDA"
+  const destinos = colunas.filter((c) => c.chave !== tarefa.status)
+  const comMenu = Boolean(onMoverPara) && destinos.length > 0
 
   return (
     <Box
       draggable={arrastavel}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      onClick={onClick}
       sx={{
         position: "relative",
-        p: 1.25,
-        pl: 1.75,
         mb: 1,
         borderRadius: 1,
         border: 1,
         borderColor: "divider",
         bgcolor: "background.paper",
-        // Sem direito de mover, o cartao continua clicavel (abre a tarefa) mas
-        // nao promete um arrasto que seria recusado.
-        cursor: arrastavel ? "grab" : "pointer",
         // O cartao em movimento fica esmaecido no lugar de origem: e o que diz
         // "este e o que voce esta segurando" enquanto o cursor esta longe dele.
         opacity: arrastando ? 0.4 : 1,
-        transition: "box-shadow .15s, border-color .15s",
-        "&:hover": { boxShadow: 2, borderColor: "primary.light" },
-        "&:active": { cursor: arrastavel ? "grabbing" : "pointer" },
+        transition: "border-color .15s, box-shadow .15s",
+        "&:hover": {
+          borderColor: "text.disabled",
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
+        },
+        // O menu so aparece com o mouse em cima ou com o foco dentro — num
+        // quadro de quarenta cartoes, quarenta botoes fixos seriam ruido. Em
+        // tela de toque (sem hover) ele fica sempre visivel.
+        "& .acoes-cartao": { opacity: ancoraMenu ? 1 : 0 },
+        "&:hover .acoes-cartao, &:focus-within .acoes-cartao": { opacity: 1 },
+        "@media (hover: none)": { "& .acoes-cartao": { opacity: 1 } },
       }}
     >
-      {/* A faixa de prioridade. Sem texto: a cor e a posicao ja a identificam,
-          e o rotulo esta no painel de edicao para quem precisar confirmar. */}
-      <Tooltip title={`Prioridade: ${prio.rotulo}`} placement="left">
-        <Box
-          sx={{
-            position: "absolute",
-            left: 0,
-            top: 6,
-            bottom: 6,
-            width: 4,
-            borderRadius: 4,
-            bgcolor: prio.cor,
-          }}
-        />
-      </Tooltip>
-
-      <Typography
-        variant="body2"
-        fontWeight={600}
-        sx={{
-          // Duas linhas e o limite: a terceira ja empurra o cartao seguinte
-          // para fora da tela numa coluna cheia.
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-          // Concluida com o titulo riscado: e o unico estado em que o cartao
-          // esta ali como registro, nao como trabalho.
-          textDecoration: concluida ? "line-through" : "none",
-          color: concluida ? "text.secondary" : "text.primary",
-        }}
-      >
-        {tarefa.titulo}
-      </Typography>
-
-      {tarefa.startup_nome && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.75, minWidth: 0 }}>
-          <Business sx={{ fontSize: 13, color: "text.secondary", flexShrink: 0 }} />
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {tarefa.startup_nome}
-          </Typography>
-        </Box>
-      )}
-
       <Box
+        role="button"
+        tabIndex={0}
+        aria-label={descrever(tarefa)}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            onClick?.()
+          }
+        }}
         sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 1,
-          mt: 1,
-          minHeight: 24,
+          p: 1.5,
+          borderRadius: "inherit",
+          // Sem direito de mover, o cartao continua clicavel (abre a tarefa)
+          // mas nao promete um arrasto que seria recusado.
+          cursor: arrastavel ? "grab" : "pointer",
+          "&:active": { cursor: arrastavel ? "grabbing" : "pointer" },
+          outline: "none",
+          "&:focus-visible": {
+            boxShadow: (t) => `0 0 0 2px ${t.palette.primary.main}`,
+          },
         }}
       >
-        {/* O prazo so aparece quando diz alguma coisa. Ver situacaoPrazo. */}
-        {prazo.tipo !== "sem-prazo" && prazo.tipo !== "futura" && prazo.tipo !== "concluida" ? (
-          <Chip
-            size="small"
-            icon={<AccessTime sx={{ fontSize: 14 }} />}
-            label={prazo.rotulo}
-            sx={{
-              height: 22,
-              fontSize: 11,
-              color: prazo.cor,
-              borderColor: prazo.cor,
-              "& .MuiChip-icon": { color: prazo.cor },
-            }}
-            variant="outlined"
-          />
-        ) : (
-          <Box />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minHeight: 22, pr: comMenu ? 3.5 : 0, mb: 0.75 }}>
+          <PrioridadeTarefa chave={tarefa.prioridade} />
+        </Box>
+
+        <Typography
+          variant="body2"
+          fontWeight={600}
+          sx={{
+            fontSize: "0.9rem",
+            lineHeight: 1.35,
+            // Duas linhas e o limite: a terceira ja empurra o cartao seguinte
+            // para fora da tela numa coluna cheia.
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            wordBreak: "break-word",
+            // Concluida riscada e em cinza: e o unico estado em que o cartao
+            // esta ali como registro, nao como trabalho. O mesmo da tabela.
+            textDecoration: concluida ? "line-through" : "none",
+            color: concluida ? "text.secondary" : "text.primary",
+          }}
+        >
+          {tarefa.titulo}
+        </Typography>
+
+        {tarefa.startup_nome && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, minWidth: 0 }}>
+            <Business sx={{ fontSize: 13, color: "text.secondary", flexShrink: 0 }} aria-hidden />
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {tarefa.startup_nome}
+            </Typography>
+          </Box>
         )}
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
-          <SeloAnexos total={tarefa.total_anexos} />
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+            mt: 1.25,
+            minHeight: 24,
+          }}
+        >
+          <Box sx={{ minWidth: 0, display: "flex" }}>
+            <PrazoTarefa tarefa={tarefa} />
+          </Box>
 
-          {tarefa.responsavel_nome ? (
-            <Tooltip title={tarefa.responsavel_nome}>
-              <Avatar sx={{ width: 24, height: 24, fontSize: 10, fontWeight: 700 }}>
-                {iniciais(tarefa.responsavel_nome)}
-              </Avatar>
-            </Tooltip>
-          ) : (
-            // O vazio e informacao: "esta tarefa nao tem dono". Um circulo
-            // tracejado pergunta sem gritar.
-            <Tooltip title="Sem responsável">
-              <Box
-                sx={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: "50%",
-                  border: "1px dashed",
-                  borderColor: "divider",
-                }}
-              />
-            </Tooltip>
-          )}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+            <SeloAnexos total={tarefa.total_anexos} />
+            <AvatarResponsavel nome={tarefa.responsavel_nome} foto={tarefa.responsavel_foto} />
+          </Box>
         </Box>
       </Box>
+
+      {comMenu && (
+        <>
+          <IconButton
+            className="acoes-cartao"
+            size="small"
+            aria-label={`Mover "${tarefa.titulo}" para outra coluna`}
+            aria-haspopup="menu"
+            onClick={(e) => setAncoraMenu(e.currentTarget)}
+            // O botao fica dentro de um elemento arrastavel: sem isto, puxar a
+            // partir dele iniciaria o arrasto do cartao.
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            sx={{ position: "absolute", top: 6, right: 6, transition: "opacity .15s" }}
+          >
+            <MoreHoriz fontSize="small" />
+          </IconButton>
+          <Menu
+            anchorEl={ancoraMenu}
+            open={Boolean(ancoraMenu)}
+            onClose={() => setAncoraMenu(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+            MenuListProps={{ dense: true }}
+          >
+            <ListSubheader sx={{ lineHeight: "32px", bgcolor: "transparent" }}>Mover para</ListSubheader>
+            {destinos.map((coluna) => (
+              <MenuItem
+                key={coluna.chave}
+                onClick={() => {
+                  setAncoraMenu(null)
+                  onMoverPara(coluna.chave)
+                }}
+              >
+                <Box
+                  aria-hidden
+                  sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: coluna.cor, mr: 1.25, flexShrink: 0 }}
+                />
+                {coluna.rotulo}
+              </MenuItem>
+            ))}
+          </Menu>
+        </>
+      )}
     </Box>
   )
 }

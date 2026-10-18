@@ -138,6 +138,23 @@ describe("QRN-08 · recorte por vinculo dentro da mesma incubadora", () => {
     barrou(r, "Canvas da startup vizinha ACEITOU escrita de terceiro")
   })
 
+  test("colaborador NAO le a SWOT da startup vizinha", async () => {
+    const r = await req(api.url, `/startups/${c.startupDois.id_startup}/swot`, {
+      token: c.colaboradorA.token,
+    })
+    barrou(r, "SWOT da startup vizinha entregue")
+  })
+
+  test("colaborador NAO EDITA a SWOT da startup vizinha", async () => {
+    // Mesmo caso do Canvas: a role Colaborador tem `startups.swot.editar`.
+    const r = await req(api.url, `/startups/${c.startupDois.id_startup}/swot/fraquezas`, {
+      metodo: "PUT",
+      token: c.colaboradorA.token,
+      corpo: { conteudo: "escrito pela concorrente" },
+    })
+    barrou(r, "SWOT da startup vizinha ACEITOU escrita de terceiro")
+  })
+
   test("colaborador NAO le a matriz GUT da startup vizinha", async () => {
     const r = await req(api.url, `/startups/${c.startupDois.id_startup}/gut`, {
       token: c.colaboradorA.token,
@@ -158,6 +175,15 @@ describe("QRN-08 · recorte por vinculo dentro da mesma incubadora", () => {
       token: c.colaboradorA.token,
     })
     assert.equal(r.status, 200, "o incubado perdeu acesso a propria startup")
+  })
+
+  test("colaborador CONTINUA preenchendo a SWOT da PROPRIA startup", async () => {
+    const r = await req(api.url, `/startups/${c.startupUm.id_startup}/swot/forcas`, {
+      metodo: "PUT",
+      token: c.colaboradorA.token,
+      corpo: { conteudo: "Equipe com experiencia no setor" },
+    })
+    assert.equal(r.status, 200, "o incubado nao consegue preencher a propria SWOT")
   })
 })
 

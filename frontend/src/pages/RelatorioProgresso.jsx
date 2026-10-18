@@ -115,7 +115,7 @@ function Conteudo({ idTenant }) {
             linhas={dados.startups}
             ordemInicial="progresso_pct"
             direcaoInicial="asc"
-            onClickLinha={(l) => navigate(`/startups/${l.id_startup}`)}
+            onClickLinha={(l) => navigate(`/startups/${l.startup_uuid}`)}
             colunas={[
               {
                 chave: "startup",

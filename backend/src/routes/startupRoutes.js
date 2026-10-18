@@ -9,6 +9,11 @@ const { autenticar } = require("../middlewares/auth")
 
 router.use(autenticar)
 
+// O `:id` de toda rota abaixo aceita o id_startup OU o uuid da startup — a
+// tela de detalhe abre por /startups/<uuid> (migracao 022). Roda depois do
+// autenticar: sem token, nem a consulta do UUID acontece.
+router.param("id", ctrl.resolverId)
+
 router.get("/", ctrl.listar) // ?id_tenant=
 router.get("/minha", ctrl.buscarMinha) // ?id_tenant= (startup do usuario logado)
 // Antes de "/:id", como o /minha acima: senao "membros" seria lido como o id
@@ -29,6 +34,10 @@ router.get("/:id/fases-concluidas", ctrl.listarFasesConcluidas)
 const canvasCtrl = require("../controllers/startupCanvasController")
 router.get("/:id/canvas", canvasCtrl.listar)
 router.put("/:id/canvas/:bloco", canvasCtrl.salvarBloco)
+
+const swotCtrl = require("../controllers/startupSwotController")
+router.get("/:id/swot", swotCtrl.listar)
+router.put("/:id/swot/:quadrante", swotCtrl.salvarQuadrante)
 
 const gutCtrl = require("../controllers/startupGutController")
 router.get("/:id/gut", gutCtrl.listar)

@@ -21,9 +21,9 @@ async function buscar(req, res, next) {
 
 async function criar(req, res, next) {
   try {
-    const { id_tenant, titulo, descricao, perguntas } = req.body
+    const { id_tenant, titulo, descricao, prova, perguntas } = req.body
     const questionario = await questionarioService.criar(
-      { idTenant: id_tenant, titulo, descricao, perguntas },
+      { idTenant: id_tenant, titulo, descricao, prova, perguntas },
       req.usuario
     )
     res.status(201).json({ questionario })

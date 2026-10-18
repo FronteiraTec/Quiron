@@ -8,10 +8,11 @@
 const preferenciaRepository = require("../repositories/preferenciaRepository")
 const { erroNegocio } = require("../utils/erros")
 
-// Preferencias padrao (espelham os DEFAULT do schema.sql).
+// Preferencias padrao (espelham os DEFAULT do schema.sql). A cor primaria e o
+// lima da identidade visual (migracao 019).
 const PADRAO = {
   tema: "claro",
-  cor_primaria: "#4f46e5",
+  cor_primaria: "#76db00",
   cor_secundaria: "#0ea5e9",
   densidade: "confortavel",
   borda_arredondada: 12,

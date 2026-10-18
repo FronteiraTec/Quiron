@@ -261,6 +261,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_startup_campo_rotulo
 
 CREATE TABLE IF NOT EXISTS startup (
     id_startup INTEGER GENERATED ALWAYS AS IDENTITY,
+    -- O que a URL carrega (/startups/<uuid>), no lugar do id sequencial, que
+    -- contaria quantas startups existem e convidaria a trocar 42 por 43. A
+    -- chave continua sendo o id_startup (migracao 022).
+    uuid UUID NOT NULL DEFAULT gen_random_uuid(),
     id_tenant INTEGER NOT NULL,
     nome VARCHAR(150) NOT NULL,
     cnpj CHAR(14),
@@ -319,6 +323,8 @@ CREATE TABLE IF NOT EXISTS startup (
         ON UPDATE CASCADE
 
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_startup_uuid ON startup (uuid);
 
 -- Torna o JSONB pesquisavel ("startups cujo campo 'setor' e 'AgriTech'") sem
 -- varrer a tabela inteira.
@@ -878,6 +884,26 @@ CREATE TABLE IF NOT EXISTS startup_canvas (
 );
 
 
+-- Analise SWOT (migracao 023): o mesmo formato do Canvas, um texto por
+-- quadrante. Tabela propria porque a chave RBAC e propria (startups.swot.*).
+CREATE TABLE IF NOT EXISTS startup_swot (
+    id_startup INTEGER NOT NULL,
+    quadrante VARCHAR(20) NOT NULL,
+    conteudo TEXT NOT NULL DEFAULT '',
+    atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_startup_swot PRIMARY KEY (id_startup, quadrante),
+
+    CONSTRAINT fk_startup_swot_startup
+        FOREIGN KEY (id_startup)
+        REFERENCES startup (id_startup)
+        ON DELETE CASCADE,
+
+    CONSTRAINT ck_startup_swot_quadrante
+        CHECK (quadrante IN ('forcas', 'fraquezas', 'oportunidades', 'ameacas'))
+);
+
+
 CREATE TABLE IF NOT EXISTS startup_gut (
     id_gut INTEGER GENERATED ALWAYS AS IDENTITY,
     id_startup INTEGER NOT NULL,
@@ -928,7 +954,11 @@ CREATE TABLE IF NOT EXISTS questionarios (
 	titulo VARCHAR(100) NOT NULL,
 	descricao TEXT NOT NULL,
 	ativo BOOLEAN DEFAULT TRUE,
-	
+	-- Prova de assinalar (migracao 024): so perguntas de escolha, com gabarito
+	-- em alternativa.correta, corrigida sozinha na entrega. FALSE e o
+	-- formulario de sempre, sem resposta certa.
+	prova BOOLEAN NOT NULL DEFAULT FALSE,
+
 	 CONSTRAINT pk_questionario PRIMARY KEY (id_questionario),
 	 CONSTRAINT fk_tenant_questionarios_tenant
         FOREIGN KEY (id_tenant)
@@ -969,6 +999,9 @@ CREATE TABLE IF NOT EXISTS alternativa (
     ordem INTEGER NOT NULL,
 
     ativa BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Gabarito de questionario em modo prova (migracao 024). Fora de prova,
+    -- sempre FALSE.
+    correta BOOLEAN NOT NULL DEFAULT FALSE,
 
     CONSTRAINT pk_alternativa PRIMARY KEY (id_alternativa),
 
@@ -1405,7 +1438,7 @@ CREATE TABLE IF NOT EXISTS usuario_preferencias (
     id_usuario INTEGER NOT NULL,
 
     tema VARCHAR(10) NOT NULL DEFAULT 'claro',       -- claro / escuro
-    cor_primaria VARCHAR(7) NOT NULL DEFAULT '#4f46e5',
+    cor_primaria VARCHAR(7) NOT NULL DEFAULT '#76db00', -- lima da identidade (019)
     cor_secundaria VARCHAR(7) NOT NULL DEFAULT '#0ea5e9',
     densidade VARCHAR(12) NOT NULL DEFAULT 'confortavel', -- confortavel / compacta
     borda_arredondada INTEGER NOT NULL DEFAULT 12,   -- raio das bordas (px)
@@ -1963,6 +1996,294 @@ CREATE TABLE IF NOT EXISTS tarefa_anexo (
 -- "este arquivo esta anexado em alguma tarefa?", que e a pergunta da
 -- autorizacao de download.
 CREATE INDEX IF NOT EXISTS ix_tarefa_anexo_arquivo ON tarefa_anexo (id_arquivo);
+
+
+-- ===========================================================================
+-- ESPACO DO MENTOR (migracao 020)
+--
+-- A Biblioteca (`conteudo`) e o acervo da INCUBADORA. Aqui mora o do MENTOR:
+-- `mentor_material` e a biblioteca pessoal dele (privada, por tenant), e
+-- `mentor_compartilhamento` e o vinculo que entrega um material — pessoal ou
+-- da Biblioteca — a UMA startup, numa trilha em que ela esta matriculada e,
+-- opcionalmente, numa etapa dela (FASE ou PASSO), com a orientacao do mentor.
+--
+-- Compartilhar e APONTAR, nao copiar: nenhum byte e duplicado, e a origem fica
+-- onde sempre esteve. A atividade de `finalidade = 'ATIVIDADE'` e um PASSO que
+-- ja existe na trilha — este modulo nao cria passo nem tarefa. Ver o cabecalho
+-- da migracao 020 para as regras de integridade dos vinculos.
+-- ===========================================================================
+
+-- Pastas da biblioteca pessoal (migracao 025): so organizacao — nao mudam quem
+-- ve o material nem o que ja foi compartilhado. As FKs da arvore sao COMPOSTAS
+-- com o dono, para que nada entre na pasta de outra pessoa; excluir uma pasta
+-- move o conteudo para a de cima (o service), e o SET NULL e a rede de
+-- seguranca. Ver o cabecalho da migracao 025.
+CREATE TABLE IF NOT EXISTS mentor_pasta (
+    id_pasta      INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_tenant     INTEGER      NOT NULL,
+    id_mentor     INTEGER      NOT NULL,
+    -- NULL = a raiz da biblioteca.
+    id_pasta_pai  INTEGER,
+    nome          VARCHAR(120) NOT NULL,
+    criado_ts     TIMESTAMP    NOT NULL DEFAULT NOW(),
+    atualizado_ts TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_mentor_pasta PRIMARY KEY (id_pasta),
+    CONSTRAINT uq_mentor_pasta_dono UNIQUE (id_pasta, id_tenant, id_mentor),
+
+    CONSTRAINT fk_mentor_pasta_vinculo
+        FOREIGN KEY (id_tenant, id_mentor)
+        REFERENCES tenant_usuarios (id_tenant, id_usuario)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_mentor_pasta_pai
+        FOREIGN KEY (id_pasta_pai, id_tenant, id_mentor)
+        REFERENCES mentor_pasta (id_pasta, id_tenant, id_mentor)
+        ON DELETE SET NULL (id_pasta_pai),
+
+    CONSTRAINT ck_mentor_pasta_nome CHECK (btrim(nome) <> ''),
+    CONSTRAINT ck_mentor_pasta_pai CHECK (id_pasta_pai IS NULL OR id_pasta_pai <> id_pasta)
+);
+
+CREATE INDEX IF NOT EXISTS ix_mentor_pasta_dono
+    ON mentor_pasta (id_tenant, id_mentor);
+
+-- Irmas com o mesmo nome, nao (sem diferenca de maiuscula).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_mentor_pasta_nome
+    ON mentor_pasta (id_tenant, id_mentor, COALESCE(id_pasta_pai, 0), lower(nome));
+
+CREATE TABLE IF NOT EXISTS mentor_material (
+    id_material   INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_tenant     INTEGER      NOT NULL,
+    -- O dono. Biblioteca pessoal: nenhuma chave RBAC da acesso ao material de
+    -- outra pessoa (ver mentorMaterialService).
+    id_mentor     INTEGER      NOT NULL,
+
+    titulo        VARCHAR(200) NOT NULL,
+    descricao     TEXT,
+    -- Texto livre, como mentor_perfil.especialidades: nao ha codigo atras do
+    -- valor, e so agrupamento. O front sugere as que o mentor ja usa.
+    categoria     VARCHAR(60),
+
+    -- ARQUIVO: os bytes moram no volume de uploads, via `arquivo`.
+    -- LINK: um endereco externo (um Google Doc, um video).
+    tipo          VARCHAR(10)  NOT NULL,
+    id_arquivo    UUID,
+    url           TEXT,
+
+    -- Arquivar tira o material da biblioteca de trabalho sem desfazer o que ja
+    -- foi entregue: os compartilhamentos continuam valendo.
+    arquivado_ts  TIMESTAMP,
+
+    -- A pasta em que o material esta (migracao 025). NULL = a raiz.
+    id_pasta      INTEGER,
+
+    criado_ts     TIMESTAMP    NOT NULL DEFAULT NOW(),
+    atualizado_ts TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_mentor_material PRIMARY KEY (id_material),
+
+    -- FK COMPOSTA para tenant_usuarios, como mentor_perfil: so existe
+    -- biblioteca de quem esta na incubadora.
+    CONSTRAINT fk_mentor_material_vinculo
+        FOREIGN KEY (id_tenant, id_mentor)
+        REFERENCES tenant_usuarios (id_tenant, id_usuario)
+        ON DELETE CASCADE,
+
+    -- Composta com o dono: o material so entra numa pasta da mesma pessoa.
+    -- A pasta some, o material fica (na raiz).
+    CONSTRAINT fk_mentor_material_pasta
+        FOREIGN KEY (id_pasta, id_tenant, id_mentor)
+        REFERENCES mentor_pasta (id_pasta, id_tenant, id_mentor)
+        ON DELETE SET NULL (id_pasta),
+
+    -- Sem CASCADE: um arquivo em uso por um material nao pode sumir por baixo
+    -- dele. Quem remove os bytes e o service, junto com o material.
+    CONSTRAINT fk_mentor_material_arquivo
+        FOREIGN KEY (id_arquivo)
+        REFERENCES arquivo (id_arquivo),
+
+    CONSTRAINT ck_mentor_material_tipo
+        CHECK (tipo IN ('ARQUIVO', 'LINK')),
+
+    CONSTRAINT ck_mentor_material_corpo CHECK (
+        (tipo = 'ARQUIVO' AND id_arquivo IS NOT NULL AND url IS NULL)
+        OR (tipo = 'LINK' AND id_arquivo IS NULL AND url IS NOT NULL AND url <> '')
+    )
+);
+
+-- A biblioteca e sempre lida como "os materiais DESTA pessoa NESTA incubadora".
+CREATE INDEX IF NOT EXISTS ix_mentor_material_dono
+    ON mentor_material (id_tenant, id_mentor);
+
+-- Um arquivo, um material. E tambem a consulta que a rota generica de download
+-- faz para saber que este arquivo so abre pelo material (arquivoService.abrir).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_mentor_material_arquivo
+    ON mentor_material (id_arquivo)
+    WHERE id_arquivo IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS ix_mentor_material_pasta
+    ON mentor_material (id_pasta)
+    WHERE id_pasta IS NOT NULL;
+
+
+CREATE TABLE IF NOT EXISTS mentor_compartilhamento (
+    id_compartilhamento INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_tenant      INTEGER     NOT NULL,
+    id_startup     INTEGER     NOT NULL,
+    -- A trilha (a raiz PROGRAMA) em que a startup esta matriculada.
+    id_programa    INTEGER     NOT NULL,
+    -- A etapa dentro dela: FASE ou PASSO. NULL = a trilha inteira.
+    id_no          INTEGER,
+
+    -- A ORIGEM, exatamente uma das duas.
+    id_material    INTEGER,
+    id_conteudo    INTEGER,
+
+    finalidade     VARCHAR(12) NOT NULL DEFAULT 'REFERENCIA',
+    -- Por que a startup recebeu isto. E o que transforma um anexo solto num
+    -- encaminhamento de mentoria.
+    orientacao     TEXT,
+
+    -- SET NULL: o material entregue sobrevive a conta de quem o entregou.
+    compartilhado_por INTEGER,
+    criado_ts      TIMESTAMP   NOT NULL DEFAULT NOW(),
+    atualizado_ts  TIMESTAMP   NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_mentor_compartilhamento PRIMARY KEY (id_compartilhamento),
+
+    CONSTRAINT fk_mentor_compartilhamento_tenant
+        FOREIGN KEY (id_tenant) REFERENCES tenant (id_tenant) ON DELETE CASCADE,
+
+    CONSTRAINT fk_mentor_compartilhamento_startup
+        FOREIGN KEY (id_startup) REFERENCES startup (id_startup) ON DELETE CASCADE,
+
+    -- Etapa ou trilha excluida no Construtor leva o vinculo junto, o mesmo
+    -- destino de `entrega` e `trilha_conteudo`.
+    CONSTRAINT fk_mentor_compartilhamento_programa
+        FOREIGN KEY (id_programa) REFERENCES trilha_no (id_no) ON DELETE CASCADE,
+
+    CONSTRAINT fk_mentor_compartilhamento_no
+        FOREIGN KEY (id_no) REFERENCES trilha_no (id_no) ON DELETE CASCADE,
+
+    -- Material pessoal compartilhado nao se exclui pela tela (409 no service);
+    -- o CASCADE so age quando a pessoa sai da incubadora com tudo o que e dela.
+    CONSTRAINT fk_mentor_compartilhamento_material
+        FOREIGN KEY (id_material) REFERENCES mentor_material (id_material) ON DELETE CASCADE,
+
+    -- O acervo e da incubadora: excluir o conteudo na Biblioteca leva os
+    -- vinculos junto (e a tela avisa quantos), em vez de deixa-los apontando
+    -- para o nada.
+    CONSTRAINT fk_mentor_compartilhamento_conteudo
+        FOREIGN KEY (id_conteudo) REFERENCES conteudo (id_conteudo) ON DELETE CASCADE,
+
+    CONSTRAINT fk_mentor_compartilhamento_autor
+        FOREIGN KEY (compartilhado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    CONSTRAINT ck_mentor_compartilhamento_origem
+        CHECK ((id_material IS NULL) <> (id_conteudo IS NULL)),
+
+    CONSTRAINT ck_mentor_compartilhamento_finalidade
+        CHECK (finalidade IN ('REFERENCIA', 'ATIVIDADE')),
+
+    -- Atividade e um PASSO que ja existe (o tipo o service confere): sem etapa
+    -- nao ha atividade.
+    CONSTRAINT ck_mentor_compartilhamento_atividade
+        CHECK (finalidade = 'REFERENCIA' OR id_no IS NOT NULL)
+);
+
+-- O que a Jornada le: "o que esta startup recebeu nesta trilha".
+CREATE INDEX IF NOT EXISTS ix_mentor_compartilhamento_startup
+    ON mentor_compartilhamento (id_startup, id_programa);
+
+-- O que o mentor le: "o que eu compartilhei", do mais novo ao mais velho.
+CREATE INDEX IF NOT EXISTS ix_mentor_compartilhamento_autor
+    ON mentor_compartilhamento (compartilhado_por, criado_ts DESC);
+
+-- As outras tres direcoes de FK: contar os usos de um material ou conteudo, e
+-- o CASCADE de quando a etapa some no Construtor.
+CREATE INDEX IF NOT EXISTS ix_mentor_compartilhamento_material
+    ON mentor_compartilhamento (id_material)
+    WHERE id_material IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_mentor_compartilhamento_conteudo
+    ON mentor_compartilhamento (id_conteudo)
+    WHERE id_conteudo IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_mentor_compartilhamento_no
+    ON mentor_compartilhamento (id_no)
+    WHERE id_no IS NOT NULL;
+
+-- O mesmo material no mesmo lugar da mesma startup, uma vez so. COALESCE porque
+-- NULL (a trilha inteira) nunca e igual a NULL num indice unico.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_mentor_compartilhamento_material
+    ON mentor_compartilhamento (id_startup, id_programa, COALESCE(id_no, 0), id_material)
+    WHERE id_material IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_mentor_compartilhamento_conteudo
+    ON mentor_compartilhamento (id_startup, id_programa, COALESCE(id_no, 0), id_conteudo)
+    WHERE id_conteudo IS NOT NULL;
+
+
+-- Materiais da INCUBADORA para os MENTORES (migracao 021): o guia do mentor, a
+-- rubrica de avaliacao, o modelo de relatorio de mentoria. Tabela propria, e
+-- nao um escopo em mentor_material, pelo mesmo motivo de tarefa_campo x
+-- startup_campo: misturar os dois donos obrigaria toda consulta da biblioteca
+-- pessoal a filtrar o escopo. E nao a Biblioteca (`conteudo`), que o incubado
+-- enxerga por padrao. Quem ve: `mentoria.materiais_incubadora.visualizar`.
+CREATE TABLE IF NOT EXISTS mentor_material_incubadora (
+    id_material    INTEGER GENERATED ALWAYS AS IDENTITY,
+    id_tenant      INTEGER      NOT NULL,
+
+    titulo         VARCHAR(200) NOT NULL,
+    descricao      TEXT,
+    -- Texto livre, como em mentor_material: agrupamento, sem codigo atras.
+    categoria      VARCHAR(60),
+
+    tipo           VARCHAR(10)  NOT NULL,
+    id_arquivo     UUID,
+    url            TEXT,
+
+    -- Arquivado = fora da vista dos mentores. Quem gerencia continua vendo.
+    arquivado_ts   TIMESTAMP,
+
+    -- Quem publicou e quem mexeu por ultimo. SET NULL: o material e da
+    -- incubadora, e sobrevive a conta de quem o cadastrou.
+    criado_por     INTEGER,
+    atualizado_por INTEGER,
+    criado_ts      TIMESTAMP    NOT NULL DEFAULT NOW(),
+    atualizado_ts  TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_mentor_material_incubadora PRIMARY KEY (id_material),
+
+    CONSTRAINT fk_mentor_material_incubadora_tenant
+        FOREIGN KEY (id_tenant) REFERENCES tenant (id_tenant) ON DELETE CASCADE,
+
+    -- Sem CASCADE, como em mentor_material: o arquivo em uso nao some por
+    -- baixo do material. Quem remove os bytes e o service.
+    CONSTRAINT fk_mentor_material_incubadora_arquivo
+        FOREIGN KEY (id_arquivo) REFERENCES arquivo (id_arquivo),
+
+    CONSTRAINT fk_mentor_material_incubadora_criado_por
+        FOREIGN KEY (criado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    CONSTRAINT fk_mentor_material_incubadora_atualizado_por
+        FOREIGN KEY (atualizado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    CONSTRAINT ck_mentor_material_incubadora_tipo
+        CHECK (tipo IN ('ARQUIVO', 'LINK')),
+
+    CONSTRAINT ck_mentor_material_incubadora_corpo CHECK (
+        (tipo = 'ARQUIVO' AND id_arquivo IS NOT NULL AND url IS NULL)
+        OR (tipo = 'LINK' AND id_arquivo IS NULL AND url IS NOT NULL AND url <> '')
+    )
+);
+
+-- A lista e sempre "os materiais desta incubadora", os ativos primeiro.
+CREATE INDEX IF NOT EXISTS ix_mentor_material_incubadora_tenant
+    ON mentor_material_incubadora (id_tenant, arquivado_ts);
+
+-- Um arquivo, um material — e a consulta da rota generica de arquivos.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_mentor_material_incubadora_arquivo
+    ON mentor_material_incubadora (id_arquivo)
+    WHERE id_arquivo IS NOT NULL;
 
 
 -- ===========================================================================

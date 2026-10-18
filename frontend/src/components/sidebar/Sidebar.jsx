@@ -9,15 +9,15 @@
  *
  * A logica de estado fica em useSidebar; aqui cuidamos so da apresentacao.
  */
-import { Drawer, Box, Toolbar, List, Typography, Divider } from "@mui/material"
-import { SIDEBAR_WIDTH, SIDEBAR_MINI_WIDTH } from "./menuConfig"
+import { Drawer, Box, List, Typography, Divider } from "@mui/material"
+import { SIDEBAR_WIDTH, SIDEBAR_MINI_WIDTH, SIDEBAR_TRANSICAO } from "./menuConfig"
 import SidebarItem from "./SidebarItem"
 import SidebarGroup from "./SidebarGroup"
 import SidebarSearch from "./SidebarSearch"
 import StartupSwitcher from "./StartupSwitcher"
 import SidebarSkeleton from "./SidebarSkeleton"
 
-export { SIDEBAR_WIDTH, SIDEBAR_MINI_WIDTH }
+export { SIDEBAR_WIDTH, SIDEBAR_MINI_WIDTH, SIDEBAR_TRANSICAO }
 
 // Rotulo de secao (Favoritos/Menu); some quando a Sidebar esta recolhida.
 function SecaoLabel({ children, recolhida }) {
@@ -55,8 +55,22 @@ export function SidebarConteudo({
   carregando = false,
   variante = "desktop",
 }) {
+  // Cabecalho fora do esqueleto: e o comeco da faixa preta do topo, e sumir
+  // com ele durante o carregamento quebraria a barra ao lado da Navbar.
+  const cabecalho = (
+    <StartupSwitcher
+      recolhida={recolhida}
+      onToggleSidebar={onToggleSidebar ?? (() => sidebar.setRecolhida(!recolhida))}
+    />
+  )
+
   if (carregando || !sidebar.usuario) {
-    return <SidebarSkeleton recolhida={recolhida} />
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        {cabecalho}
+        <SidebarSkeleton recolhida={recolhida} />
+      </Box>
+    )
   }
 
   const {
@@ -79,16 +93,8 @@ export function SidebarConteudo({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Cabecalho: startup atual / troca rapida. O logo (foguete) alterna a Sidebar. */}
-      <StartupSwitcher
-        recolhida={recolhida}
-        onToggleSidebar={onToggleSidebar ?? (() => setRecolhida(!recolhida))}
-      />
-      <Divider
-        sx={{
-          borderColor: (t) => (t.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.06)"),
-        }}
-      />
+      {/* Cabecalho: a marca e o botao que alterna a Sidebar. */}
+      {cabecalho}
 
       {/* Busca rapida */}
       <Box data-tour="sidebar-busca">
@@ -231,33 +237,26 @@ export default function Sidebar({
         display: { xs: "none", sm: "block" },
         width: largura,
         flexShrink: 0,
+        // A raiz e quem ocupa espaco no layout (o papel e fixo): sem animar a
+        // largura dela, o conteudo pulava de uma vez enquanto o papel ainda
+        // deslizava, cobrindo a pagina ao recolher e abrindo um vao ao expandir.
+        transition: (theme) => theme.transitions.create("width", SIDEBAR_TRANSICAO),
         "& .MuiDrawer-paper": {
           width: largura,
           boxSizing: "border-box",
           overflowX: "hidden",
           border: "none",
-          borderRight: (theme) =>
-            `1px solid ${theme.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.06)"}`,
+          borderRight: (theme) => `1px solid ${theme.palette.divider}`,
           bgcolor: "background.paper",
-          boxShadow: (theme) =>
-            theme.palette.mode === "dark"
-              ? "1px 0 0 rgba(255,255,255,0.02)"
-              : "1px 0 12px rgba(15,23,42,0.02)",
-          // Animacao suave de expandir/recolher (220ms, curva confortavel).
-          transition: (theme) =>
-            theme.transitions.create("width", {
-              easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-              duration: 220,
-            }),
+          transition: (theme) => theme.transitions.create("width", SIDEBAR_TRANSICAO),
         },
       }}
     >
-      <Toolbar
-        sx={{
-          minHeight: "5px !important",
-        }}
-      /> {/* espacador para ficar abaixo da Navbar fixa */}
-      <Box sx={{ height: "calc(100% - 64px)" }}>
+      {/* Sem espacador: o cabecalho da Sidebar fica na altura da Navbar, ao
+          lado dela, e nao embaixo. O miolo ja nasce na largura final e o papel
+          so o revela ou esconde: assim os rotulos nao vao se espremendo em
+          reticencias quadro a quadro durante a animacao. */}
+      <Box sx={{ height: "100%", width: largura, flexShrink: 0 }}>
         <SidebarConteudo
           sidebar={sidebar}
           recolhida={recolhida}

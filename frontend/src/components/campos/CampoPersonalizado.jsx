@@ -70,7 +70,12 @@ export function valorParaEnvio(campo, texto) {
   }
 }
 
-export default function CampoPersonalizado({ campo, valor, onChange, size = "small" }) {
+/**
+ * @param {string} [erro] - a mensagem de validacao do formulario que usa o
+ *   campo. Opcional: quem nao valida no cliente nao passa nada e o campo fica
+ *   como sempre foi.
+ */
+export default function CampoPersonalizado({ campo, valor, onChange, size = "small", erro }) {
   const config = campo.config || {}
 
   const comuns = {
@@ -78,7 +83,8 @@ export default function CampoPersonalizado({ campo, valor, onChange, size = "sma
     fullWidth: true,
     size,
     required: campo.obrigatorio,
-    helperText: campo.descricao || undefined,
+    error: Boolean(erro),
+    helperText: erro || campo.descricao || undefined,
   }
 
   if (campo.tipo === "CATEGORIA") {
@@ -151,6 +157,7 @@ export default function CampoPersonalizado({ campo, valor, onChange, size = "sma
         placeholder={mascara}
         inputProps={{ maxLength: mascara.length }}
         helperText={
+          erro ||
           campo.descricao ||
           (mascara ? `Formato: ${mascara} (${posicoesDaMascara(mascara)} caracteres).` : undefined)
         }

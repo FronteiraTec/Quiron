@@ -239,6 +239,17 @@ async function carregar(idArquivo, { idTenant } = {}) {
  * vinculo em `tarefa_anexo` — saber o UUID nao basta, e preciso enxergar a
  * tarefa em que ele esta.
  *
+ * O arquivo de um material do ESPACO DO MENTOR tambem nao, e aqui ele e
+ * recusado a quem nao o enviou — mesmo com a chave de entregas. A chave e do
+ * mentor avaliando entrega, e quem pode ler esses materiais e decidido pelo
+ * material: a biblioteca pessoal e privada para os outros mentores (migracao
+ * 020), e o material que a incubadora publica para os mentores segue a chave
+ * dele e sai de vista quando arquivado (migracao 021). Esse arquivo abre pelo
+ * material (GET /espaco-mentor/materiais/:id/arquivo e
+ * /espaco-mentor/incubadora/:id/arquivo) ou pelo compartilhamento
+ * (GET /jornada/materiais/:id/arquivo, quem tem vinculo com a startup que o
+ * recebeu).
+ *
  * @param {string} idArquivo
  * @param {{id:number, root?:boolean}|null} usuario - null quando nao autenticado.
  */
@@ -250,6 +261,9 @@ async function abrir(idArquivo, usuario) {
     if (!usuario) throw erroNegocio(401, "Autenticacao necessaria.")
     const ehDono = Number(arquivo.enviado_por) === Number(usuario.id)
     if (!ehDono && !usuario.root) {
+      if (await arquivoRepository.ehDoEspacoMentor(idArquivo)) {
+        throw erroNegocio(403, "Este arquivo so pode ser aberto pelo material a que pertence.")
+      }
       await rbacService.garantirPermissao(
         arquivo.id_tenant,
         usuario,
@@ -261,10 +275,46 @@ async function abrir(idArquivo, usuario) {
   return carregar(idArquivo)
 }
 
+/**
+ * Apaga um arquivo: o registro e os bytes.
+ *
+ * SO APAGA O QUE NINGUEM MAIS REFERENCIA. Desanexar de uma tarefa nao apaga o
+ * arquivo, porque ele pode estar em outro lugar — e e aqui que "outro lugar" e
+ * conferido, pelas FKs que apontam para `arquivo`. Havendo vinculo, nao faz
+ * nada e responde false: quem chamou continua certo de que o SEU vinculo saiu.
+ *
+ * Quem chama e o modulo que era dono do arquivo (hoje, o material da biblioteca
+ * pessoal do mentor, ao ser excluido ou ter o arquivo trocado). A rota publica
+ * de arquivos nao expoe exclusao.
+ *
+ * Os bytes saem DEPOIS do registro: se o disco falhar, sobra um arquivo sem
+ * registro — inacessivel e inofensivo —, e nunca um registro apontando para
+ * bytes que sumiram.
+ *
+ * @param {string} idArquivo
+ * @returns {Promise<boolean>} se o arquivo foi de fato apagado.
+ */
+async function remover(idArquivo) {
+  if (!idArquivo) return false
+  if ((await arquivoRepository.contarReferencias(idArquivo)) > 0) return false
+
+  const removido = await arquivoRepository.excluir(idArquivo)
+  if (!removido) return false
+
+  await fs.unlink(caminhoDe(removido.nome_armazenado)).catch((err) => {
+    // ENOENT: os bytes ja nao estavam la (volume recriado) — nada a avisar.
+    if (err.code !== "ENOENT") {
+      console.error(`[arquivo] registro ${idArquivo} removido, bytes nao:`, err.message)
+    }
+  })
+  return true
+}
+
 module.exports = {
   salvar,
   abrir,
   carregar,
+  remover,
   prepararDiretorio,
   UPLOAD_DIR,
   MAX_PRIVADO,

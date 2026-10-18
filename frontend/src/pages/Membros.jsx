@@ -381,7 +381,7 @@ export default function Membros() {
                   {
                     rotulo: "Abrir a startup",
                     icone: <OpenInNew fontSize="small" />,
-                    onClick: (m) => navigate(`/startups/${m.id_startup}`),
+                    onClick: (m) => navigate(`/startups/${m.startup_uuid}`),
                   },
                 ]}
               />

@@ -15,9 +15,12 @@
  * o que diz se a startup ainda esta no programa — sai da situacao escolhida, no
  * backend.
  *
+ * A tela abre por /startups/:uuid e fala com a API pelo mesmo UUID; as abas
+ * recebem o id_startup que veio na resposta.
+ *
  * Endpoints:
- *   GET   /startups/:id          -> dados + contatos + fase_atual/progresso_pct
- *   PATCH /startups/:id/situacao -> troca o status
+ *   GET   /startups/:uuid          -> dados + contatos + fase_atual/progresso_pct
+ *   PATCH /startups/:uuid/situacao -> troca o status
  */
 import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
@@ -60,7 +63,7 @@ import DrawerCadastroStartup from "../components/startup/DrawerCadastroStartup"
 import { useStartupConfigStore } from "../store/startupConfigStore"
 
 export default function StartupDetail() {
-  const { id } = useParams()
+  const { uuid } = useParams()
   const navigate = useNavigate()
 
   const situacoes = useStartupConfigStore((s) => s.situacoes) || []
@@ -79,7 +82,7 @@ export default function StartupDetail() {
   const carregar = async () => {
     setCarregando(true)
     try {
-      const { data } = await api.get(`/startups/${id}`)
+      const { data } = await api.get(`/startups/${uuid}`)
       setStartup(data.startup)
     } catch (err) {
       setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar a startup." })
@@ -91,13 +94,13 @@ export default function StartupDetail() {
   useEffect(() => {
     carregar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [uuid])
 
   const trocarSituacao = async (chave) => {
     setMenuAncora(null)
     setAviso(null)
     try {
-      await api.patch(`/startups/${id}/situacao`, { situacao: chave })
+      await api.patch(`/startups/${uuid}/situacao`, { situacao: chave })
       await carregar()
     } catch (err) {
       setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao alterar o status." })
@@ -226,7 +229,7 @@ export default function StartupDetail() {
           <Box data-tour="startup-conteudo" sx={{ p: 3 }}>
             {aba === "cadastro" && <AbaCadastro startup={startup} />}
             {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={startup.id_tenant} gestao={ehGestao} />}
-            {aba === "modelos" && <AbaModelos idStartup={startup.id_startup} />}
+            {aba === "modelos" && <AbaModelos idStartup={startup.id_startup} nomeStartup={startup.nome} />}
             {aba === "fases" && <AbaFasesConcluidas idStartup={startup.id_startup} />}
           </Box>
         </Paper>

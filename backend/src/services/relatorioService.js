@@ -111,6 +111,7 @@ async function progresso(idTenant, usuario) {
 
     return {
       id_startup: l.id_startup,
+      startup_uuid: l.startup_uuid,
       startup: l.startup,
       status: l.startup_status,
       fase_atual: l.fase_atual ?? null, // sem fase pendente = trilha concluida
@@ -191,6 +192,7 @@ async function entregas(idTenant, dias, usuario) {
   const filaNormalizada = fila.map((f) => ({
     id_entrega: f.id_entrega,
     id_startup: f.id_startup,
+    startup_uuid: f.startup_uuid,
     startup: f.startup,
     id_no: f.id_no,
     passo: f.passo,
@@ -394,6 +396,7 @@ async function engajamento(idTenant, dias, usuario) {
 
     return {
       id_startup: s.id_startup,
+      startup_uuid: s.startup_uuid,
       startup: s.startup,
       eventos_convidada: convidada,
       eventos_presente: presente,

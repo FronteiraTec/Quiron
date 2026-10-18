@@ -18,7 +18,7 @@
  *
  * Os dados vem da API (/jornada) via useJornada.
  */
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
   Box,
   Paper,
@@ -54,7 +54,11 @@ import ModulosGrid from "../components/jornada/ModulosGrid"
 import AtividadesSidebar from "../components/jornada/AtividadesSidebar"
 import PassoConteudo from "../components/jornada/PassoConteudo"
 import PassoImpacto from "../components/jornada/PassoImpacto"
+import MateriaisDoMentor from "../components/jornada/MateriaisDoMentor"
+import DialogMaterial from "../components/espacoMentor/DialogMaterial"
 import EmptyState from "../components/programa/EmptyState"
+import { useMateriaisRecebidos } from "../hooks/useEspacoMentor"
+import { agruparRecebidos } from "../data/espacoMentorMeta"
 
 const LARGURA_NAV = 300
 const LARGURA_IMPACTO = 320
@@ -70,6 +74,24 @@ export default function Jornada() {
   const [navAberta, setNavAberta] = useState(true) // recolher barra esquerda
   const [impactoAberto, setImpactoAberto] = useState(true) // recolher barra direita
   const [toast, setToast] = useState(null)
+
+  // Os materiais que os mentores entregaram a startup NESTA trilha (Espaco do
+  // Mentor). Carregam a parte da jornada: uma falha aqui nao pode travar a
+  // entrega do passo, entao o erro so faz a secao nao aparecer.
+  const recebidos = useMateriaisRecebidos({
+    idStartup: j.idStartup,
+    idTrilha: j.jornada.programa?.id ?? null,
+  })
+  const grupos = useMemo(() => agruparRecebidos(recebidos.materiais), [recebidos.materiais])
+  const [materialAberto, setMaterialAberto] = useState(null)
+
+  const dialogMaterial = (
+    <DialogMaterial
+      aberto={Boolean(materialAberto)}
+      item={materialAberto}
+      onFechar={() => setMaterialAberto(null)}
+    />
+  )
 
   const selecionar = (id) => {
     j.setSelecionadoId(id)
@@ -239,6 +261,13 @@ export default function Jornada() {
           )}
         </Paper>
 
+        <MateriaisDoMentor
+          titulo="Materiais do seu mentor"
+          descricao="O que os mentores separaram para a sua startup nesta trilha. Abra para ler a orientação de cada um."
+          materiais={recebidos.materiais}
+          onAbrir={setMaterialAberto}
+        />
+
         <Box data-tour="jornada-fases">
           <FasesGrid
             estagios={j.jornada.estagios}
@@ -247,6 +276,7 @@ export default function Jornada() {
             onSelecionar={j.selecionarFase}
           />
         </Box>
+        {dialogMaterial}
       </AppLayout>
     )
   }
@@ -296,9 +326,16 @@ export default function Jornada() {
           </Typography>
         </Paper>
 
+        <MateriaisDoMentor
+          titulo="Materiais do mentor para esta fase"
+          materiais={estagio ? grupos.porFase(estagio.id) : []}
+          onAbrir={setMaterialAberto}
+        />
+
         <Box data-tour="jornada-modulos">
           <ModulosGrid modulos={j.modulosDaFase} onSelecionar={j.selecionarModulo} />
         </Box>
+        {dialogMaterial}
       </AppLayout>
     )
   }
@@ -438,6 +475,8 @@ export default function Jornada() {
                 <PassoConteudo
                   passo={j.passo}
                   conteudos={j.conteudosDoPasso}
+                  materiaisMentor={grupos.doPasso(j.passo.id)}
+                  onAbrirMaterial={setMaterialAberto}
                   posicao={j.posicaoNoEstagio}
                   onSalvarRascunho={salvarRascunho}
                   onEnviar={enviar}
@@ -497,6 +536,8 @@ export default function Jornada() {
       >
         {nav}
       </Drawer>
+
+      {dialogMaterial}
 
       {/* Toast */}
       <Snackbar

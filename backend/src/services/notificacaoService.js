@@ -10,6 +10,7 @@
  *   mensagem interna  -> quem a mensagem alcancou (so se o autor pediu email)
  *   tarefa atribuida  -> o novo responsavel
  *   tarefa concluida  -> quem a criou
+ *   material compartilhado -> os membros ativos da startup que o recebeu
  *
  * DISPARO EM SEGUNDO PLANO. Todas as funcoes exportadas retornam imediatamente
  * e nunca lancam: notificar e efeito colateral do fato, nao parte dele. Um SMTP
@@ -430,6 +431,67 @@ function tarefaConcluida({ tarefa, idAutor }) {
   })
 }
 
+// ---------------------------------------------------------------------------
+// MATERIAL COMPARTILHADO -> os membros da startup
+// ---------------------------------------------------------------------------
+
+/**
+ * Avisa a startup de que um mentor lhe entregou um material (Espaco do
+ * Mentor, migracao 020).
+ *
+ * Vai para todos os membros ativos, como a devolutiva: o material e da
+ * startup, nao de quem por acaso estava logado. A ORIENTACAO e o conteudo util
+ * do aviso — e ela que diz por que a startup recebeu aquilo —, e por isso vem
+ * no corpo, e nao so na tela.
+ *
+ * @param {object} compartilhamento - linha de mentorCompartilhamentoRepository
+ *   (titulo, startup_nome, caminho da etapa, autor e orientacao ja resolvidos).
+ */
+function materialCompartilhado(compartilhamento) {
+  emSegundoPlano(`compartilhamento=${compartilhamento?.id_compartilhamento}`, async () => {
+    const membros = await startupRepository.listarMembros(compartilhamento.id_startup)
+    const destinatarios = emails(membros)
+    if (destinatarios.length === 0) return
+
+    const autor = compartilhamento.compartilhado_por_nome
+    const titulo = escapar(compartilhamento.titulo)
+    const lugar = [
+      compartilhamento.programa_nome,
+      compartilhamento.fase_nome,
+      compartilhamento.etapa_tipo === "PASSO" ? compartilhamento.etapa_nome : null,
+    ]
+      .filter(Boolean)
+      .map(escapar)
+      .join(" &rsaquo; ")
+    const orientacao = (compartilhamento.orientacao || "").trim()
+
+    await enviarEmail({
+      para: destinatarios,
+      assunto: `Novo material do seu mentor: ${compartilhamento.titulo}`,
+      remetente: await resolverRemetente(compartilhamento.id_tenant),
+      html: layout({
+        titulo: "Voce recebeu um material",
+        paragrafos: [
+          (autor ? `<strong>${escapar(autor)}</strong> compartilhou` : "Um mentor compartilhou") +
+            ` <strong>${titulo}</strong> com a ${escapar(compartilhamento.startup_nome)}.`,
+          `Onde encontrar: ${lugar}.`,
+          compartilhamento.finalidade === "ATIVIDADE"
+            ? "Ele e o material de apoio de uma atividade da trilha."
+            : "",
+          orientacao
+            ? `<blockquote style="border-left:3px solid #e5e7eb;margin:16px 0;
+                                  padding:4px 0 4px 12px;color:#4b5563;">
+                 ${escapar(orientacao).replace(/\n/g, "<br>")}
+               </blockquote>`
+            : "",
+        ].filter(Boolean),
+        acao: { texto: "Ver na jornada", url: `${FRONTEND_URL}/jornada` },
+        rodape: "Voce recebeu este aviso porque e membro desta startup no Quiron.",
+      }),
+    })
+  })
+}
+
 module.exports = {
   entregaEnviada,
   entregaAvaliada,
@@ -438,4 +500,5 @@ module.exports = {
   mensagemEnviada,
   tarefaAtribuida,
   tarefaConcluida,
+  materialCompartilhado,
 }

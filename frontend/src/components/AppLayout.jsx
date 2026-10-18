@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react"
 import { Box, Toolbar, useTheme, useMediaQuery } from "@mui/material"
 import Navbar from "./Navbar"
-import Sidebar, { SIDEBAR_WIDTH, SIDEBAR_MINI_WIDTH } from "./sidebar/Sidebar"
+import Sidebar, { SIDEBAR_WIDTH, SIDEBAR_MINI_WIDTH, SIDEBAR_TRANSICAO } from "./sidebar/Sidebar"
 import SidebarMobile from "./sidebar/SidebarMobile"
 import { useSidebar } from "../hooks/useSidebar"
 import { useAuthStore } from "../store/authStore"
@@ -129,11 +129,7 @@ export default function AppLayout({ children, fullBleed = false }) {
           p: fullBleed ? 0 : 3,
           width: { sm: `calc(100% - ${largura}px)` },
           ...(fullBleed && { height: "100vh", display: "flex", flexDirection: "column" }),
-          transition: (t) =>
-            t.transitions.create("width", {
-              easing: t.transitions.easing.easeInOut,
-              duration: t.transitions.duration.enteringScreen,
-            }),
+          transition: (t) => t.transitions.create("width", SIDEBAR_TRANSICAO),
         }}
       >
         <Toolbar sx={{ flexShrink: 0 }} /> {/* espacador para o conteudo ficar abaixo da Navbar fixa */}

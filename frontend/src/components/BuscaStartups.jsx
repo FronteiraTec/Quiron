@@ -8,7 +8,7 @@
  *     startup em "Minha Startup"; o root nao opera dentro de um tenant).
  *
  * O backend ja devolve a lista restrita; aqui apenas escondemos o campo de
- * quem nao tem o que buscar. Selecionar um item leva a /startups/:id.
+ * quem nao tem o que buscar. Selecionar um item leva a /startups/:uuid.
  */
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -26,12 +26,14 @@ import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
 import { resolverPapel } from "./sidebar/menuConfig"
 
-// Campo de busca estilizado (do exemplo do MUI), sobre a AppBar colorida.
+// Campo de busca estilizado (do exemplo do MUI), sobre a AppBar colorida. O
+// veu sai da cor do texto da barra (palette.barra): sobre uma barra clara (o
+// lima, com texto preto) um veu branco sumiria.
 const Search = styled("div")(({ theme }) => ({
   position: "relative",
   borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(theme.palette.common.white, 0.15),
-  "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.25) },
+  backgroundColor: alpha(theme.palette.barra.texto, 0.1),
+  "&:hover": { backgroundColor: alpha(theme.palette.barra.texto, 0.16) },
   marginRight: theme.spacing(2),
   marginLeft: 0,
   width: "100%",
@@ -113,7 +115,7 @@ export default function BuscaStartups() {
       onChange={(_, startup) => {
         if (!startup) return
         setTexto("")
-        navigate(`/startups/${startup.id_startup}`)
+        navigate(`/startups/${startup.uuid}`)
       }}
       getOptionLabel={(s) => s.nome || ""}
       isOptionEqualToValue={(s, v) => s.id_startup === v.id_startup}

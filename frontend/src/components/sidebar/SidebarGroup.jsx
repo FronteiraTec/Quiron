@@ -62,9 +62,8 @@ export default function SidebarGroup({
         borderRadius: "10px",
         mx: 1.5,
         my: 0.375,
-        pl: recolhida ? 1.5 : 1.75,
+        pl: 2, // icone no mesmo x nos dois modos, como no SidebarItem
         pr: 1.25,
-        justifyContent: recolhida ? "center" : "flex-start",
         transition: "background-color 180ms ease, color 180ms ease",
         "&:hover": { bgcolor: "action.hover" },
         "& .MuiListItemIcon-root": {

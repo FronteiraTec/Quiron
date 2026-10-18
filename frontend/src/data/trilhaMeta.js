@@ -51,20 +51,6 @@ export const TIPO_META = {
 }
 
 /**
- * O Construtor mostra a trilha so ate a FASE: dentro dela vao os materiais, e
- * nao modulos e passos. O banco continua com os quatro niveis — a fase guarda
- * o material num modulo e num passo "Materiais" criados pelo servidor, que e o
- * que a Jornada, as entregas e os relatorios leem (ver /trilha/:id/materiais).
- */
-export const ULTIMO_NIVEL_CONSTRUTOR = "FASE"
-
-/** O filho que o Construtor deixa criar num no (null na fase e abaixo). */
-export function filhoNoConstrutor(tipo) {
-  if (tipo === ULTIMO_NIVEL_CONSTRUTOR) return null
-  return TIPO_META[tipo]?.childTipo ?? null
-}
-
-/**
  * Tipos de PASSO (o que a startup faz nele). Espelha o enum tarefaTipo.
  */
 export const TIPOS_PASSO = [
