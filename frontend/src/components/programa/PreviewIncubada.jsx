@@ -42,6 +42,7 @@ import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
 import PlayerYoutube from "../biblioteca/PlayerYoutube"
 import { ehYoutube } from "../../utils/youtube"
 import api from "../../services/api"
+import { abrirArquivo, ehArquivoDaApi } from "../../services/arquivos"
 
 export default function PreviewIncubada({ programa, onFechar }) {
   // Apenas conteudo ativo — assim a incubadora ve exatamente o que a startup ve.
@@ -446,7 +447,22 @@ export default function PreviewIncubada({ programa, onFechar }) {
                           </Box>
                         )
                         return c.url ? (
-                          <Link key={c.id_conteudo} href={c.url} target="_blank" rel="noopener" underline="none">
+                          <Link
+                            key={c.id_conteudo}
+                            href={c.url}
+                            target="_blank"
+                            rel="noopener"
+                            underline="none"
+                            onClick={(e) => {
+                              // Arquivo enviado e PRIVADO: precisa do token,
+                              // que um <a href> nao manda.
+                              if (!ehArquivoDaApi(c.url)) return
+                              e.preventDefault()
+                              abrirArquivo(c.url, c.nome_arquivo || c.titulo).catch((err) =>
+                                window.alert(err.message)
+                              )
+                            }}
+                          >
                             {card}
                           </Link>
                         ) : (

@@ -11,6 +11,7 @@
  * quinas arredondadas umas dentro das outras e quebra o ritmo vertical.
  */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import {
   Box,
   Typography,
@@ -43,6 +44,7 @@ import {
   CircleOutlined,
   FormatListNumbered,
   CoPresent,
+  Quiz,
 } from "@mui/icons-material"
 import { motion } from "framer-motion"
 import StatusPasso from "./StatusPasso"
@@ -55,6 +57,7 @@ import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
 import {
   enviarArquivo,
   abrirArquivo,
+  ehArquivoDaApi,
   anexoAcessivel,
   parseAnexo,
   formatarTamanho,
@@ -103,6 +106,7 @@ export default function PassoConteudo({
   temProximo,
 }) {
   const theme = useTheme()
+  const navigate = useNavigate()
   const raio = raioPlano(theme)
   const [resposta, setResposta] = useState(passo.entrega.resposta || "")
   // `entrega.anexos` e TEXT[]: cada item pode chegar como objeto, como JSON em
@@ -123,6 +127,9 @@ export default function PassoConteudo({
   const status = passo.entrega.status
   const editavel = EDITAVEL.includes(status)
   const ehAnexo = passo.entrega.tipo === "ANEXO"
+  // O questionario nao se responde aqui: tem tela propria, que monta as
+  // perguntas e grava a entrega junto com as respostas.
+  const ehQuestionario = passo.entrega.tipo === "QUESTIONARIO"
   const podeEnviar = useMemo(
     () => editavel && (anexos.length > 0 || resposta.trim().length > 0),
     [editavel, anexos, resposta]
@@ -317,7 +324,34 @@ export default function PassoConteudo({
           </Alert>
         )}
 
-        {ehAnexo ? (
+        {ehQuestionario ? (
+          !passo.id_questionario ? (
+            <Alert severity="info" variant="outlined" sx={{ borderRadius: raio }}>
+              A incubadora ainda não definiu o questionário deste passo.
+            </Alert>
+          ) : editavel ? (
+            <Box>
+              <Texto sx={{ fontSize: 15, mb: 2 }}>
+                Este passo é respondido por um questionário. As respostas vão direto para
+                avaliação do mentor.
+              </Texto>
+              <Button
+                variant="contained"
+                disableElevation
+                startIcon={<Quiz />}
+                onClick={() =>
+                  navigate(
+                    `/passos/${passo.id}/responder?questionario=${passo.id_questionario}`,
+                    { state: { passo: passo.titulo } }
+                  )
+                }
+                sx={{ textTransform: "none", borderRadius: raio, fontWeight: 600 }}
+              >
+                {status === "AJUSTE" ? "Responder novamente" : "Responder questionário"}
+              </Button>
+            </Box>
+          ) : null
+        ) : ehAnexo ? (
           <Box
             onClick={abrirSeletor}
             onDragOver={(e) => e.preventDefault()}
@@ -382,7 +416,7 @@ export default function PassoConteudo({
         />
 
         {/* Anexar PDF em qualquer passo (nao so nos do tipo anexo) */}
-        {editavel && !ehAnexo && (
+        {editavel && !ehAnexo && !ehQuestionario && (
           <Button
             variant="text"
             disableElevation
@@ -482,7 +516,7 @@ export default function PassoConteudo({
         )}
 
         {/* Acoes de entrega */}
-        {editavel && (
+        {editavel && !ehQuestionario && (
           <Box sx={{ display: "flex", gap: 1, mt: 2.5, flexWrap: "wrap" }}>
             <Button
               variant="outlined"
@@ -642,6 +676,7 @@ function ConteudoEnsinado({ conteudo }) {
   const raio = raioPlano(theme)
   const meta = TIPO_CONTEUDO[conteudo.tipo]
   const Icone = meta.icon
+  const [erroAbrir, setErroAbrir] = useState("")
 
   if (conteudo.tipo === "AULA") {
     // Sem moldura: a aula E o corpo da pagina. A caixa com cabecalho tingido
@@ -747,12 +782,32 @@ function ConteudoEnsinado({ conteudo }) {
     </Box>
   )
 
-  return conteudo.url ? (
-    <Link href={conteudo.url} target="_blank" rel="noopener" underline="none">
-      {linha}
-    </Link>
-  ) : (
-    linha
+  // O arquivo que a incubadora enviou para o MATERIAL/TEMPLATE e PRIVADO: o
+  // link cru abriria uma aba com 401, porque <a href> nao manda o token.
+  const abrir = async (e) => {
+    if (!ehArquivoDaApi(conteudo.url)) return
+    e.preventDefault()
+    setErroAbrir("")
+    try {
+      await abrirArquivo(conteudo.url, conteudo.nome_arquivo || conteudo.titulo)
+    } catch (err) {
+      setErroAbrir(err.message)
+    }
+  }
+
+  if (!conteudo.url) return linha
+
+  return (
+    <>
+      <Link href={conteudo.url} target="_blank" rel="noopener" underline="none" onClick={abrir}>
+        {linha}
+      </Link>
+      {erroAbrir && (
+        <Typography variant="caption" color="error" sx={{ display: "block", mt: 0.5 }}>
+          {erroAbrir}
+        </Typography>
+      )}
+    </>
   )
 }
 

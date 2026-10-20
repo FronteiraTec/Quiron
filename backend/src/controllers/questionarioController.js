@@ -32,6 +32,20 @@ async function criar(req, res, next) {
   }
 }
 
+async function atualizar(req, res, next) {
+  try {
+    const { titulo, descricao, prova, perguntas } = req.body
+    const questionario = await questionarioService.atualizar(
+      req.params.id,
+      { titulo, descricao, prova, perguntas },
+      req.usuario
+    )
+    res.json({ questionario })
+  } catch (err) {
+    next(err)
+  }
+}
+
 async function alternarAtivo(req, res, next) {
   try {
     const questionario = await questionarioService.alternarAtivo(
@@ -45,4 +59,4 @@ async function alternarAtivo(req, res, next) {
   }
 }
 
-module.exports = { listar, buscar, criar, alternarAtivo }
+module.exports = { listar, buscar, criar, atualizar, alternarAtivo }

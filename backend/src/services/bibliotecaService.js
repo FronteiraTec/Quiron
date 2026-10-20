@@ -6,6 +6,7 @@
  * aqui que essa exigencia e verificada antes de chegar ao banco.
  */
 const bibliotecaRepository = require("../repositories/bibliotecaRepository")
+const arquivoRepository = require("../repositories/arquivoRepository")
 const rbacService = require("./rbacService")
 const { validarDocumento } = require("./documentoAula")
 const { erroNegocio } = require("../utils/erros")
@@ -44,6 +45,10 @@ const LOGO_HTTP = /^https?:\/\//
  * <img src> carrega de OUTRA origem (endereco de protocolo relativo).
  */
 const LOGO_CAMINHO_API = /^\/(?!\/)/
+
+// A url de um MATERIAL/TEMPLATE cujo arquivo subiu para a propria plataforma.
+const URL_ARQUIVO = /^\/api\/arquivos\//
+const URL_ARQUIVO_UUID = /^\/api\/arquivos\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
 
 // ---------------------------------------------------------------------------
 // Autorizacao: quem tem a chave, como na trilha. O tenant das operacoes sobre
@@ -100,6 +105,7 @@ async function criar(dados, usuario) {
   if (!titulo || !titulo.trim()) throw erroNegocio(400, "Informe o titulo.")
 
   validarCorpo(tipo, dados)
+  if (dados.url) await validarArquivoDoConteudo(dados.url, idTenant, usuario)
   if (dados.blocos !== undefined) validarBlocos(tipo, dados.blocos)
   if (dados.documento !== undefined) validarDocumento(tipo, dados.documento)
   if (dados.tags !== undefined) validarTags(dados.tags)
@@ -119,6 +125,13 @@ async function atualizar(id, patch, usuario) {
   // A validacao de corpo considera o estado resultante do merge: trocar so a
   // url de um LINK nao pode passar batido por o patch nao trazer o tipo.
   validarCorpo(atual.tipo, { ...atual, ...patch })
+
+  // So quando a url MUDA: o editor manda a url em todo salvamento, e quem so
+  // corrige o titulo de um material que outra pessoa enviou nao pode ser
+  // barrado por nao ser o dono do arquivo.
+  if (patch.url && patch.url !== atual.url) {
+    await validarArquivoDoConteudo(patch.url, atual.id_tenant, usuario)
+  }
 
   if (patch.blocos !== undefined) validarBlocos(atual.tipo, patch.blocos)
   if (patch.documento !== undefined) validarDocumento(atual.tipo, patch.documento)
@@ -165,6 +178,31 @@ function validarCorpo(tipo, dados) {
     if (!url || !String(url).trim()) {
       throw erroNegocio(400, `Um conteudo do tipo ${tipo} precisa de uma url.`)
     }
+  }
+}
+
+/**
+ * Uma url que aponta para um arquivo da propria plataforma.
+ *
+ * O arquivo que vira corpo de um conteudo passa a abrir para quem ve a
+ * Biblioteca — todo incubado (ver arquivoService.abrir). Sem esta checagem,
+ * colar aqui o caminho do anexo de uma entrega publicaria o plano de negocio
+ * de uma startup para as outras. Por isso: o arquivo tem de ser desta
+ * incubadora e ter sido enviado por quem esta editando.
+ */
+async function validarArquivoDoConteudo(url, idTenant, usuario) {
+  if (!URL_ARQUIVO.test(String(url))) return
+
+  const [, idArquivo] = String(url).match(URL_ARQUIVO_UUID) || []
+  const arquivo = idArquivo && (await arquivoRepository.buscarPorId(idArquivo))
+  if (!arquivo || Number(arquivo.id_tenant) !== Number(idTenant)) {
+    throw erroNegocio(400, "Arquivo nao encontrado nesta incubadora.")
+  }
+  if (!usuario?.root && Number(arquivo.enviado_por) !== Number(usuario?.id)) {
+    throw erroNegocio(403, "Envie o arquivo pelo proprio conteudo para anexa-lo.")
+  }
+  if (await arquivoRepository.ehDoEspacoMentor(idArquivo)) {
+    throw erroNegocio(400, "Este arquivo pertence a um material do Espaco do Mentor.")
   }
 }
 

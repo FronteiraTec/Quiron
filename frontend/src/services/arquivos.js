@@ -57,6 +57,17 @@ export async function abrirArquivo(url, nome) {
 }
 
 /**
+ * A url e de um arquivo servido pela propria API (POST /arquivos)?
+ *
+ * Esse caminho e relativo e, quando o arquivo e PRIVADO, exige token: num
+ * `<a href>` ele abre uma aba com 401. Quem mostra uma url que pode ser assim
+ * (o MATERIAL/TEMPLATE da Biblioteca) pergunta aqui e abre por `abrirArquivo`.
+ */
+export function ehArquivoDaApi(url) {
+  return /^\/api\/arquivos\//.test(url || "")
+}
+
+/**
  * Os bytes de um arquivo privado, com o token — para quem desenha o arquivo
  * na propria tela (o visualizador do Espaco do Mentor) em vez de abri-lo numa
  * aba.

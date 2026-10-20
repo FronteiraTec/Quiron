@@ -10,9 +10,9 @@
  * rolagem e a da propria coluna, com o cabecalho e as acoes fixos nas pontas.
  *
  * SERVE PARA CRIAR E PARA EDITAR. A unica diferenca e a TRILHA, que so aparece
- * no cadastro novo: matricular uma startup ja existente em outra trilha e
- * assunto do Construtor de Programa, nao de um campo escondido no meio do
- * endereco.
+ * no cadastro novo: as trilhas de uma startup ja existente se ligam e desligam
+ * na acao "Trilhas habilitadas" da listagem (DialogTrilhasStartup) ou no
+ * Construtor de Programa, nao num campo escondido no meio do endereco.
  *
  * Endpoints:
  *   POST /startups     -> cria

@@ -9,9 +9,16 @@
  *     de Usuarios — POST /tenants/:id/usuarios e, em seguida,
  *     POST /startups/:id/membros.
  * Os dois exigem o admin no backend, por isso ficam fora da MinhaStartup.
+ *
+ * Com `somenteLeitura` (MinhaStartup), a aba so mostra a equipe: sem
+ * adicionar, sem remover. O papel Colaborador nao tem
+ * startups.membros.adicionar/remover, entao os botoes so levariam a um 403.
+ *
+ * Em qualquer modo, clicar num membro abre o perfil dele (somente leitura).
  */
 import { useEffect, useMemo, useState } from "react"
 import {
+  Avatar,
   Box,
   Button,
   Chip,
@@ -28,29 +35,33 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material"
-import { Add, Delete, LinkOff, PersonAddAlt1 } from "@mui/icons-material"
+import { Add, CalendarMonth, Delete, Email, LinkOff, PersonAddAlt1, Phone, Visibility } from "@mui/icons-material"
 import api from "../../services/api"
 import TabelaDados from "../tabela/TabelaDados"
 import CampoSenhaProvisoria from "../CampoSenhaProvisoria"
-import { celularValido, mascararCelular, MAX_CELULAR, somenteDigitos } from "../../utils/mascaras"
+import { celularValido, formatarCelular, mascararCelular, MAX_CELULAR, somenteDigitos } from "../../utils/mascaras"
 import { SITUACAO_ATIVO } from "../mentores/vocabulario"
+import { dataDiaBR } from "../engajamento/vocabulario"
 
-export default function AbaMembros({ idStartup, idTenant, gestao = false }) {
+export default function AbaMembros({ idStartup, idTenant, gestao = false, somenteLeitura = false }) {
   const [membros, setMembros] = useState([])
   const [usuarios, setUsuarios] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [aviso, setAviso] = useState(null)
   const [dialogAberto, setDialogAberto] = useState(false)
+  const [perfil, setPerfil] = useState(null)
 
   const carregar = async () => {
     setCarregando(true)
     try {
+      // A lista de usuarios do tenant so alimenta o "Adicionar membro" — e o
+      // incubado nem tem acesso a ela.
       const [membrosRes, usuariosRes] = await Promise.all([
         api.get(`/startups/${idStartup}/membros`),
-        api.get(`/tenants/${idTenant}/usuarios`),
+        somenteLeitura ? null : api.get(`/tenants/${idTenant}/usuarios`),
       ])
       setMembros(membrosRes.data.membros)
-      setUsuarios(usuariosRes.data.usuarios.filter((u) => u.ativo))
+      if (usuariosRes) setUsuarios(usuariosRes.data.usuarios.filter((u) => u.ativo))
     } catch (err) {
       setAviso({ tipo: "error", texto: err.response?.data?.erro || "Erro ao carregar os membros." })
     } finally {
@@ -78,7 +89,23 @@ export default function AbaMembros({ idStartup, idTenant, gestao = false }) {
 
   const colunas = useMemo(
     () => [
-      { chave: "nome", rotulo: "Nome", obrigatoria: true, largura: 220 },
+      {
+        chave: "nome",
+        rotulo: "Nome",
+        obrigatoria: true,
+        largura: 220,
+        valorTexto: (m) => m.nome,
+        render: (m) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Avatar src={m.foto_url || undefined} sx={{ width: 32, height: 32, fontSize: 14, bgcolor: "primary.main" }}>
+              {m.nome?.charAt(0).toUpperCase()}
+            </Avatar>
+            <Typography variant="body2" noWrap>
+              {m.nome}
+            </Typography>
+          </Box>
+        ),
+      },
       { chave: "email", rotulo: "E-mail", largura: 240 },
       {
         chave: "lider",
@@ -102,8 +129,10 @@ export default function AbaMembros({ idStartup, idTenant, gestao = false }) {
         alinhamento: "center",
         largura: 130,
         valorOrdenacao: (m) => m.entrada_dt,
-        valorTexto: (m) => (m.entrada_dt ? new Date(m.entrada_dt).toLocaleDateString("pt-BR") : ""),
-        render: (m) => (m.entrada_dt ? new Date(m.entrada_dt).toLocaleDateString("pt-BR") : "—"),
+        // entrada_dt e DATE: dataDiaBR le o dia gravado, sem converter fuso
+        // (o toLocaleDateString mostrava um dia a menos em UTC-3).
+        valorTexto: (m) => dataDiaBR(m.entrada_dt),
+        render: (m) => dataDiaBR(m.entrada_dt) || "—",
       },
     ],
     []
@@ -118,18 +147,22 @@ export default function AbaMembros({ idStartup, idTenant, gestao = false }) {
           {aviso.texto}
         </Alert>
       )}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-        {gestao ? (
-          <Typography variant="subtitle1" fontWeight={700}>
-            Equipe
-          </Typography>
-        ) : (
-          <span />
-        )}
-        <Button variant="contained" startIcon={<Add />} onClick={() => setDialogAberto(true)}>
-          Adicionar membro
-        </Button>
-      </Box>
+      {(gestao || !somenteLeitura) && (
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+          {gestao ? (
+            <Typography variant="subtitle1" fontWeight={700}>
+              Equipe
+            </Typography>
+          ) : (
+            <span />
+          )}
+          {!somenteLeitura && (
+            <Button variant="contained" startIcon={<Add />} onClick={() => setDialogAberto(true)}>
+              Adicionar membro
+            </Button>
+          )}
+        </Box>
+      )}
 
       <TabelaDados
         dados={membros}
@@ -140,31 +173,108 @@ export default function AbaMembros({ idStartup, idTenant, gestao = false }) {
         carregando={carregando}
         larguraMinima={680}
         mensagemVazio="Nenhum membro cadastrado ainda."
-        larguraAcoes={56}
+        larguraAcoes={somenteLeitura ? 56 : 88}
+        onClickLinha={setPerfil}
         acoes={[
           {
-            rotulo: "Remover",
-            icone: <Delete fontSize="small" />,
-            cor: "error.main",
-            onClick: (m) => remover(m.id_usuario),
+            rotulo: "Ver perfil",
+            icone: <Visibility fontSize="small" />,
+            onClick: setPerfil,
           },
+          ...(somenteLeitura
+            ? []
+            : [
+                {
+                  rotulo: "Remover",
+                  icone: <Delete fontSize="small" />,
+                  cor: "error.main",
+                  onClick: (m) => remover(m.id_usuario),
+                },
+              ]),
         ]}
       />
 
-      <DialogAdicionarMembro
-        aberto={dialogAberto}
-        onFechar={() => setDialogAberto(false)}
-        idStartup={idStartup}
-        idTenant={idTenant}
-        usuarios={usuarios}
-        idsMembros={idsMembros}
-        podeCadastrar={gestao}
-        onAdicionado={async () => {
-          setDialogAberto(false)
-          await carregar()
-        }}
-      />
+      <DialogPerfilMembro membro={perfil} onFechar={() => setPerfil(null)} />
+
+      {!somenteLeitura && (
+        <DialogAdicionarMembro
+          aberto={dialogAberto}
+          onFechar={() => setDialogAberto(false)}
+          idStartup={idStartup}
+          idTenant={idTenant}
+          usuarios={usuarios}
+          idsMembros={idsMembros}
+          podeCadastrar={gestao}
+          onAdicionado={async () => {
+            setDialogAberto(false)
+            await carregar()
+          }}
+        />
+      )}
     </>
+  )
+}
+
+/**
+ * O perfil de um membro, so para ver: foto, papel na equipe e como falar com
+ * ele. Editar a pessoa continua sendo na tela de Usuarios (admin) ou no
+ * proprio Perfil (o dono).
+ */
+function DialogPerfilMembro({ membro, onFechar }) {
+  return (
+    <Dialog open={Boolean(membro)} onClose={onFechar} maxWidth="xs" fullWidth>
+      {membro && (
+        <>
+          <DialogContent sx={{ pt: 4, textAlign: "center" }}>
+            <Avatar
+              src={membro.foto_url || undefined}
+              sx={{ width: 96, height: 96, fontSize: 36, bgcolor: "primary.main", mx: "auto", mb: 1.5 }}
+            >
+              {membro.nome?.charAt(0).toUpperCase()}
+            </Avatar>
+            <Typography variant="h6" fontWeight={700}>
+              {membro.nome}
+            </Typography>
+            <Chip
+              size="small"
+              label={membro.lider ? "Líder" : "Membro"}
+              color={membro.lider ? "primary" : "default"}
+              sx={{ mt: 0.5, mb: 2.5 }}
+            />
+
+            <Box sx={{ display: "grid", gap: 1.25, textAlign: "left" }}>
+              <LinhaPerfil icone={<Email fontSize="small" />}>
+                <a href={`mailto:${membro.email}`} style={{ color: "inherit" }}>
+                  {membro.email}
+                </a>
+              </LinhaPerfil>
+              {membro.celular && (
+                <LinhaPerfil icone={<Phone fontSize="small" />}>{formatarCelular(membro.celular)}</LinhaPerfil>
+              )}
+              {membro.entrada_dt && (
+                <LinhaPerfil icone={<CalendarMonth fontSize="small" />}>
+                  Na equipe desde {dataDiaBR(membro.entrada_dt)}
+                </LinhaPerfil>
+              )}
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={onFechar}>Fechar</Button>
+          </DialogActions>
+        </>
+      )}
+    </Dialog>
+  )
+}
+
+function LinhaPerfil({ icone, children }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary", minWidth: 0 }}>
+      {icone}
+      <Typography variant="body2" sx={{ color: "text.primary", overflowWrap: "anywhere" }}>
+        {children}
+      </Typography>
+    </Box>
   )
 }
 

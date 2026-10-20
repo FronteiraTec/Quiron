@@ -169,6 +169,55 @@ describe("pela borda HTTP", () => {
     })
   })
 
+  describe("edicao antes de alguem responder", () => {
+    let idEditavel
+
+    before(async () => {
+      const r = await criarProva(PERGUNTAS)
+      idEditavel = r.corpo.questionario.id_questionario
+    })
+
+    test("o admin troca perguntas, modo e titulo", async () => {
+      const r = await req(api.url, `/questionarios/${idEditavel}`, {
+        metodo: "PUT",
+        token: c.adminA.token,
+        corpo: {
+          titulo: "Pesquisa revista",
+          descricao: "Agora e formulario",
+          prova: false,
+          perguntas: [{ pergunta: "Comente a etapa", tipo: "PARAGRAFO" }],
+        },
+      })
+      assert.equal(r.status, 200, JSON.stringify(r.corpo))
+      const lido = await req(api.url, `/questionarios/${idEditavel}`, { token: c.adminA.token })
+      assert.equal(lido.corpo.questionario.titulo, "Pesquisa revista")
+      assert.equal(lido.corpo.questionario.prova, false)
+      assert.equal(lido.corpo.questionario.respondido, false)
+      assert.deepEqual(
+        lido.corpo.questionario.perguntas.map((p) => [p.pergunta, p.tipo]),
+        [["Comente a etapa", "PARAGRAFO"]]
+      )
+    })
+
+    test("a edicao valida como a criacao", async () => {
+      const r = await req(api.url, `/questionarios/${idEditavel}`, {
+        metodo: "PUT",
+        token: c.adminA.token,
+        corpo: { titulo: "X", descricao: "Y", prova: true, perguntas: [{ pergunta: "Livre", tipo: "PARAGRAFO" }] },
+      })
+      assert.equal(r.status, 400)
+    })
+
+    test("o incubado nao edita", async () => {
+      const r = await req(api.url, `/questionarios/${idEditavel}`, {
+        metodo: "PUT",
+        token: c.colaboradorA.token,
+        corpo: { titulo: "Invadido", descricao: "Y" },
+      })
+      assert.equal(r.status, 403)
+    })
+  })
+
   describe("3 · o gabarito fica com quem avalia", () => {
     before(async () => {
       const trilhaRepository = require("../src/repositories/trilhaRepository")
@@ -232,6 +281,28 @@ describe("pela borda HTTP", () => {
       assert.equal(d.status, 200, JSON.stringify(d.corpo))
       assert.equal(d.corpo.entrega.resultado.acertos, 1)
       assert.deepEqual(d.corpo.entrega.resultado.perguntas[1].gabarito, ["Proposta de valor", "Fontes de receita"])
+    })
+
+    test("depois de respondida, a prova so muda titulo e descricao", async () => {
+      const trocar = await req(api.url, `/questionarios/${idProva}`, {
+        metodo: "PUT",
+        token: c.adminA.token,
+        corpo: { titulo: "Outra", descricao: "Outra", prova: true, perguntas: PERGUNTAS },
+      })
+      assert.equal(trocar.status, 409, JSON.stringify(trocar.corpo))
+
+      const cabecalho = await req(api.url, `/questionarios/${idProva}`, {
+        metodo: "PUT",
+        token: c.adminA.token,
+        corpo: { titulo: "Prova de validacao (v1)", descricao: "Assinale com calma" },
+      })
+      assert.equal(cabecalho.status, 200, JSON.stringify(cabecalho.corpo))
+
+      const lido = await req(api.url, `/questionarios/${idProva}`, { token: c.adminA.token })
+      assert.equal(lido.corpo.questionario.titulo, "Prova de validacao (v1)")
+      assert.equal(lido.corpo.questionario.prova, true)
+      assert.equal(lido.corpo.questionario.respondido, true)
+      assert.equal(lido.corpo.questionario.perguntas.length, 2, "as perguntas respondidas ficam")
     })
   })
 })

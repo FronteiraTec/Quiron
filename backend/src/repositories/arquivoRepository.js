@@ -74,4 +74,19 @@ async function ehDoEspacoMentor(idArquivo) {
   return rows.length > 0
 }
 
-module.exports = { criar, buscarPorId, excluir, contarReferencias, ehDoEspacoMentor }
+/**
+ * O arquivo e o corpo de um MATERIAL ou TEMPLATE da Biblioteca daquela
+ * incubadora? O conteudo guarda so a url servida pela API (sem FK), entao o
+ * vinculo e reconhecido pelo caminho — ver arquivoService.abrir.
+ */
+async function ehDaBiblioteca(idArquivo, idTenant) {
+  const { rows } = await query(
+    `SELECT 1 FROM conteudo
+      WHERE id_tenant = $2 AND url = '/api/arquivos/' || $1::text
+      LIMIT 1`,
+    [idArquivo, idTenant]
+  )
+  return rows.length > 0
+}
+
+module.exports = { criar, buscarPorId, excluir, contarReferencias, ehDoEspacoMentor, ehDaBiblioteca }
