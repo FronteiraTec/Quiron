@@ -47,9 +47,11 @@ export default function StartupsDaTrilha({ aberto, trilha, onFechar, onMudou }) 
 
   const idTrilha = trilha?.id_no
 
-  const carregar = useCallback(async () => {
+  // `silencioso` recarrega sem trocar as listas pelo spinner — depois de
+  // matricular ou tirar, a startup so muda de lista, a tela nao pisca.
+  const carregar = useCallback(async ({ silencioso = false } = {}) => {
     if (!idTrilha || !idTenant) return
-    setCarregando(true)
+    if (!silencioso) setCarregando(true)
     try {
       const [r1, r2] = await Promise.all([
         api.get(`/trilha/${idTrilha}/startups`),
@@ -75,7 +77,7 @@ export default function StartupsDaTrilha({ aberto, trilha, onFechar, onMudou }) 
   const agir = async (fn) => {
     try {
       await fn()
-      await carregar()
+      await carregar({ silencioso: true })
       onMudou?.()
       setErro(null)
     } catch (err) {
@@ -97,7 +99,15 @@ export default function StartupsDaTrilha({ aberto, trilha, onFechar, onMudou }) 
     )
 
   return (
-    <Dialog open={aberto} onClose={onFechar} maxWidth="sm" fullWidth>
+    // Altura fixa: as listas rolam dentro do DialogContent, e o modal nao
+    // cresce nem encolhe a cada startup que entra ou sai.
+    <Dialog
+      open={aberto}
+      onClose={onFechar}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{ sx: { height: "min(640px, calc(100% - 64px))" } }}
+    >
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
         <Groups sx={{ color: "primary.main" }} />
         <Box sx={{ flex: 1, minWidth: 0 }}>

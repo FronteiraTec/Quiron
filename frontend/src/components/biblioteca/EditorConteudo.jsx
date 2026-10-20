@@ -39,8 +39,16 @@ import {
   Tooltip,
   Alert,
   Skeleton,
+  CircularProgress,
 } from "@mui/material"
-import { Close, UploadFile, AccountTree, Inventory2 } from "@mui/icons-material"
+import {
+  Close,
+  UploadFile,
+  AccountTree,
+  Inventory2,
+  InsertDriveFile,
+  OpenInNew,
+} from "@mui/icons-material"
 import { SeletorLogo } from "./LogoConteudo"
 import PlayerYoutube from "./PlayerYoutube"
 import { Propriedade, ValorTexto, ValorTags } from "./PropriedadesConteudo"
@@ -49,6 +57,13 @@ import { ehYoutube } from "../../utils/youtube"
 import { TIPO_CONTEUDO, TAGS } from "../../data/bibliotecaMeta"
 import { useSalvamentoAutomatico } from "../../hooks/useSalvamentoAutomatico"
 import { useAuthStore } from "../../store/authStore"
+import {
+  enviarArquivo,
+  abrirArquivo,
+  ehArquivoDaApi,
+  formatarTamanho,
+} from "../../services/arquivos"
+import { ACEITOS, LIMITE_ARQUIVO, LIMITE_ARQUIVO_MB } from "../../data/espacoMentorMeta"
 
 // O BlockNote carrega o ProseMirror junto e nao e pequeno. Separando-o num
 // pedaco proprio, quem abre a Biblioteca para procurar um link nao baixa o
@@ -190,6 +205,62 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar, registrarFechar }
     avisarAlteracao()
   }
 
+  /**
+   * O arquivo do MATERIAL/TEMPLATE.
+   *
+   * Sobe PRIVADO pelo caminho de sempre e fica no conteudo como `url` (a da
+   * API) + `nome_arquivo`. Quem le — o incubado, na Jornada — abre com o token;
+   * o backend libera esse arquivo para quem pode ver a Biblioteca.
+   *
+   * O arquivo trocado continua no servidor de proposito: o conteudo nao tem FK
+   * para ele, e uma copia feita pelo "Duplicar" pode estar apontando para o
+   * mesmo arquivo.
+   */
+  const refInputArquivo = useRef(null)
+  const [enviandoArquivo, setEnviandoArquivo] = useState(false)
+  const [erroArquivo, setErroArquivo] = useState(null)
+
+  const escolherArquivo = async (e) => {
+    const arquivo = e.target.files?.[0]
+    e.target.value = "" // permite reescolher o mesmo arquivo
+    if (!arquivo) return
+
+    if (arquivo.size > LIMITE_ARQUIVO) {
+      setErroArquivo(
+        `"${arquivo.name}" tem ${formatarTamanho(arquivo.size)}. O limite é ${LIMITE_ARQUIVO_MB} MB.`
+      )
+      return
+    }
+
+    setEnviandoArquivo(true)
+    setErroArquivo(null)
+    try {
+      const enviado = await enviarArquivo(arquivo, {
+        idTenant: conteudo.id_tenant ?? idTenant,
+        visibilidade: "PRIVADO",
+      })
+      setForm((f) => ({ ...f, url: enviado.url, nome_arquivo: enviado.nome_original }))
+      avisarAlteracao()
+    } catch (err) {
+      setErroArquivo(err.response?.data?.erro || "Não foi possível enviar o arquivo.")
+    } finally {
+      setEnviandoArquivo(false)
+    }
+  }
+
+  const removerArquivo = () => {
+    setForm((f) => ({ ...f, url: "", nome_arquivo: "" }))
+    avisarAlteracao()
+  }
+
+  const abrirArquivoDoConteudo = async () => {
+    try {
+      await abrirArquivo(form.url, form.nome_arquivo)
+    } catch (err) {
+      setErroArquivo(err.message)
+    }
+  }
+
   const alterarDocumento = useCallback(
     (novo) => {
       documento.current = novo
@@ -228,7 +299,10 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar, registrarFechar }
 
   const temDuracao = form.tipo === "AULA" || form.tipo === "VIDEO"
   const temArquivo = form.tipo === "ARQUIVO" || form.tipo === "TEMPLATE"
-  const temUrl = temArquivo || form.tipo === "VIDEO" || form.tipo === "LINK"
+  // Com o arquivo enviado, o "Link" sairia mostrando o caminho interno da API —
+  // e editar esse texto quebraria o anexo. O arquivo aparece no lugar dele.
+  const arquivoEnviado = temArquivo && ehArquivoDaApi(form.url)
+  const temUrl = (temArquivo && !arquivoEnviado) || form.tipo === "VIDEO" || form.tipo === "LINK"
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -342,11 +416,19 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar, registrarFechar }
 
               {temArquivo && (
                 <Propriedade rotulo="Arquivo">
-                  <ValorTexto
-                    valor={form.nome_arquivo}
-                    onChange={setCampo("nome_arquivo")}
-                    placeholder="ex.: canvas-startup.pdf"
-                  />
+                  {arquivoEnviado ? (
+                    <ArquivoEnviado
+                      nome={form.nome_arquivo}
+                      onAbrir={abrirArquivoDoConteudo}
+                      onRemover={removerArquivo}
+                    />
+                  ) : (
+                    <ValorTexto
+                      valor={form.nome_arquivo}
+                      onChange={setCampo("nome_arquivo")}
+                      placeholder="ex.: canvas-startup.pdf"
+                    />
+                  )}
                 </Propriedade>
               )}
 
@@ -406,14 +488,41 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar, registrarFechar }
                   Templates viram o modelo do <b>entregável</b> que a startup preenche e devolve.
                 </Alert>
               )}
-              <Button
-                variant="outlined"
-                startIcon={<UploadFile />}
-                sx={{ textTransform: "none" }}
-                disabled
-              >
-                Enviar arquivo (em breve)
-              </Button>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+                <Button
+                  variant="outlined"
+                  startIcon={enviandoArquivo ? <CircularProgress size={14} /> : <UploadFile />}
+                  sx={{ textTransform: "none" }}
+                  disabled={enviandoArquivo}
+                  onClick={() => refInputArquivo.current?.click()}
+                >
+                  {enviandoArquivo
+                    ? "Enviando…"
+                    : arquivoEnviado
+                      ? "Trocar arquivo"
+                      : "Enviar arquivo"}
+                </Button>
+                <Typography variant="caption" color="text.secondary">
+                  PDF, documento, planilha, apresentação, texto ou imagem — até{" "}
+                  {LIMITE_ARQUIVO_MB} MB.
+                </Typography>
+              </Box>
+              {erroArquivo && (
+                <Alert
+                  severity="error"
+                  onClose={() => setErroArquivo(null)}
+                  sx={{ borderRadius: 2, mt: 1.5 }}
+                >
+                  {erroArquivo}
+                </Alert>
+              )}
+              <input
+                ref={refInputArquivo}
+                type="file"
+                hidden
+                accept={ACEITOS}
+                onChange={escolherArquivo}
+              />
             </Box>
           )}
 
@@ -442,6 +551,47 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar, registrarFechar }
           )}
         </Box>
       </Box>
+    </Box>
+  )
+}
+
+/**
+ * O arquivo ja enviado, no lugar do campo de nome: clicar abre (com o token,
+ * como o incubado vai abrir), e o "x" desfaz o anexo.
+ */
+function ArquivoEnviado({ nome, onAbrir, onRemover }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, px: 1, py: 0.5 }}>
+      <InsertDriveFile sx={{ fontSize: 17, color: "text.secondary" }} />
+      <Box
+        component="button"
+        type="button"
+        onClick={onAbrir}
+        sx={{
+          minWidth: 0,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0.5,
+          p: 0,
+          border: 0,
+          bgcolor: "transparent",
+          color: "text.primary",
+          font: "inherit",
+          fontSize: 14,
+          cursor: "pointer",
+          "&:hover": { textDecoration: "underline" },
+        }}
+      >
+        <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {nome || "arquivo"}
+        </Box>
+        <OpenInNew sx={{ fontSize: 14, color: "text.disabled", flexShrink: 0 }} />
+      </Box>
+      <Tooltip title="Remover arquivo" arrow>
+        <IconButton size="small" onClick={onRemover} sx={{ ml: 0.5, color: "text.disabled" }}>
+          <Close sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
     </Box>
   )
 }

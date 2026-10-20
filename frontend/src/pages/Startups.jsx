@@ -26,6 +26,8 @@
  *   PATCH /startups/:id/situacao    -> status em massa
  *   GET   /trilha?id_tenant=        -> arvore da trilha; as fases saem dela (filtro)
  *   GET   /trilha/programas         -> trilhas, para o seletor do cadastro
+ *   /trilha/:id/startups              -> habilitar/desabilitar trilhas da startup
+ *                                        (DialogTrilhasStartup)
  */
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -39,13 +41,14 @@ import {
   Alert,
   Link,
 } from "@mui/material"
-import { Add, EditOutlined, RocketLaunch, SwapHoriz } from "@mui/icons-material"
+import { AccountTree, Add, EditOutlined, RocketLaunch, SwapHoriz } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
 import { useStartupConfigStore } from "../store/startupConfigStore"
 import { usePermissaoStore } from "../store/permissaoStore"
 import DrawerCadastroStartup from "../components/startup/DrawerCadastroStartup"
+import DialogTrilhasStartup from "../components/startup/DialogTrilhasStartup"
 import ChipSituacao from "../components/startup/ChipSituacao"
 import TabelaDados from "../components/tabela/TabelaDados"
 import ToolbarTabela from "../components/tabela/ToolbarTabela"
@@ -78,6 +81,9 @@ export default function Startups() {
   // para a tela se redesenhar quando as permissoes terminarem de carregar.
   const podeEditar = usePermissaoStore((s) => s.pode("startups.startups.editar"))
   const podeExportar = usePermissaoStore((s) => s.pode("startups.startups.exportar"))
+  // Matricular cobra a permissao da TRILHA, nao a da startup (trilhaService):
+  // quem decide a composicao de uma turma e quem gere o programa.
+  const podeGerirTrilhas = usePermissaoStore((s) => s.pode("programa.trilha.editar"))
 
   const tipos = useStartupConfigStore((s) => s.tipos) || []
   const situacoes = useStartupConfigStore((s) => s.situacoes) || []
@@ -106,6 +112,8 @@ export default function Startups() {
   // Preenchido so na edicao: o cadastro completo (com contatos) da startup
   // clicada, que a listagem nao traz.
   const [startupEditando, setStartupEditando] = useState(null)
+  // Startup cujas trilhas estao sendo habilitadas/desabilitadas.
+  const [startupTrilhas, setStartupTrilhas] = useState(null)
 
   const carregar = async () => {
     if (!idTenant) {
@@ -447,6 +455,19 @@ export default function Startups() {
     carregar()
   }
 
+  const acoesLinha = [
+    podeEditar && {
+      rotulo: "Editar cadastro",
+      icone: <EditOutlined fontSize="small" />,
+      onClick: editarStartup,
+    },
+    podeGerirTrilhas && {
+      rotulo: "Trilhas habilitadas",
+      icone: <AccountTree fontSize="small" />,
+      onClick: setStartupTrilhas,
+    },
+  ].filter(Boolean)
+
   const totalFiltros = contarFiltros(filtros)
 
   return (
@@ -519,18 +540,8 @@ export default function Startups() {
             selecionavel={podeEditar}
             selecionados={selecionados}
             onSelecionadosChange={setSelecionados}
-            larguraAcoes={56}
-            acoes={
-              podeEditar
-                ? [
-                    {
-                      rotulo: "Editar cadastro",
-                      icone: <EditOutlined fontSize="small" />,
-                      onClick: editarStartup,
-                    },
-                  ]
-                : undefined
-            }
+            larguraAcoes={acoesLinha.length > 1 ? 88 : 56}
+            acoes={acoesLinha.length ? acoesLinha : undefined}
           />
         </Paper>
       </Box>
@@ -567,6 +578,14 @@ export default function Startups() {
         startup={startupEditando}
         trilhas={trilhas}
         onSalvo={carregar}
+      />
+
+      <DialogTrilhasStartup
+        aberto={Boolean(startupTrilhas)}
+        startup={startupTrilhas}
+        trilhas={trilhas}
+        onFechar={() => setStartupTrilhas(null)}
+        onMudou={carregar}
       />
     </AppLayout>
   )

@@ -332,7 +332,7 @@ async function adicionarMembro(idStartup, idUsuario, lider = false) {
 /** Lista os membros ativos de uma startup, com nome/email do usuario. */
 async function listarMembros(idStartup) {
   const { rows } = await query(
-    `SELECT u.id_usuario, u.nome, u.email, sm.lider, sm.ativo, sm.entrada_dt
+    `SELECT u.id_usuario, u.nome, u.email, u.celular, u.foto_url, sm.lider, sm.ativo, sm.entrada_dt
        FROM startup_membros sm
        JOIN usuarios u ON u.id_usuario = sm.id_usuario
       WHERE sm.id_startup = $1 AND sm.ativo = TRUE

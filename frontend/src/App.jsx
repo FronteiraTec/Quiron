@@ -193,12 +193,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            {/* Cadastro de questionarios: so o admin tem o item no menu. O
+                incubado responde pelo passo (rota acima), nunca por aqui. */}
             <Route
               path="/questionarios"
               element={
-                <ProtectedRoute>
+                <AdminOuRootRoute>
                   <Questionarios />
-                </ProtectedRoute>
+                </AdminOuRootRoute>
               }
             />
             <Route

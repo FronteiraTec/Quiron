@@ -11,6 +11,10 @@
  *  - Um questionario pode ser PROVA (migracao 024): so perguntas de escolha,
  *    cada uma com o gabarito marcado. O gabarito so sai para quem cria/edita
  *    questionarios; quem responde recebe as alternativas sem ele.
+ *  - Editar (programa.questionarios.editar): titulo e descricao sempre; as
+ *    perguntas, o modo e o gabarito so enquanto ninguem respondeu. Depois da
+ *    primeira resposta, trocar pergunta apagaria respostas (CASCADE) e mexer
+ *    no gabarito mudaria a nota de quem ja fez a prova.
  */
 const questionarioRepository = require("../repositories/questionarioRepository")
 const rbacService = require("./rbacService")
@@ -128,6 +132,43 @@ async function criar(dados, usuario) {
 }
 
 /**
+ * Edita um questionario. Exige programa.questionarios.editar.
+ *
+ * Sem `perguntas`, so titulo e descricao mudam — e o unico caminho depois que
+ * o questionario foi respondido. Com `perguntas`, o modo (prova) e as
+ * perguntas sao substituidos e validados como na criacao.
+ * @param {number} id
+ * @param {object} dados - { titulo, descricao, prova?, perguntas? }
+ * @param {object} usuario - Payload do token (req.usuario).
+ */
+async function atualizar(id, dados, usuario) {
+  const atual = await questionarioRepository.buscarPorIdComPerguntas(id)
+  if (!atual) throw erroNegocio(404, "Questionario nao encontrado.")
+  await rbacService.garantirPermissao(atual.id_tenant, usuario, "programa.questionarios.editar")
+
+  const titulo = (dados.titulo || "").trim()
+  const descricao = (dados.descricao || "").trim()
+  if (!titulo || !descricao) throw erroNegocio(400, "Informe titulo e descricao.")
+
+  const MSG_RESPONDIDO =
+    "Este questionario ja foi respondido: so o titulo e a descricao podem mudar."
+  const trocaPerguntas = dados.perguntas !== undefined
+  if (trocaPerguntas && atual.respondido) throw erroNegocio(409, MSG_RESPONDIDO)
+
+  const ehProva = trocaPerguntas ? !!dados.prova : atual.prova
+  const questionario = await questionarioRepository.atualizar({
+    id,
+    titulo,
+    descricao,
+    prova: ehProva,
+    perguntas: trocaPerguntas ? normalizarPerguntas(dados.perguntas, ehProva) : undefined,
+  })
+  // Alguem respondeu entre a leitura acima e a transacao.
+  if (!questionario) throw erroNegocio(409, MSG_RESPONDIDO)
+  return questionario
+}
+
+/**
  * Ativa/desativa um questionario. Exige programa.questionarios.editar.
  * @param {number} id
  * @param {boolean} ativo
@@ -144,4 +185,4 @@ async function alternarAtivo(id, ativo, usuario) {
   return questionarioRepository.alternarAtivo(id, ativo)
 }
 
-module.exports = { listar, buscar, criar, alternarAtivo }
+module.exports = { listar, buscar, criar, atualizar, alternarAtivo }

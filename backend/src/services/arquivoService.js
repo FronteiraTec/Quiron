@@ -250,6 +250,10 @@ async function carregar(idArquivo, { idTenant } = {}) {
  * (GET /jornada/materiais/:id/arquivo, quem tem vinculo com a startup que o
  * recebeu).
  *
+ * O arquivo de um MATERIAL/TEMPLATE da Biblioteca segue o caminho oposto:
+ * passa por aqui, mas com `programa.biblioteca.visualizar` no lugar da chave
+ * de entregas — e o que o incubado tem para ler o que a trilha ensina.
+ *
  * @param {string} idArquivo
  * @param {{id:number, root?:boolean}|null} usuario - null quando nao autenticado.
  */
@@ -264,11 +268,15 @@ async function abrir(idArquivo, usuario) {
       if (await arquivoRepository.ehDoEspacoMentor(idArquivo)) {
         throw erroNegocio(403, "Este arquivo so pode ser aberto pelo material a que pertence.")
       }
-      await rbacService.garantirPermissao(
-        arquivo.id_tenant,
-        usuario,
-        "avaliacoes.entregas.baixar"
-      )
+      // O arquivo de um MATERIAL/TEMPLATE da Biblioteca e o que a incubadora
+      // ensina: abre para quem pode ver a Biblioteca — o incubado, na Jornada,
+      // nao tem a chave de entregas. Apontar um conteudo para o anexo de uma
+      // startup nao abre essa porta: a Biblioteca so aceita, como corpo, um
+      // arquivo enviado por quem esta editando (bibliotecaService).
+      const chave = (await arquivoRepository.ehDaBiblioteca(idArquivo, arquivo.id_tenant))
+        ? "programa.biblioteca.visualizar"
+        : "avaliacoes.entregas.baixar"
+      await rbacService.garantirPermissao(arquivo.id_tenant, usuario, chave)
     }
   }
 
