@@ -226,8 +226,9 @@ const MENU_USUARIO = [
   // "Evolucao" aqui dentro — eram duas telas concorrentes sobre a startup.
   { id: "minha-startup", texto: "Minha Startup", icone: <RocketLaunch />, rota: "/minha-startup" },
   // A trilha, para o incubado, e a Jornada — as telas de Fases/Modulos/Tarefas
-  // eram a visao administrativa dela e saíram.
-  { id: "questionarios", texto: "Questionários", icone: <Quiz />, rota: "/questionarios" },
+  // eram a visao administrativa dela e saíram. Questionarios tambem: a tela e
+  // o cadastro da incubadora, e o incubado responde cada um pelo passo da
+  // Jornada (/passos/:idNo/responder), nao por uma lista.
   { id: "eventos", texto: "Eventos", icone: <Event />, rota: "/eventos", badgeKey: "eventos" },
   { id: "engajamento", texto: "Engajamento", icone: <EmojiEvents />, rota: "/engajamento", novo: true },
 ]
