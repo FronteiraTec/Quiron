@@ -17,7 +17,7 @@ const { test, describe, before, after } = require("node:test")
 const assert = require("node:assert/strict")
 
 const { prepararBanco, encerrar } = require("../apoio-teste/banco")
-const { subirApi, req } = require("../apoio-teste/api")
+const { subirApi, req, enviarArquivo, baixar } = require("../apoio-teste/api")
 const { query } = require("../src/config/db")
 
 let api
@@ -472,5 +472,90 @@ describe("A jornada entrega a aula pronta para ler", () => {
       texto.includes('"videoEmbutido"') || texto.includes('"heading"'),
       "o corpo deveria chegar no formato de blocos do editor"
     )
+  })
+})
+
+describe("MATERIAL · o arquivo enviado", () => {
+  /** Sobe um PDF e devolve o registro (com a url ja montada). */
+  async function subir(token, idTenant, bytes) {
+    const r = await enviarArquivo(api.url, token, idTenant, bytes, { nome: "canvas.pdf" })
+    assert.equal(r.status, 201, `upload respondeu ${r.status}: ${JSON.stringify(r.corpo)}`)
+    return r.corpo.arquivo
+  }
+
+  async function criarMaterial(token, extras) {
+    return req(api.url, "/conteudos", {
+      metodo: "POST",
+      token,
+      corpo: { id_tenant: c.tenantA.id_tenant, tipo: "ARQUIVO", titulo: "Canvas", ...extras },
+    })
+  }
+
+  /**
+   * O incubado le a trilha com `programa.biblioteca.visualizar`, e nao com a
+   * chave de entregas. Sem a regra da Biblioteca no download, o material que a
+   * incubadora anexou chegava a Jornada como um link que respondia 403.
+   */
+  test("o incubado abre o arquivo do material; antes de virar material, nao", async () => {
+    const arquivo = await subir(c.adminA.token, c.tenantA.id_tenant, "PDF-DO-CANVAS")
+
+    const antes = await baixar(api.url, arquivo.url.replace(/^\/api/, ""), c.colaboradorA.token)
+    assert.equal(antes.status, 403)
+
+    const r = await criarMaterial(c.adminA.token, { url: arquivo.url, nome_arquivo: "canvas.pdf" })
+    assert.equal(r.status, 201, JSON.stringify(r.corpo))
+
+    const depois = await baixar(api.url, arquivo.url.replace(/^\/api/, ""), c.colaboradorA.token)
+    assert.equal(depois.status, 200)
+    assert.equal(depois.texto, "PDF-DO-CANVAS")
+  })
+
+  test("quem e de outra incubadora continua de fora", async () => {
+    const arquivo = await subir(c.adminA.token, c.tenantA.id_tenant, "SO-DA-A")
+    const r = await criarMaterial(c.adminA.token, { url: arquivo.url })
+    assert.equal(r.status, 201)
+
+    const caminho = arquivo.url.replace(/^\/api/, "")
+    assert.equal((await baixar(api.url, caminho, c.adminB.token)).status, 403)
+    assert.equal((await baixar(api.url, caminho, c.forasteiro.token)).status, 403)
+    assert.equal((await baixar(api.url, caminho)).status, 401)
+  })
+
+  /**
+   * O caminho perigoso: o arquivo do material abre para todo incubado, entao
+   * colar ali o anexo da entrega de uma startup o publicaria para as outras.
+   */
+  test("NAO aceita como material o arquivo que outra pessoa enviou", async () => {
+    const anexoDaStartup = await subir(c.colaboradorA.token, c.tenantA.id_tenant, "PLANO-SECRETO")
+
+    const r = await criarMaterial(c.adminA.token, { url: anexoDaStartup.url })
+    assert.equal(r.status, 403)
+
+    const material = await criarMaterial(c.adminA.token, {})
+    const patch = await req(api.url, `/conteudos/${material.corpo.conteudo.id_conteudo}`, {
+      metodo: "PATCH",
+      token: c.adminA.token,
+      corpo: { url: anexoDaStartup.url },
+    })
+    assert.equal(patch.status, 403)
+  })
+
+  test("NAO aceita arquivo de outra incubadora nem caminho inventado", async () => {
+    const daB = await subir(c.adminB.token, c.tenantB.id_tenant, "DA-B")
+    assert.equal((await criarMaterial(c.adminA.token, { url: daB.url })).status, 400)
+    assert.equal((await criarMaterial(c.adminA.token, { url: "/api/arquivos/nada" })).status, 400)
+  })
+
+  test("outro editor ajusta o titulo sem esbarrar no dono do arquivo", async () => {
+    const arquivo = await subir(c.adminA.token, c.tenantA.id_tenant, "DO-ADMIN")
+    const r = await criarMaterial(c.adminA.token, { url: arquivo.url })
+
+    // O editor manda a url em todo salvamento, mesmo sem ela ter mudado.
+    const patch = await req(api.url, `/conteudos/${r.corpo.conteudo.id_conteudo}`, {
+      metodo: "PATCH",
+      token: c.mentorA.token,
+      corpo: { titulo: "Canvas revisado", url: arquivo.url },
+    })
+    assert.equal(patch.status, 200, JSON.stringify(patch.corpo))
   })
 })

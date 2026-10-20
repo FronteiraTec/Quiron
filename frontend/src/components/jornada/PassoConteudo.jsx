@@ -55,6 +55,7 @@ import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
 import {
   enviarArquivo,
   abrirArquivo,
+  ehArquivoDaApi,
   anexoAcessivel,
   parseAnexo,
   formatarTamanho,
@@ -642,6 +643,7 @@ function ConteudoEnsinado({ conteudo }) {
   const raio = raioPlano(theme)
   const meta = TIPO_CONTEUDO[conteudo.tipo]
   const Icone = meta.icon
+  const [erroAbrir, setErroAbrir] = useState("")
 
   if (conteudo.tipo === "AULA") {
     // Sem moldura: a aula E o corpo da pagina. A caixa com cabecalho tingido
@@ -747,12 +749,32 @@ function ConteudoEnsinado({ conteudo }) {
     </Box>
   )
 
-  return conteudo.url ? (
-    <Link href={conteudo.url} target="_blank" rel="noopener" underline="none">
-      {linha}
-    </Link>
-  ) : (
-    linha
+  // O arquivo que a incubadora enviou para o MATERIAL/TEMPLATE e PRIVADO: o
+  // link cru abriria uma aba com 401, porque <a href> nao manda o token.
+  const abrir = async (e) => {
+    if (!ehArquivoDaApi(conteudo.url)) return
+    e.preventDefault()
+    setErroAbrir("")
+    try {
+      await abrirArquivo(conteudo.url, conteudo.nome_arquivo || conteudo.titulo)
+    } catch (err) {
+      setErroAbrir(err.message)
+    }
+  }
+
+  if (!conteudo.url) return linha
+
+  return (
+    <>
+      <Link href={conteudo.url} target="_blank" rel="noopener" underline="none" onClick={abrir}>
+        {linha}
+      </Link>
+      {erroAbrir && (
+        <Typography variant="caption" color="error" sx={{ display: "block", mt: 0.5 }}>
+          {erroAbrir}
+        </Typography>
+      )}
+    </>
   )
 }
 
