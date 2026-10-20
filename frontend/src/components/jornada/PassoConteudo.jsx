@@ -11,6 +11,7 @@
  * quinas arredondadas umas dentro das outras e quebra o ritmo vertical.
  */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import {
   Box,
   Typography,
@@ -43,6 +44,7 @@ import {
   CircleOutlined,
   FormatListNumbered,
   CoPresent,
+  Quiz,
 } from "@mui/icons-material"
 import { motion } from "framer-motion"
 import StatusPasso from "./StatusPasso"
@@ -104,6 +106,7 @@ export default function PassoConteudo({
   temProximo,
 }) {
   const theme = useTheme()
+  const navigate = useNavigate()
   const raio = raioPlano(theme)
   const [resposta, setResposta] = useState(passo.entrega.resposta || "")
   // `entrega.anexos` e TEXT[]: cada item pode chegar como objeto, como JSON em
@@ -124,6 +127,9 @@ export default function PassoConteudo({
   const status = passo.entrega.status
   const editavel = EDITAVEL.includes(status)
   const ehAnexo = passo.entrega.tipo === "ANEXO"
+  // O questionario nao se responde aqui: tem tela propria, que monta as
+  // perguntas e grava a entrega junto com as respostas.
+  const ehQuestionario = passo.entrega.tipo === "QUESTIONARIO"
   const podeEnviar = useMemo(
     () => editavel && (anexos.length > 0 || resposta.trim().length > 0),
     [editavel, anexos, resposta]
@@ -318,7 +324,34 @@ export default function PassoConteudo({
           </Alert>
         )}
 
-        {ehAnexo ? (
+        {ehQuestionario ? (
+          !passo.id_questionario ? (
+            <Alert severity="info" variant="outlined" sx={{ borderRadius: raio }}>
+              A incubadora ainda não definiu o questionário deste passo.
+            </Alert>
+          ) : editavel ? (
+            <Box>
+              <Texto sx={{ fontSize: 15, mb: 2 }}>
+                Este passo é respondido por um questionário. As respostas vão direto para
+                avaliação do mentor.
+              </Texto>
+              <Button
+                variant="contained"
+                disableElevation
+                startIcon={<Quiz />}
+                onClick={() =>
+                  navigate(
+                    `/passos/${passo.id}/responder?questionario=${passo.id_questionario}`,
+                    { state: { passo: passo.titulo } }
+                  )
+                }
+                sx={{ textTransform: "none", borderRadius: raio, fontWeight: 600 }}
+              >
+                {status === "AJUSTE" ? "Responder novamente" : "Responder questionário"}
+              </Button>
+            </Box>
+          ) : null
+        ) : ehAnexo ? (
           <Box
             onClick={abrirSeletor}
             onDragOver={(e) => e.preventDefault()}
@@ -383,7 +416,7 @@ export default function PassoConteudo({
         />
 
         {/* Anexar PDF em qualquer passo (nao so nos do tipo anexo) */}
-        {editavel && !ehAnexo && (
+        {editavel && !ehAnexo && !ehQuestionario && (
           <Button
             variant="text"
             disableElevation
@@ -483,7 +516,7 @@ export default function PassoConteudo({
         )}
 
         {/* Acoes de entrega */}
-        {editavel && (
+        {editavel && !ehQuestionario && (
           <Box sx={{ display: "flex", gap: 1, mt: 2.5, flexWrap: "wrap" }}>
             <Button
               variant="outlined"

@@ -8,13 +8,14 @@
  * API devolve a nota junto da entrega — sem o gabarito, que fica com o mentor.
  *
  * Endpoints:
- *   GET  /trilha/:id              -> o passo (tem tipo_passo e id_questionario)
+ *   GET  /trilha/:id              -> o passo (tem tipo_passo e id_questionario);
+ *                                    pulado quando a Jornada ja manda ?questionario=
  *   GET  /questionarios/:id       -> questionario com perguntas/alternativas
  *   GET  /startups?id_tenant=     -> startups (seletor de autoria da entrega)
  *   POST /entregas/questionario   -> grava entrega + respostas
  */
 import { useEffect, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import {
   Box,
   Paper,
@@ -44,6 +45,12 @@ const TIPOS_TEXTO = ["TEXTO_CURTO", "PARAGRAFO"]
 export default function ResponderQuestionario() {
   const { idNo } = useParams()
   const navigate = useNavigate()
+  // Vindo da Jornada, o passo ja diz qual questionario aplica. O incubado nao
+  // tem programa.trilha.visualizar, entao GET /trilha/:id o barraria; o POST
+  // de entrega confere de novo, no servidor, que o questionario e o do passo.
+  const [params] = useSearchParams()
+  const idQuestionarioUrl = Number(params.get("questionario")) || null
+  const nomePassoUrl = useLocation().state?.passo ?? null
   const usuario = useAuthStore((s) => s.usuario)
   const idTenant = usuario?.id_tenant ?? null
 
@@ -68,8 +75,13 @@ export default function ResponderQuestionario() {
       setCarregando(true)
       setAviso(null)
       try {
-        const { data: pData } = await api.get(`/trilha/${idNo}`)
-        const p = pData.no
+        let p
+        if (idQuestionarioUrl) {
+          p = { nome: nomePassoUrl, tipo_passo: "QUESTIONARIO", id_questionario: idQuestionarioUrl }
+        } else {
+          const { data: pData } = await api.get(`/trilha/${idNo}`)
+          p = pData.no
+        }
         setPasso(p)
 
         if (p.tipo_passo !== "QUESTIONARIO" || !p.id_questionario) {
