@@ -2,7 +2,8 @@
  * Tela "Minha Startup" - visao do membro de uma startup incubada.
  *
  * Reune quatro blocos:
- *   - Membros: lista/adiciona/remove membros da startup do usuario logado.
+ *   - Membros: a equipe da startup do usuario logado e o perfil de cada um,
+ *     somente leitura (quem adiciona e remove membros e a incubadora).
  *   - Modelos: modelos graficos de gestao (Business Model Canvas, Matriz GUT, 5W2H).
  *   - Fases concluidas: fases da trilha ja aprovadas para esta startup.
  *   - Evolucao: o Blueprint das fases, o radar de maturidade e a linha do tempo
@@ -56,7 +57,7 @@ export default function MinhaStartup() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Gerencie os membros, os modelos de gestão e acompanhe as fases já concluídas da sua startup.
+          Conheça a sua equipe, trabalhe nos modelos de gestão e acompanhe as fases já concluídas da sua startup.
         </Typography>
 
         {carregando ? (
@@ -92,7 +93,7 @@ export default function MinhaStartup() {
                 <Tab data-tour="minha-startup-aba-evolucao" value="evolucao" label="Evolução" icon={<AutoAwesome />} iconPosition="start" />
               </Tabs>
               <Box data-tour="minha-startup-conteudo" sx={{ p: 3 }}>
-                {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={idTenant} />}
+                {aba === "membros" && <AbaMembros idStartup={startup.id_startup} idTenant={idTenant} somenteLeitura />}
                 {aba === "modelos" && <AbaModelos idStartup={startup.id_startup} nomeStartup={startup.nome} />}
                 {aba === "fases" && <AbaFasesConcluidas idStartup={startup.id_startup} />}
                 {aba === "evolucao" && <AbaEvolucao />}

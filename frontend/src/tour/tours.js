@@ -254,7 +254,7 @@ const TOUR_MINHA_STARTUP = {
       posicao: "baixo",
       titulo: "Membros",
       texto:
-        "Quem está na equipe. O líder pode adicionar e remover pessoas — todas elas passam a ver a mesma jornada.",
+        "Quem está na equipe — clique numa pessoa para ver o perfil dela. Quem entra e quem sai da equipe é definido pela incubadora.",
     },
     {
       seletor: '[data-tour="minha-startup-aba-modelos"]',
