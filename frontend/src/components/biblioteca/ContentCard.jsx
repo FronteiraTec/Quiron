@@ -1,10 +1,11 @@
 /**
  * Card de um conteudo no acervo da Biblioteca.
  *
- * Mostra o tipo (logo do conteudo ou icone + cor de acento), titulo, resumo, tags, quando foi
- * atualizado e o "usado em N" — quantos passos da trilha referenciam este
- * conteudo (o principal sinal de reutilizacao). Menu de contexto com editar,
- * duplicar e excluir.
+ * Hierarquia, de cima para baixo: o que e (logo ou icone + tipo), do que trata
+ * (titulo, resumo, tags) e onde esta em uso (rodape com as trilhas vinculadas
+ * — o principal sinal de reutilizacao). O menu de contexto (editar, duplicar,
+ * excluir) so aparece no hover, para nao poluir a grade; em telas de toque,
+ * sem hover, ele fica sempre visivel.
  */
 import { useState } from "react"
 import {
@@ -24,32 +25,41 @@ import {
   EditOutlined,
   ContentCopy,
   DeleteOutline,
-  AccountTree,
+  NorthEast,
 } from "@mui/icons-material"
 import { motion } from "framer-motion"
 import LogoConteudo from "./LogoConteudo"
 import { TIPO_CONTEUDO } from "../../data/bibliotecaMeta"
 
-// Formata "atualizado ha X" de forma simples (sem libs extras aqui).
-function tempoRelativo(iso) {
-  const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
-  if (dias <= 0) return "hoje"
-  if (dias === 1) return "ontem"
-  if (dias < 30) return `há ${dias} dias`
-  const meses = Math.floor(dias / 30)
-  return meses === 1 ? "há 1 mês" : `há ${meses} meses`
+// Chip neutro e baixo, usado no tipo e nas tags.
+const chipNeutro = {
+  height: 22,
+  fontSize: 12,
+  fontWeight: 600,
+  bgcolor: "action.selected",
+  "& .MuiChip-label": { px: 1 },
+}
+
+/**
+ * "1 trilha vinculada" / "N trilhas vinculadas". Conta trilhas DISTINTAS: o
+ * mesmo conteudo pode estar em varios passos de uma mesma trilha.
+ */
+function rotuloTrilhas(usos) {
+  const n = new Set(usos.map((u) => u.id_trilha)).size
+  if (!n) return "Nenhuma trilha vinculada"
+  return n === 1 ? "1 trilha vinculada" : `${n} trilhas vinculadas`
 }
 
 export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }) {
   const meta = TIPO_CONTEUDO[conteudo.tipo]
   const [menu, setMenu] = useState(null)
-  const usos = conteudo.usos?.length || 0
+  const usos = conteudo.usos || []
 
   return (
     <Paper
       component={motion.div}
       layout
-      whileHover={{ y: -3 }}
+      whileHover={{ y: -2 }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       onClick={() => onAbrir(conteudo)}
       elevation={0}
@@ -58,36 +68,31 @@ export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        gap: 1,
+        gap: 1.25,
         cursor: "pointer",
         border: "1px solid",
         borderColor: "divider",
         borderRadius: 2,
         transition: "border-color .15s, box-shadow .15s",
         "&:hover": { borderColor: `${meta.cor}66`, boxShadow: 3 },
+        "& .card-menu": { opacity: Boolean(menu) ? 1 : 0, transition: "opacity .15s" },
+        "&:hover .card-menu, & .card-menu:focus-visible": { opacity: 1 },
+        "@media (hover: none)": { "& .card-menu": { opacity: 1 } },
       }}
     >
-      {/* Topo: logo (ou icone do tipo) + badge do tipo + menu */}
+      {/* Topo: logo (ou icone do tipo) + tipo + menu */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <LogoConteudo conteudo={conteudo} tamanho={34} fonteIcone={20} />
-        <Chip
-          label={meta.label}
-          size="small"
-          sx={{
-            height: 20,
-            fontSize: 11,
-            fontWeight: 700,
-            bgcolor: `${meta.cor}1f`,
-            color: meta.cor,
-          }}
-        />
+        <LogoConteudo conteudo={conteudo} tamanho={36} fonteIcone={20} />
+        <Chip label={meta.label} size="small" sx={chipNeutro} />
         {conteudo.duracao && (
           <Typography variant="caption" color="text.secondary">
             {conteudo.duracao}
           </Typography>
         )}
         <IconButton
+          className="card-menu"
           size="small"
+          aria-label="Ações do conteúdo"
           sx={{ ml: "auto" }}
           onClick={(e) => {
             e.stopPropagation()
@@ -99,7 +104,7 @@ export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }
       </Box>
 
       {/* Titulo + resumo */}
-      <Typography sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3, mt: 0.5 }}>
+      <Typography sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3, mt: 0.5 }}>
         {conteudo.titulo || "Sem título"}
       </Typography>
       <Typography
@@ -110,7 +115,6 @@ export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
-          minHeight: 40,
         }}
       >
         {conteudo.resumo || "Sem descrição."}
@@ -118,18 +122,18 @@ export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }
 
       {/* Tags */}
       {conteudo.tags?.length > 0 && (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
           {conteudo.tags.slice(0, 3).map((t) => (
-            <Chip key={t} label={t} size="small" variant="outlined" sx={{ height: 22, fontSize: 11 }} />
+            <Chip key={t} label={t} size="small" sx={chipNeutro} />
           ))}
         </Box>
       )}
 
-      {/* Rodape: usado em N + atualizado */}
+      {/* Rodape: trilhas vinculadas + seta de abrir */}
       <Box
         sx={{
           mt: "auto",
-          pt: 1,
+          pt: 1.5,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -140,21 +144,23 @@ export default function ContentCard({ conteudo, onAbrir, onDuplicar, onExcluir }
         <Tooltip
           arrow
           title={
-            usos
-              ? conteudo.usos.map((u) => `${u.fase} › ${u.passo}`).join("\n")
-              : "Ainda não usado em nenhum passo"
+            usos.length ? (
+              <Box sx={{ whiteSpace: "pre-line" }}>
+                {usos.map((u) => `${u.fase} › ${u.passo}`).join("\n")}
+              </Box>
+            ) : (
+              "Ainda não usado em nenhum passo"
+            )
           }
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: usos ? "primary.main" : "text.disabled" }}>
-            <AccountTree sx={{ fontSize: 15 }} />
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>
-              {usos ? `Usado em ${usos}` : "Não usado"}
-            </Typography>
-          </Box>
+          <Typography
+            variant="caption"
+            sx={{ color: usos.length ? "text.secondary" : "text.disabled" }}
+          >
+            {rotuloTrilhas(usos)}
+          </Typography>
         </Tooltip>
-        <Typography variant="caption" color="text.disabled">
-          {tempoRelativo(conteudo.atualizado_ts)}
-        </Typography>
+        <NorthEast sx={{ fontSize: 16, color: "text.secondary" }} />
       </Box>
 
       {/* Menu de contexto */}

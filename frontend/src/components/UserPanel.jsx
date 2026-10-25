@@ -169,7 +169,7 @@ export default function UserPanel({
         {/* O destaque da barra (ver paletaDaBarra): no claro, preto com letra
             lima sobre a barra lima — o circulo da seta do modelo, invertido. */}
         <Avatar
-          src={usuario?.avatar || undefined}
+          src={usuario?.foto_url || undefined}
           sx={{ width: 36, height: 36, bgcolor: "barra.destaque", color: "barra.destaqueTexto", fontWeight: 700, fontSize: 15 }}
         >
           {iniciais(usuario?.nome)}
@@ -229,7 +229,7 @@ export default function UserPanel({
             }}
           />
           <Avatar
-            src={usuario?.avatar || undefined}
+            src={usuario?.foto_url || undefined}
             sx={{
               position: "relative",
               width: 60,

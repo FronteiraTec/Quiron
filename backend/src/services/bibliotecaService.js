@@ -80,8 +80,20 @@ async function listar(idTenant, filtros = {}, usuario) {
     throw erroNegocio(400, `Tipo invalido. Use: ${TIPOS.join(", ")}.`)
   }
 
+  // trilha: id da raiz (PROGRAMA) ou SEM_TRILHA. Uma trilha de outro tenant
+  // nao vaza nada — o filtro por id_tenant do conteudo continua valendo.
+  let trilha
+  if (filtros.trilha === "SEM_TRILHA") {
+    trilha = "SEM_TRILHA"
+  } else if (filtros.trilha) {
+    trilha = Number(filtros.trilha)
+    if (!Number.isInteger(trilha) || trilha <= 0) {
+      throw erroNegocio(400, "trilha deve ser o id de uma trilha ou SEM_TRILHA.")
+    }
+  }
+
   const [conteudos, contagem] = await Promise.all([
-    bibliotecaRepository.listarPorTenant(idTenant, filtros),
+    bibliotecaRepository.listarPorTenant(idTenant, { ...filtros, trilha }),
     bibliotecaRepository.contarPorTipo(idTenant),
   ])
 

@@ -13,6 +13,10 @@
 --   Jornada    -> entregas da FlipTech em varios estados, para a Jornada
 --                 mostrar cada situacao: aprovado, aguardando, ajuste e
 --                 rascunho
+--   Selos      -> 9 selos de exemplo e 5 concessoes (publica, privada,
+--                 revogada e uma do mentor), para o mural e o Perfil abrirem
+--                 cheios. Sao EXEMPLO, nao padrao: incubadora nova continua
+--                 nascendo sem selo nenhum.
 --
 -- PRE-REQUISITOS
 --   schema.sql + seed.sql aplicados, e as migracoes 001 e 002 rodadas
@@ -40,6 +44,21 @@ DELETE FROM startup_trilha WHERE id_no IN (SELECT id_no FROM trilha_no WHERE id_
 DELETE FROM trilha_conteudo WHERE id_no IN (SELECT id_no FROM trilha_no WHERE id_tenant = 1);
 DELETE FROM trilha_no WHERE id_tenant = 1;
 DELETE FROM conteudo WHERE id_tenant = 1;
+
+-- Selos: so os DESTE seed, pelo nome. Selo criado a mao na tela fica. A
+-- concessao sai antes porque a FK dela para `selo` e RESTRICT.
+DELETE FROM selo_concessao WHERE id_selo IN (
+    SELECT id_selo FROM selo
+     WHERE id_tenant = 1
+       AND nome IN ('Experimentador', 'Hipótese validada', 'Pivô por evidência',
+                    'Etapa concluída', 'Orientação aplicada', 'Mão estendida',
+                    'Compartilhou conhecimento', 'Voz do ecossistema', 'Primeiro pitch')
+);
+DELETE FROM selo
+ WHERE id_tenant = 1
+   AND nome IN ('Experimentador', 'Hipótese validada', 'Pivô por evidência',
+                'Etapa concluída', 'Orientação aplicada', 'Mão estendida',
+                'Compartilhou conhecimento', 'Voz do ecossistema', 'Primeiro pitch');
 
 
 -- ---------------------------------------------------------------------------
@@ -427,10 +446,111 @@ UPDATE passo_evento pe
    AND n.nome = d.passo AND pe.tipo::TEXT = d.tipo
    AND pe.id_startup = 1;
 
+
+-- ---------------------------------------------------------------------------
+-- 7. SELOS — o que a incubadora reconhece, e quem ja recebeu.
+--
+-- Um selo para cada item de NAO_PONTUAM (backend/src/engajamento/padroes.js):
+-- e o lugar dessas conquistas, ja que elas nao viram ponto. O `criterio` vem
+-- escrito porque e ele que a credencial publica mostra.
+--
+-- EXEMPLO, nao padrao: nada disto entra em incubadora nova. Quem quiser os
+-- selos de verdade cadastra pela tela de Engajamento.
+-- ---------------------------------------------------------------------------
+INSERT INTO selo (id_tenant, nome, descricao, criterio, categoria, cor, icone, permite_repetir, criado_por)
+SELECT 1, v.nome, v.descricao, v.criterio, v.categoria, v.cor, v.icone, v.repete, u.id_usuario
+  FROM usuarios u
+ CROSS JOIN (VALUES
+    ('Experimentador',
+     'Foi a campo testar antes de construir.',
+     'Planejou e executou um experimento ou uma rodada de entrevistas com clientes reais, e registrou o que aprendeu.',
+     'Validação', '#0ea5e9'::CHAR(7), 'Psychology', TRUE),
+    ('Hipótese validada',
+     'Trocou uma suposição por evidência.',
+     'Confirmou ou derrubou uma hipótese do modelo de negócio com dados coletados, e não com opinião.',
+     'Validação', '#10b981', 'Verified', TRUE),
+    ('Pivô por evidência',
+     'Mudou de rota porque os dados mandaram.',
+     'Alterou cliente, problema ou proposta de valor com base em evidência registrada na Jornada.',
+     'Validação', '#f59e0b', 'TrendingUp', FALSE),
+    ('Etapa concluída',
+     'Fechou um momento formativo da trilha.',
+     'Teve todos os passos de um módulo da trilha de incubação aprovados pelo mentor.',
+     'Formação', '#6366f1', 'School', TRUE),
+    ('Orientação aplicada',
+     'Transformou feedback em mudança.',
+     'Aplicou na startup uma orientação recebida em mentoria e mostrou o resultado ao mentor.',
+     'Formação', '#8b5cf6', 'Lightbulb', TRUE),
+    ('Mão estendida',
+     'Ajudou outro empreendedor a avançar.',
+     'Apoiou, por iniciativa própria, outra startup da incubadora — revisão de pitch, contato, ajuda técnica.',
+     'Comunidade', '#ec4899', 'VolunteerActivism', TRUE),
+    ('Compartilhou conhecimento',
+     'Ensinou o que aprendeu.',
+     'Conduziu uma conversa, oficina ou material aberto para as outras startups da incubadora.',
+     'Comunidade', '#14b8a6', 'Diversity3', TRUE),
+    ('Voz do ecossistema',
+     'Contou a própria jornada em público.',
+     'Publicou conteúdo autoral (artigo, post, palestra) sobre a experiência empreendedora na incubadora.',
+     'Protagonismo', '#7c3aed', 'Campaign', TRUE),
+    ('Primeiro pitch',
+     'Subiu ao palco pela primeira vez.',
+     'Apresentou o pitch da startup para uma banca ou público externo pela primeira vez.',
+     'Protagonismo', '#ef4444', 'RocketLaunch', FALSE)
+ ) AS v(nome, descricao, criterio, categoria, cor, icone, repete)
+ WHERE u.email = 'admin@quiron.com';
+
+-- As concessoes, na mesma linha do tempo da Jornada (dia 0 = 60 dias atras).
+-- Cada uma mostra um estado que a tela precisa saber exibir:
+--   Experimentador         -> PUBLICA: a credencial abre sem login
+--   Etapa concluida        -> privada (o padrao: so a dona decide expor)
+--   Hipotese validada      -> REVOGADA depois de publicada: a credencial
+--                             passa a dizer "revogada", nao some
+--   Mao estendida          -> privada, a mais recente do mural
+--   Compartilhou conhec.   -> do MENTOR, sem startup de contexto
+--
+-- O codigo e aleatorio como o do service (seloService.gerarCodigo), so que em
+-- hex: o que importa e nao ser sequencial.
+INSERT INTO selo_concessao
+    (id_tenant, id_selo, id_usuario, id_startup, justificativa, codigo, publico,
+     concedido_por, concedido_ts, revogado_ts, revogado_por, motivo_revogacao)
+SELECT 1, s.id_selo, u.id_usuario, st.id_startup, v.justificativa,
+       substr(md5(random()::TEXT || clock_timestamp()::TEXT), 1, 16),
+       v.publico,
+       adm.id_usuario,
+       NOW() - INTERVAL '60 days' + (v.dia || ' days')::INTERVAL,
+       NOW() - INTERVAL '60 days' + (v.dia_revogado || ' days')::INTERVAL,
+       CASE WHEN v.dia_revogado IS NOT NULL THEN adm.id_usuario END,
+       v.motivo
+  FROM (VALUES
+    ('Experimentador', 'incubado@quiron.com', 'FlipTech'::TEXT,
+     'Conduziu 12 entrevistas de problema com donos de pequenos comércios e registrou os aprendizados no passo "Descoberta do problema".',
+     TRUE, 10, NULL::INT, NULL::TEXT),
+    ('Etapa concluída', 'incubado@quiron.com', 'FlipTech',
+     'Concluiu o módulo Problema, com "Descoberta do problema" e "Persona do cliente" aprovados.',
+     FALSE, 15, NULL, NULL),
+    ('Hipótese validada', 'incubado@quiron.com', 'FlipTech',
+     'Validou a disposição a pagar do segmento de varejo com pré-venda para 8 clientes.',
+     TRUE, 24, 27,
+     'Concedido antes da hora: a pré-venda ainda não foi confirmada por pagamento. O selo volta quando houver evidência.'),
+    ('Mão estendida', 'incubado@quiron.com', 'FlipTech',
+     'Revisou o pitch de outra startup da turma antes da banca e apresentou um contato de cliente.',
+     FALSE, 45, NULL, NULL),
+    ('Compartilhou conhecimento', 'mentor@quiron.com', NULL,
+     'Abriu o workshop de precificação para todas as startups e deixou o material na Biblioteca.',
+     FALSE, 33, NULL, NULL)
+  ) AS v(selo, email, startup, justificativa, publico, dia, dia_revogado, motivo)
+  JOIN selo s ON s.id_tenant = 1 AND s.nome = v.selo
+  JOIN usuarios u ON u.email = v.email
+  LEFT JOIN startup st ON st.nome = v.startup
+ CROSS JOIN (SELECT id_usuario FROM usuarios WHERE email = 'admin@quiron.com') adm;
+
 COMMIT;
 
 -- ===========================================================================
 -- Resumo do que ficou (confira com):
 --   SELECT tipo, COUNT(*) FROM trilha_no WHERE id_tenant=1 GROUP BY tipo;
 --   SELECT COUNT(*) FROM conteudo WHERE id_tenant=1;
+--   SELECT s.nome, c.publico, c.revogado_ts IS NOT NULL AS revogada
+--     FROM selo_concessao c JOIN selo s USING (id_selo) WHERE c.id_tenant=1;
 -- ===========================================================================

@@ -3,13 +3,13 @@
  */
 const bibliotecaService = require("../services/bibliotecaService")
 
-/** GET /conteudos?id_tenant=&tipo=&tag=&termo= */
+/** GET /conteudos?id_tenant=&tipo=&tag=&termo=&trilha= */
 async function listar(req, res, next) {
   try {
-    const { id_tenant, tipo, tag, termo } = req.query
+    const { id_tenant, tipo, tag, termo, trilha } = req.query
     const { conteudos, contagem } = await bibliotecaService.listar(
       id_tenant,
-      { tipo, tag, termo },
+      { tipo, tag, termo, trilha },
       req.usuario
     )
     res.json({ conteudos, contagem })
