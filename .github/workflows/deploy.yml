@@ -214,6 +214,8 @@ jobs:
             IdentityFile ~/.ssh/deploy
             IdentitiesOnly yes
             StrictHostKeyChecking yes
+            ConnectTimeout 20
+            ConnectionAttempts 3
             ServerAliveInterval 30
           EOF
 
