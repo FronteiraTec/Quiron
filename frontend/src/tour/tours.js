@@ -367,13 +367,14 @@ const TOUR_BIBLIOTECA = {
       posicao: "baixo",
       titulo: "Filtre por tipo",
       texto:
-        "Vídeo, texto, arquivo, link... O número ao lado de cada tipo diz quanto você já tem de cada um.",
+        "Materiais, aulas, vídeos, templates, links... Um clique mostra só os conteúdos daquele tipo.",
     },
     {
-      seletor: '[data-tour="biblioteca-tags"]',
+      seletor: '[data-tour="biblioteca-filtros"]',
       posicao: "baixo",
-      titulo: "Filtre por tema",
-      texto: "As tags organizam o acervo por assunto e se combinam com o filtro de tipo.",
+      titulo: "Filtre por trilha e tema",
+      texto:
+        "Aqui ficam os filtros por trilha e por tag. Eles se combinam com o filtro de tipo, e o número no botão mostra quantos estão ativos.",
     },
     {
       seletor: '[data-tour="biblioteca-grade"]',

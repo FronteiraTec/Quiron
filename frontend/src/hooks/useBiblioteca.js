@@ -8,7 +8,7 @@
  * resposta do servidor, sem refetch. A unica excecao e excluir/duplicar, que
  * mexem no contador de usos e na contagem por tipo, e por isso recarregam.
  *
- * Os filtros (tipo, tag, termo) vao para o servidor, que ja sabe filtrar —
+ * Os filtros (tipo, tag, trilha, termo) vao para o servidor, que ja sabe filtrar —
  * evita trazer o acervo inteiro para peneirar no cliente.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -26,6 +26,7 @@ export function useBiblioteca() {
   // Filtros da tela.
   const [tipoFiltro, setTipoFiltro] = useState("TODOS") // TODOS | AULA | VIDEO...
   const [tagFiltro, setTagFiltro] = useState(null) // null = todas
+  const [trilhaFiltro, setTrilhaFiltro] = useState(null) // null = todas | id_no | "SEM_TRILHA"
   const [termo, setTermo] = useState("")
 
   // Descarta respostas de buscas antigas que chegarem fora de ordem: sem isso,
@@ -47,6 +48,7 @@ export function useBiblioteca() {
           id_tenant: idTenant,
           ...(tipoFiltro !== "TODOS" ? { tipo: tipoFiltro } : {}),
           ...(tagFiltro ? { tag: tagFiltro } : {}),
+          ...(trilhaFiltro ? { trilha: trilhaFiltro } : {}),
           ...(termo.trim() ? { termo: termo.trim() } : {}),
         },
       })
@@ -62,9 +64,9 @@ export function useBiblioteca() {
     } finally {
       if (id === requisicaoAtual.current) setCarregando(false)
     }
-  }, [idTenant, tipoFiltro, tagFiltro, termo])
+  }, [idTenant, tipoFiltro, tagFiltro, trilhaFiltro, termo])
 
-  // Busca com debounce; filtros de tipo/tag aplicam na hora.
+  // Busca com debounce; filtros de tipo/tag/trilha aplicam na hora.
   useEffect(() => {
     const atraso = termo.trim() ? 300 : 0
     const t = setTimeout(carregar, atraso)
@@ -157,6 +159,8 @@ export function useBiblioteca() {
     setTipoFiltro,
     tagFiltro,
     setTagFiltro,
+    trilhaFiltro,
+    setTrilhaFiltro,
     termo,
     setTermo,
     criar,

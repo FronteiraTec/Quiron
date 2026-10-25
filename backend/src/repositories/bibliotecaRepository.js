@@ -32,11 +32,16 @@ const COLUNAS = cols()
  * E o que alimenta o aviso "usado em N passos" antes de excluir; antes esse
  * numero era um campo estatico no mock, que nunca batia com a realidade.
  *
+ * `trilha` filtra pelos conteudos usados em algum passo daquela trilha (id da
+ * raiz PROGRAMA), ou pelos que nao estao em passo nenhum quando vale
+ * SEM_TRILHA. A arvore tem profundidade fixa (PROGRAMA > FASE > MODULO >
+ * PASSO), entao a raiz do passo e o pai da fase — sem CTE recursiva.
+ *
  * @param {number} idTenant
- * @param {{tipo?:string, tag?:string, termo?:string}} [filtros]
+ * @param {{tipo?:string, tag?:string, termo?:string, trilha?:number|"SEM_TRILHA"}} [filtros]
  */
 async function listarPorTenant(idTenant, filtros = {}) {
-  const { tipo, tag, termo } = filtros
+  const { tipo, tag, termo, trilha } = filtros
   const condicoes = ["c.id_tenant = $1"]
   const valores = [idTenant]
 
@@ -59,6 +64,23 @@ async function listarPorTenant(idTenant, filtros = {}) {
     )
   }
 
+  if (trilha === "SEM_TRILHA") {
+    condicoes.push(
+      `NOT EXISTS (SELECT 1 FROM trilha_conteudo tc WHERE tc.id_conteudo = c.id_conteudo)`
+    )
+  } else if (trilha) {
+    valores.push(trilha)
+    condicoes.push(
+      `EXISTS (SELECT 1
+                 FROM trilha_conteudo tc
+                 JOIN trilha_no passo  ON passo.id_no = tc.id_no
+                 JOIN trilha_no modulo ON modulo.id_no = passo.id_pai
+                 JOIN trilha_no fase   ON fase.id_no = modulo.id_pai
+                WHERE tc.id_conteudo = c.id_conteudo
+                  AND fase.id_pai = $${valores.length})`
+    )
+  }
+
   const { rows } = await query(
     `SELECT ${cols("c.", COLUNAS_LISTA)},
             COALESCE(u.usos, '[]'::json) AS usos,
@@ -74,7 +96,8 @@ async function listarPorTenant(idTenant, filtros = {}) {
                     'id_no', passo.id_no,
                     'passo', passo.nome,
                     'modulo', modulo.nome,
-                    'fase', fase.nome
+                    'fase', fase.nome,
+                    'id_trilha', fase.id_pai
                   ) ORDER BY fase.ordem, modulo.ordem, passo.ordem
                 ) AS usos
            FROM trilha_conteudo tc
@@ -161,7 +184,7 @@ async function listarBlocos(idConteudo) {
 async function listarUsos(idConteudo) {
   const { rows } = await query(
     `SELECT passo.id_no, passo.nome AS passo,
-            modulo.nome AS modulo, fase.nome AS fase
+            modulo.nome AS modulo, fase.nome AS fase, fase.id_pai AS id_trilha
        FROM trilha_conteudo tc
        JOIN trilha_no passo  ON passo.id_no = tc.id_no
        LEFT JOIN trilha_no modulo ON modulo.id_no = passo.id_pai

@@ -6,13 +6,15 @@
  * conteudo e independente e reutilizavel — os Passos da trilha (Construtor de
  * Programa) apenas o referenciam.
  *
- * Layout: cabecalho com "Novo conteudo" + busca, faixa de filtros (tipo + tag)
- * e uma grade de cards. Editar/criar abre o editor em tela cheia (EditorConteudo)
+ * Layout: cabecalho com "Novo conteudo"; busca + botao "Filtros" (trilha e tag
+ * num popover, para nao disputar espaco com a busca); chips de tipo; e a secao
+ * de conteudos, com total, ordenacao e a grade de cards. Editar/criar abre o
+ * editor em tela cheia (EditorConteudo)
  * que, nas aulas, usa o editor de blocos (components/editor/, motor BlockNote).
  *
  * Os dados vem da API (/conteudos) via useBiblioteca.
  */
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Box,
   Typography,
@@ -26,10 +28,13 @@ import {
   Chip,
   Snackbar,
   Alert,
-  Stack,
   CircularProgress,
+  Badge,
+  Divider,
+  Popover,
 } from "@mui/material"
-import { Add, Search, LocalLibrary } from "@mui/icons-material"
+import { alpha } from "@mui/material/styles"
+import { Add, Search, Tune, ExpandMore } from "@mui/icons-material"
 import { motion } from "framer-motion"
 import AppLayout from "../components/AppLayout"
 import ContentCard from "../components/biblioteca/ContentCard"
@@ -37,10 +42,49 @@ import EditorConteudo from "../components/biblioteca/EditorConteudo"
 import ConfirmDialog from "../components/programa/ConfirmDialog"
 import EmptyState from "../components/programa/EmptyState"
 import { useBiblioteca } from "../hooks/useBiblioteca"
+import { useAuthStore } from "../store/authStore"
+import api from "../services/api"
 import { TIPO_CONTEUDO, TIPOS_ORDEM, TAGS } from "../data/bibliotecaMeta"
+
+// Ordenacoes da grade. Feitas no cliente: o servidor ja devolve a lista
+// filtrada (por atualizacao, a mais recente primeiro), e reordenar o que esta
+// na tela nao justifica outra requisicao.
+const ORDENACOES = {
+  RECENTES: { label: "Recentes", comparar: null },
+  TITULO: {
+    label: "Título (A–Z)",
+    comparar: (a, b) => (a.titulo || "").localeCompare(b.titulo || "", "pt-BR"),
+  },
+  MAIS_USADOS: {
+    label: "Mais usados",
+    comparar: (a, b) => (b.usos?.length || 0) - (a.usos?.length || 0),
+  },
+}
 
 export default function Biblioteca() {
   const bib = useBiblioteca()
+  const idTenant = useAuthStore((s) => s.usuario?.id_tenant ?? null)
+
+  // Trilhas do tenant, para o filtro. Quem ve a Biblioteca sem permissao de
+  // ver as trilhas leva 403 aqui — o filtro so some, a tela segue normal.
+  const [trilhas, setTrilhas] = useState([])
+  useEffect(() => {
+    if (!idTenant) return
+    api
+      .get("/trilha/programas", { params: { id_tenant: idTenant } })
+      .then(({ data }) => setTrilhas(data.programas))
+      .catch(() => setTrilhas([]))
+  }, [idTenant])
+
+  const [filtrosAncora, setFiltrosAncora] = useState(null)
+  const filtrosAtivos = (bib.tagFiltro ? 1 : 0) + (bib.trilhaFiltro ? 1 : 0)
+
+  const [ordem, setOrdem] = useState("RECENTES")
+  const [ordemAncora, setOrdemAncora] = useState(null)
+  const ordenados = useMemo(() => {
+    const { comparar } = ORDENACOES[ordem]
+    return comparar ? [...bib.filtrados].sort(comparar) : bib.filtrados
+  }, [bib.filtrados, ordem])
 
   const [novoMenu, setNovoMenu] = useState(null)
   const [editando, setEditando] = useState(null) // conteudo aberto no Drawer
@@ -133,17 +177,19 @@ export default function Biblioteca() {
         <Box
           sx={{
             display: "flex",
-            alignItems: { xs: "flex-start", sm: "center" },
+            alignItems: "flex-start",
             justifyContent: "space-between",
             gap: 2,
             flexWrap: "wrap",
-            mb: 0.5,
+            mb: 3,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <LocalLibrary sx={{ color: "primary.main" }} />
+          <Box>
             <Typography variant="h4" fontWeight={700}>
               Biblioteca
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+              Materiais e ferramentas para apoiar a jornada das startups.
             </Typography>
           </Box>
           <Button
@@ -151,73 +197,108 @@ export default function Biblioteca() {
             variant="contained"
             startIcon={<Add />}
             onClick={(e) => setNovoMenu(e.currentTarget)}
-            sx={{ textTransform: "none" }}
+            sx={{ textTransform: "none", fontWeight: 700, borderRadius: 999, px: 2.5, py: 1 }}
           >
             Novo conteúdo
           </Button>
         </Box>
-        <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Tudo o que sua incubadora ensina, em um só lugar. Crie uma vez e reutilize
-          em qualquer passo da trilha.
-        </Typography>
 
-        {/* Busca */}
-        <TextField
-          data-tour="biblioteca-busca"
-          fullWidth
-          size="small"
-          placeholder="Buscar por título, resumo ou tag…"
-          value={bib.termo}
-          onChange={(e) => bib.setTermo(e.target.value)}
-          sx={{ mb: 2, maxWidth: 480 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search sx={{ fontSize: 20 }} />
-              </InputAdornment>
-            ),
-          }}
-        />
+        {/* Busca + botao de filtros (trilha e tag ficam no popover) */}
+        <Box sx={{ display: "flex", gap: 1.5, mb: 2 }}>
+          <TextField
+            data-tour="biblioteca-busca"
+            fullWidth
+            placeholder="Buscar materiais, assuntos ou palavras-chave…"
+            value={bib.termo}
+            onChange={(e) => bib.setTermo(e.target.value)}
+            InputProps={{
+              sx: { borderRadius: 2.5 },
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ fontSize: 20 }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Badge badgeContent={filtrosAtivos} color="primary">
+            <Button
+              data-tour="biblioteca-filtros"
+              variant="outlined"
+              color="inherit"
+              startIcon={<Tune />}
+              onClick={(e) => setFiltrosAncora(e.currentTarget)}
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                borderRadius: 2.5,
+                borderColor: "divider",
+                height: "100%",
+                px: 2,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Filtros
+            </Button>
+          </Badge>
+        </Box>
 
         {/* Filtro por tipo */}
-        <Stack data-tour="biblioteca-tipos" direction="row" spacing={1} sx={{ mb: 1.5, flexWrap: "wrap", gap: 1 }}>
+        <Box data-tour="biblioteca-tipos" sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
           <FiltroChip
             ativo={bib.tipoFiltro === "TODOS"}
-            label={`Todos (${bib.contagem.TODOS || 0})`}
+            label="Todos os conteúdos"
             onClick={() => bib.setTipoFiltro("TODOS")}
           />
           {TIPOS_ORDEM.map((tipo) => (
             <FiltroChip
               key={tipo}
               ativo={bib.tipoFiltro === tipo}
-              cor={TIPO_CONTEUDO[tipo].cor}
-              label={`${TIPO_CONTEUDO[tipo].plural} (${bib.contagem[tipo] || 0})`}
+              label={TIPO_CONTEUDO[tipo].plural}
               onClick={() => bib.setTipoFiltro(tipo)}
             />
           ))}
-        </Stack>
+        </Box>
 
-        {/* Filtro por tag */}
-        <Box data-tour="biblioteca-tags" sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 3 }}>
-          <Chip
-            label="Todas as tags"
-            size="small"
-            variant={bib.tagFiltro ? "outlined" : "filled"}
-            color={bib.tagFiltro ? "default" : "primary"}
-            onClick={() => bib.setTagFiltro(null)}
-            sx={{ cursor: "pointer" }}
-          />
-          {TAGS.map((tag) => (
-            <Chip
-              key={tag}
-              label={tag}
-              size="small"
-              variant={bib.tagFiltro === tag ? "filled" : "outlined"}
-              color={bib.tagFiltro === tag ? "primary" : "default"}
-              onClick={() => bib.setTagFiltro(bib.tagFiltro === tag ? null : tag)}
-              sx={{ cursor: "pointer" }}
-            />
-          ))}
+        <Divider sx={{ my: 3 }} />
+
+        {/* Cabecalho da secao: total + ordenacao */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: 2,
+            flexWrap: "wrap",
+            mb: 2,
+          }}
+        >
+          <Typography variant="h6" fontWeight={700}>
+            Conteúdos da biblioteca
+          </Typography>
+          <Typography variant="body2" color="text.secondary" component="div">
+            {ordenados.length} {ordenados.length === 1 ? "conteúdo" : "conteúdos"} · Ordenar por:{" "}
+            <Box
+              component="button"
+              type="button"
+              onClick={(e) => setOrdemAncora(e.currentTarget)}
+              sx={{
+                font: "inherit",
+                color: "text.primary",
+                fontWeight: 600,
+                bgcolor: "transparent",
+                border: 0,
+                p: 0,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                verticalAlign: "bottom",
+                "&:hover": { textDecoration: "underline" },
+              }}
+            >
+              {ORDENACOES[ordem].label}
+              <ExpandMore sx={{ fontSize: 18 }} />
+            </Box>
+          </Typography>
         </Box>
 
         {/* Grade de cards */}
@@ -229,7 +310,7 @@ export default function Biblioteca() {
           <Alert severity="error" sx={{ borderRadius: "6px" }}>
             {bib.erro}
           </Alert>
-        ) : bib.filtrados.length === 0 ? (
+        ) : ordenados.length === 0 ? (
           <Box sx={{ py: 8, display: "grid", placeItems: "center" }}>
             <EmptyState
               variante="selecao"
@@ -248,11 +329,11 @@ export default function Biblioteca() {
               gridTemplateColumns: {
                 xs: "1fr",
                 sm: "repeat(2, 1fr)",
-                md: "repeat(3, 1fr)",
+                lg: "repeat(3, 1fr)",
               },
             }}
           >
-            {bib.filtrados.map((c) => (
+            {ordenados.map((c) => (
               <ContentCard
                 key={c.id_conteudo}
                 conteudo={c}
@@ -264,6 +345,89 @@ export default function Biblioteca() {
           </Box>
         )}
       </Box>
+
+      {/* Popover de filtros: trilha + tag */}
+      <Popover
+        open={Boolean(filtrosAncora)}
+        anchorEl={filtrosAncora}
+        onClose={() => setFiltrosAncora(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{
+          sx: { mt: 1, p: 2, width: 340, maxWidth: "calc(100vw - 32px)", borderRadius: 2 },
+        }}
+      >
+        {trilhas.length > 0 && (
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Trilha"
+            value={bib.trilhaFiltro ?? ""}
+            onChange={(e) => bib.setTrilhaFiltro(e.target.value || null)}
+            sx={{ mb: 2 }}
+            SelectProps={{ displayEmpty: true }}
+            InputLabelProps={{ shrink: true }}
+          >
+            <MenuItem value="">Todas as trilhas</MenuItem>
+            {trilhas.map((t) => (
+              <MenuItem key={t.id_no} value={t.id_no}>
+                {t.nome}
+              </MenuItem>
+            ))}
+            <MenuItem value="SEM_TRILHA">
+              <em>Sem trilha (não usado em nenhum passo)</em>
+            </MenuItem>
+          </TextField>
+        )}
+
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontWeight: 600, display: "block", mb: 1 }}
+        >
+          Tema
+        </Typography>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+          {TAGS.map((tag) => (
+            <FiltroChip
+              key={tag}
+              ativo={bib.tagFiltro === tag}
+              label={tag}
+              onClick={() => bib.setTagFiltro(bib.tagFiltro === tag ? null : tag)}
+            />
+          ))}
+        </Box>
+
+        {filtrosAtivos > 0 && (
+          <Button
+            size="small"
+            onClick={() => {
+              bib.setTagFiltro(null)
+              bib.setTrilhaFiltro(null)
+            }}
+            sx={{ mt: 2, textTransform: "none" }}
+          >
+            Limpar filtros
+          </Button>
+        )}
+      </Popover>
+
+      {/* Menu de ordenacao */}
+      <Menu anchorEl={ordemAncora} open={Boolean(ordemAncora)} onClose={() => setOrdemAncora(null)}>
+        {Object.entries(ORDENACOES).map(([chave, o]) => (
+          <MenuItem
+            key={chave}
+            selected={chave === ordem}
+            onClick={() => {
+              setOrdem(chave)
+              setOrdemAncora(null)
+            }}
+          >
+            {o.label}
+          </MenuItem>
+        ))}
+      </Menu>
 
       {/* Menu "Novo conteudo" */}
       <Menu anchorEl={novoMenu} open={Boolean(novoMenu)} onClose={() => setNovoMenu(null)}>
@@ -334,18 +498,25 @@ export default function Biblioteca() {
   )
 }
 
-// Chip de filtro por tipo, com cor de acento opcional.
-function FiltroChip({ ativo, label, cor, onClick }) {
+// Chip de filtro (tipo e tag): neutro quando inativo, tingido com a cor
+// principal quando ativo.
+function FiltroChip({ ativo, label, onClick }) {
   return (
     <Chip
       label={label}
+      size="small"
       onClick={onClick}
-      variant={ativo ? "filled" : "outlined"}
       sx={{
-        cursor: "pointer",
+        height: 26,
         fontWeight: 600,
-        ...(ativo && cor ? { bgcolor: `${cor}1f`, color: cor, borderColor: cor } : {}),
-        ...(ativo && !cor ? { bgcolor: "primary.main", color: "primary.contrastText" } : {}),
+        "& .MuiChip-label": { px: 1.25 },
+        ...(ativo
+          ? {
+              bgcolor: (t) => alpha(t.palette.primary.main, 0.16),
+              color: "primary.main",
+              "&:hover": { bgcolor: (t) => alpha(t.palette.primary.main, 0.24) },
+            }
+          : { bgcolor: "action.selected" }),
       }}
     />
   )
