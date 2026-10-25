@@ -37,29 +37,41 @@ async function enviar(req, res, next) {
  */
 async function baixar(req, res, next) {
   try {
-    const { caminho, nomeOriginal, mime, tamanho, inline } = await arquivoService.abrir(
-      req.params.id,
-      req.usuario || null
-    )
-
-    res.setHeader("Content-Type", mime)
-    res.setHeader("Content-Length", tamanho)
-    // O navegador nao adivinha o tipo: sem isto, um arquivo de texto com HTML
-    // dentro poderia ser interpretado como pagina.
-    res.setHeader("X-Content-Type-Options", "nosniff")
-    res.setHeader(
-      "Content-Disposition",
-      `${inline ? "inline" : "attachment"}; filename="${encodeURIComponent(nomeOriginal)}"`
-    )
-
-    const stream = fs.createReadStream(caminho)
-    // Stream em vez de readFile: um PDF de 15MB nao precisa passar inteiro pela
-    // memoria do processo antes do primeiro byte chegar ao cliente.
-    stream.on("error", next)
-    stream.pipe(res)
+    servir(res, await arquivoService.abrir(req.params.id, req.usuario || null), next)
   } catch (err) {
     next(err)
   }
 }
 
-module.exports = { enviar, baixar }
+/**
+ * GET /arquivos/:id/pdf — o arquivo como PDF, para desenhar na pagina: o
+ * proprio, se ja for PDF; senao, convertido (apresentacao, .doc). Mesma
+ * autorizacao do download.
+ */
+async function baixarPdf(req, res, next) {
+  try {
+    servir(res, await arquivoService.abrirComoPdf(req.params.id, req.usuario || null), next)
+  } catch (err) {
+    next(err)
+  }
+}
+
+function servir(res, { caminho, nomeOriginal, mime, tamanho, inline }, next) {
+  res.setHeader("Content-Type", mime)
+  res.setHeader("Content-Length", tamanho)
+  // O navegador nao adivinha o tipo: sem isto, um arquivo de texto com HTML
+  // dentro poderia ser interpretado como pagina.
+  res.setHeader("X-Content-Type-Options", "nosniff")
+  res.setHeader(
+    "Content-Disposition",
+    `${inline ? "inline" : "attachment"}; filename="${encodeURIComponent(nomeOriginal)}"`
+  )
+
+  const stream = fs.createReadStream(caminho)
+  // Stream em vez de readFile: um PDF de 15MB nao precisa passar inteiro pela
+  // memoria do processo antes do primeiro byte chegar ao cliente.
+  stream.on("error", next)
+  stream.pipe(res)
+}
+
+module.exports = { enviar, baixar, baixarPdf }

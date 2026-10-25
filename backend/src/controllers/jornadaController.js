@@ -57,6 +57,26 @@ async function reenviar(req, res, next) {
   }
 }
 
+/** POST /jornada/concluir — passo sem entrega, marcado como feito pela startup. */
+async function concluirPasso(req, res, next) {
+  try {
+    await jornadaService.concluirPasso(paraServico(req))
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** POST /jornada/desfazer-conclusao — volta o passo sem entrega a "a construir". */
+async function desfazerConclusao(req, res, next) {
+  try {
+    await jornadaService.desfazerConclusao(paraServico(req))
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+}
+
 /**
  * Traduz o corpo para o formato do service. O autor sai do token, nunca do
  * corpo — senao daria para registrar uma entrega em nome de outra pessoa.
@@ -73,4 +93,12 @@ function paraServico(req) {
   }
 }
 
-module.exports = { carregar, listarTrilhas, salvarRascunho, enviar, reenviar }
+module.exports = {
+  carregar,
+  listarTrilhas,
+  salvarRascunho,
+  enviar,
+  reenviar,
+  concluirPasso,
+  desfazerConclusao,
+}

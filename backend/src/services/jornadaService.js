@@ -214,6 +214,13 @@ async function carregar(idStartup, idPrograma, usuario) {
     for (const modulo of modulos) {
       const filhos = (filhosDe.get(modulo.id_no) ?? []).sort((a, b) => a.ordem - b.ordem)
       for (const p of filhos) {
+        const entrega = montarEntrega(p, historicoPorNo.get(p.id_no) ?? [])
+        // Passo sem entrega nao passa pelo mentor: o estado e so "a startup
+        // marcou que concluiu" (concluirPasso) ou nao.
+        if (!p.permite_entrega && statusFase.get(p.id_no) === "APROVADA") {
+          entrega.status = "APROVADO"
+        }
+
         passos.push({
           id: p.id_no,
           titulo: p.nome,
@@ -232,7 +239,7 @@ async function carregar(idStartup, idPrograma, usuario) {
           obrigatoria: p.obrigatoria,
           id_questionario: p.id_questionario,
           conteudos: conteudosPorNo.get(p.id_no) ?? [],
-          entrega: montarEntrega(p, historicoPorNo.get(p.id_no) ?? []),
+          entrega,
         })
       }
     }
@@ -245,12 +252,15 @@ async function carregar(idStartup, idPrograma, usuario) {
     // = FALSE, uma aula para ler) nunca tem entrega, nunca chega a APROVADO e
     // prendia a fase — e com ela todas as seguintes — para sempre. Fase sem
     // nenhuma entrega fica em andamento, mas nao bloqueia a proxima: nao ha o
-    // que aprovar nela.
+    // que aprovar nela. Se a startup marcou todos os passos dela como
+    // concluidos, ai sim a fase aparece concluida.
     const registrada = statusFase.get(fase.id_no)
     const avaliaveis = passos.filter((p) => p.permite_entrega)
+    const aprovado = (p) => p.entrega.status === "APROVADO"
     const concluida =
       registrada === "APROVADA" ||
-      (avaliaveis.length > 0 && avaliaveis.every((p) => p.entrega.status === "APROVADO"))
+      (avaliaveis.length > 0 && avaliaveis.every(aprovado)) ||
+      (avaliaveis.length === 0 && passos.length > 0 && passos.every(aprovado))
 
     let status = "EM_ANDAMENTO"
     if (concluida) status = "CONCLUIDO"
@@ -323,6 +333,40 @@ async function reenviar(dados) {
 }
 
 /**
+ * Conclui um passo SEM entrega — a aula que o incubado le e marca como feita.
+ * Passo com entrega so se conclui pela aprovacao do mentor.
+ */
+async function concluirPasso(dados) {
+  await validarPassoSemEntrega(dados)
+  await jornadaRepository.concluirPasso(dados)
+}
+
+/** Volta um passo sem entrega para "a construir". */
+async function desfazerConclusao(dados) {
+  await validarPassoSemEntrega(dados)
+  await jornadaRepository.desfazerConclusao(dados)
+}
+
+/** O espelho de validarEntrega: membro da startup e PASSO que NAO aceita entrega. */
+async function validarPassoSemEntrega({ idNo, idStartup, usuario }) {
+  if (!idNo || !idStartup) {
+    throw erroNegocio(400, "Informe id_no e id_startup.")
+  }
+
+  await startupService.garantirMembro(idStartup, usuario)
+
+  const no = await trilhaRepository.buscarPorId(idNo)
+
+  if (!no) throw erroNegocio(404, "Passo nao encontrado.")
+  if (no.tipo !== "PASSO") {
+    throw erroNegocio(400, "So e possivel concluir um PASSO da trilha.")
+  }
+  if (no.permite_entrega) {
+    throw erroNegocio(400, `O passo "${no.nome}" e concluido pela avaliacao do mentor.`)
+  }
+}
+
+/**
  * Quem escreve precisa ser membro da startup, e o passo precisa existir, ser
  * folha e aceitar entrega.
  *
@@ -354,5 +398,7 @@ module.exports = {
   salvarRascunho,
   enviar,
   reenviar,
+  concluirPasso,
+  desfazerConclusao,
   derivarStatus,
 }

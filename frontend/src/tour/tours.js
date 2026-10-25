@@ -220,13 +220,6 @@ const TOUR_JORNADA = {
       texto:
         "No centro ficam o objetivo, o material de apoio e o campo da entrega. Você pode salvar rascunho quantas vezes quiser e só depois enviar para avaliação.",
     },
-    {
-      seletor: '[data-tour="jornada-impacto"]',
-      posicao: "esquerda",
-      titulo: "Por que isso importa",
-      texto:
-        "O painel da direita mostra o que esta atividade constrói na sua empresa e quem é o mentor responsável por avaliar.",
-    },
     fim("Bom trabalho."),
   ],
 }

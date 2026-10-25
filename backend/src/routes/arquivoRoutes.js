@@ -33,4 +33,8 @@ router.post("/", autenticar, upload.single("arquivo"), ctrl.enviar)
 // Download: token opcional — a visibilidade do arquivo decide (ver o service).
 router.get("/:id", autenticarOpcional, ctrl.baixar)
 
+// O mesmo arquivo como PDF (apresentacao e .doc convertidos), para a Jornada
+// desenhar na pagina. Mesma regra do download.
+router.get("/:id/pdf", autenticarOpcional, ctrl.baixarPdf)
+
 module.exports = router

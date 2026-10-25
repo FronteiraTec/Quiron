@@ -16,7 +16,13 @@ import { ZoomIn, ZoomOut, FitScreen } from "@mui/icons-material"
 import { GlobalWorkerOptions, getDocument } from "pdfjs-dist"
 import urlDoWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 
-GlobalWorkerOptions.workerSrc = urlDoWorker
+// O `?v=mjs` e para o cache, e nao para o servidor. O worker ja foi servido
+// como application/octet-stream (o nginx nao conhecia `.mjs`, ver
+// frontend/nginx.conf), e /assets sai com cache `immutable` de um ano: o
+// navegador que guardou aquela resposta continuaria recusando o worker mesmo
+// depois da correcao, porque o nome do arquivo (o hash) nao mudou. Outro
+// endereco, outra entrada no cache.
+GlobalWorkerOptions.workerSrc = `${urlDoWorker}?v=mjs`
 
 const ZOOM_MIN = 0.5
 const ZOOM_MAX = 3
@@ -68,7 +74,8 @@ export default function PreviaPdf({ blob }) {
     return () => observador.disconnect()
   }, [])
 
-  const escala = larguraPagina && largura ? (Math.min(largura - 32, 1000) / larguraPagina) * zoom : null
+  // O teto acompanha a coluna mais larga que mostra PDF: a do passo da Jornada.
+  const escala = larguraPagina && largura ? (Math.min(largura - 32, 1400) / larguraPagina) * zoom : null
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>

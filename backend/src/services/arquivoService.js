@@ -24,6 +24,7 @@ const crypto = require("crypto")
 const arquivoRepository = require("../repositories/arquivoRepository")
 const rbacService = require("./rbacService")
 const tenantRepository = require("../repositories/tenantRepository")
+const conversorPdf = require("../utils/conversorPdf")
 const { erroNegocio } = require("../utils/erros")
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "../../uploads")
@@ -58,6 +59,24 @@ const MIMES_PRIVADO = [...MIMES_IMAGEM, ...MIMES_DOCUMENTO]
 // Abrir no navegador so o que o navegador renderiza sem executar. O resto
 // baixa. HTML nunca entra na lista (ver o comentario do SVG acima).
 const EXIBIVEIS_INLINE = [...MIMES_IMAGEM, "application/pdf", "text/plain"]
+
+// O que o navegador nao desenha e o conversor transforma em PDF (ver
+// utils/conversorPdf.js), com a extensao pela qual o LibreOffice escolhe o
+// leitor — o nome no disco pode ter vindo sem extensao nenhuma.
+const CONVERSIVEIS_PDF = {
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+  "application/vnd.ms-powerpoint": ".ppt",
+  "application/msword": ".doc",
+}
+
+// O PDF convertido fica guardado ao lado dos originais, em UPLOAD_DIR/previas.
+// O arquivo nunca muda (uma versao nova e outro id_arquivo), entao converter
+// uma vez basta; e, se a pasta sumir, a proxima abertura converte de novo.
+const DIR_PREVIAS = "previas"
+
+// Uma conversao por arquivo: a turma inteira abrindo o mesmo passo ao mesmo
+// tempo espera UMA conversao, e nao enfileira trinta iguais no conversor.
+const conversoesEmAndamento = new Map()
 
 /**
  * Garante que o diretorio existe E que da para escrever nele. Roda na subida.
@@ -210,6 +229,7 @@ async function carregar(idArquivo, { idTenant } = {}) {
   }
 
   return {
+    idArquivo: arquivo.id_arquivo,
     caminho,
     nomeOriginal: arquivo.nome_original,
     mime: arquivo.mime,
@@ -284,6 +304,69 @@ async function abrir(idArquivo, usuario) {
 }
 
 /**
+ * O arquivo em PDF, para desenhar na pagina: o proprio, se ja for PDF; senao,
+ * a versao convertida (apresentacao, .doc), gerada na primeira abertura e
+ * guardada para as seguintes.
+ *
+ * A autorizacao e a de `abrir`, inteira: quem nao abre o original nao abre o
+ * PDF dele. O PDF convertido nunca tem registro proprio nem rota propria —
+ * so sai por aqui, atras do mesmo portao.
+ *
+ * @param {string} idArquivo
+ * @param {{id:number, root?:boolean}|null} usuario
+ */
+async function abrirComoPdf(idArquivo, usuario) {
+  const original = await abrir(idArquivo, usuario)
+  if (original.mime === "application/pdf") return original
+
+  const extensao = CONVERSIVEIS_PDF[original.mime]
+  if (!extensao) throw erroNegocio(415, "Este tipo de arquivo nao tem versao em PDF.")
+
+  const caminho = caminhoDaPrevia(original.idArquivo)
+  if (!(await existe(caminho))) await gerarPdf(original, extensao, caminho)
+
+  const { size } = await fs.stat(caminho)
+  return {
+    idArquivo: original.idArquivo,
+    caminho,
+    nomeOriginal: `${path.parse(original.nomeOriginal).name}.pdf`,
+    mime: "application/pdf",
+    tamanho: size,
+    inline: true,
+  }
+}
+
+function caminhoDaPrevia(idArquivo) {
+  return caminhoDe(path.join(DIR_PREVIAS, `${idArquivo}.pdf`))
+}
+
+async function existe(caminho) {
+  try {
+    await fs.access(caminho)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function gerarPdf(original, extensao, destino) {
+  let pendente = conversoesEmAndamento.get(original.idArquivo)
+  if (!pendente) {
+    pendente = (async () => {
+      const bytes = await fs.readFile(original.caminho)
+      const pdf = await conversorPdf.paraPdf(bytes, `documento${extensao}`)
+      await fs.mkdir(path.dirname(destino), { recursive: true })
+      // Grava ao lado e renomeia: quem chegar no meio nunca le meio PDF.
+      const parcial = `${destino}.${crypto.randomUUID()}.parcial`
+      await fs.writeFile(parcial, pdf)
+      await fs.rename(parcial, destino)
+    })().finally(() => conversoesEmAndamento.delete(original.idArquivo))
+    conversoesEmAndamento.set(original.idArquivo, pendente)
+  }
+  return pendente
+}
+
+/**
  * Apaga um arquivo: o registro e os bytes.
  *
  * SO APAGA O QUE NINGUEM MAIS REFERENCIA. Desanexar de uma tarefa nao apaga o
@@ -315,12 +398,15 @@ async function remover(idArquivo) {
       console.error(`[arquivo] registro ${idArquivo} removido, bytes nao:`, err.message)
     }
   })
+  // O PDF convertido, se houve: sem o original ninguem mais chega nele.
+  await fs.unlink(caminhoDaPrevia(idArquivo)).catch(() => {})
   return true
 }
 
 module.exports = {
   salvar,
   abrir,
+  abrirComoPdf,
   carregar,
   remover,
   prepararDiretorio,

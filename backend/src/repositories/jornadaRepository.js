@@ -227,7 +227,40 @@ async function reenviar(dados) {
   })
 }
 
-/** Progresso da startup por fase (startup_trilha), para saber o que liberou. */
+/**
+ * Marca como concluido um passo SEM entrega (permite_entrega = FALSE).
+ *
+ * Passo so de conteudo nao tem entrega nem avaliacao de onde derivar o estado;
+ * quem diz que terminou e a propria startup. Fica em `startup_trilha`, que ja
+ * guarda o progresso da startup por no da trilha — as consultas de fase dali
+ * filtram `tipo = 'FASE'` e nao enxergam estas linhas.
+ *
+ * Nao ha indice unico em (id_startup, id_no), entao a idempotencia vem do
+ * NOT EXISTS: concluir duas vezes nao cria a segunda linha.
+ */
+async function concluirPasso({ idNo, idStartup, idUsuario }) {
+  await query(
+    `INSERT INTO startup_trilha (id_startup, id_no, status, fim_ts, aprovado_por)
+     SELECT $1, $2, 'APROVADA', NOW(), $3
+      WHERE NOT EXISTS (
+        SELECT 1 FROM startup_trilha WHERE id_startup = $1 AND id_no = $2
+      )`,
+    [idStartup, idNo, idUsuario]
+  )
+}
+
+/** Desfaz a conclusao de um passo sem entrega. */
+async function desfazerConclusao({ idNo, idStartup }) {
+  await query(
+    `DELETE FROM startup_trilha WHERE id_startup = $1 AND id_no = $2`,
+    [idStartup, idNo]
+  )
+}
+
+/**
+ * Progresso da startup por no (startup_trilha), para saber o que liberou.
+ * Traz as fases aprovadas e tambem os passos sem entrega ja concluidos.
+ */
 async function progressoPorFase(idStartup) {
   const { rows } = await query(
     `SELECT id_no, status FROM startup_trilha WHERE id_startup = $1`,
@@ -245,5 +278,7 @@ module.exports = {
   historicoPorStartup,
   salvarEntrega,
   reenviar,
+  concluirPasso,
+  desfazerConclusao,
   progressoPorFase,
 }

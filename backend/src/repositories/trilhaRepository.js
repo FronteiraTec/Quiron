@@ -528,7 +528,7 @@ async function listarStartupsDoPrograma(idPrograma) {
 async function programasDaStartup(idStartup) {
   const { rows } = await query(
     `WITH passos AS (
-       SELECT p.id_no AS id_programa, s.id_no AS id_passo
+       SELECT p.id_no AS id_programa, s.id_no AS id_passo, s.permite_entrega
          FROM startup_programa sp
          JOIN trilha_no p ON p.id_no = sp.id_no
          JOIN trilha_no f ON f.id_pai = p.id_no AND f.ativo
@@ -536,16 +536,27 @@ async function programasDaStartup(idStartup) {
          JOIN trilha_no s ON s.id_pai = m.id_no AND s.ativo
         WHERE sp.id_startup = $1
      ),
+     -- Concluido = entrega aprovada pelo mentor ou, no passo sem entrega, a
+     -- marcacao da propria startup em startup_trilha (jornadaService).
      concluidos AS (
        SELECT pa.id_programa, COUNT(*)::INT AS total
          FROM passos pa
-         JOIN entrega e ON e.id_no = pa.id_passo AND e.id_startup = $1
-         JOIN LATERAL (
-           SELECT status FROM avaliacao
-            WHERE id_entrega = e.id_entrega
-            ORDER BY criado_ts DESC, id_avaliacao DESC
-            LIMIT 1
-         ) a ON a.status = 'APROVADO'
+        WHERE EXISTS (
+                SELECT 1
+                  FROM entrega e
+                  JOIN LATERAL (
+                    SELECT status FROM avaliacao
+                     WHERE id_entrega = e.id_entrega
+                     ORDER BY criado_ts DESC, id_avaliacao DESC
+                     LIMIT 1
+                  ) a ON a.status = 'APROVADO'
+                 WHERE e.id_no = pa.id_passo AND e.id_startup = $1
+              )
+           OR (NOT pa.permite_entrega AND EXISTS (
+                SELECT 1 FROM startup_trilha st
+                 WHERE st.id_startup = $1 AND st.id_no = pa.id_passo
+                   AND st.status = 'APROVADA'
+              ))
         GROUP BY pa.id_programa
      )
      SELECT p.id_no, p.nome, p.descricao, p.ativo,
