@@ -36,10 +36,17 @@ ambiente:
 | backend (Node) | 60 MB |
 | frontend (nginx) | 11 MB |
 | nginx interno | 10 MB |
-| **por ambiente** | **~145 MB** |
+| conversor (Gotenberg) | 6 MB em repouso · ~100 MB convertendo (medido em 24/10/2026) |
+| **por ambiente** | **~150 MB** |
 
-Dois ambientes ≈ 290 MB, mais ~40 MB de Caddy e ~400 MB de Ubuntu + daemon do
+Dois ambientes ≈ 300 MB, mais ~40 MB de Caddy e ~400 MB de Ubuntu + daemon do
 Docker. Sobra mais de 1 GB numa máquina de 2 GB.
+
+O **conversor** transforma apresentação e .doc em PDF para a Jornada mostrar na
+página. O LibreOffice só sobe na primeira conversão e cresce enquanto converte;
+um PPTX pesado, cheio de imagens, pode passar de 300 MB. Por isso ele roda num
+container à parte, com teto próprio (`LIMITE_CONVERSOR`): se estourar, morre a
+conversão, não a API.
 
 Isso só é verdade porque **as imagens são construídas no GitHub Actions, não no
 servidor**. Um `npm run build` do Vite sozinho passa de 1 GB e derrubaria a
@@ -54,8 +61,10 @@ Duas condições que não são opcionais em 2 GB:
   escolhe a vítima do OOM é o kernel — que pode matar o Postgres de produção
   por causa de um relatório rodado em dev.
 
-**Disco: 50 GB é o mínimo confortável.** As imagens base somam ~790 MB
-(postgres 453, backend 146, frontend 65, nginx 62, caddy 63) e cada deploy
+**Disco: 50 GB é o mínimo confortável.** As imagens base somam ~2,3 GB
+(conversor 1.510, postgres 453, backend 146, frontend 65, nginx 62, caddy 63;
+o conversor é baixado uma vez e só muda quando a versão fixada no compose
+muda) e cada deploy
 traz um backend e um frontend novos, ~211 MB o par. O `deploy.yml` roda
 `docker image prune -af --filter until=168h`, que mantém uma semana de versões
 para rollback e recolhe o resto.

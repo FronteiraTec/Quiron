@@ -197,11 +197,36 @@ export default function Programa() {
     setToast(
       r.ok
         ? {
-            texto: `${TIPO_META[alvo.tipo].label} "${alvo.nome}" excluído.`,
+            texto:
+              alvo.tipo === "PROGRAMA"
+                ? `Trilha "${alvo.nome}" excluída.`
+                : `${TIPO_META[alvo.tipo].label} "${alvo.nome}" excluído.`,
             severidade: "info",
           }
         : { texto: r.erro, severidade: "error" }
     )
+  }
+
+  /**
+   * Texto da confirmacao. Excluir a TRILHA vai alem da arvore: o banco apaga
+   * em cascata as matriculas, as entregas, o historico das startups nela e o
+   * que os mentores compartilharam nela — entao a mensagem diz quantas
+   * startups perdem isso.
+   */
+  const mensagemExclusao = (no) => {
+    if (no.tipo === "PROGRAMA") {
+      const n = Number(no.startups ?? 0)
+      return `Tem certeza que deseja excluir a trilha "${no.nome}"? Todas as fases, módulos e passos dela serão removidos (os materiais continuam na Biblioteca).${
+        n > 0
+          ? ` ${n} startup${n === 1 ? " está matriculada" : "s estão matriculadas"} nela e ${
+              n === 1 ? "perderá" : "perderão"
+            } as entregas e o progresso desta trilha.`
+          : ""
+      }${no.padrao ? " Ela é a trilha padrão: o cadastro de startups ficará sem padrão." : ""} Esta ação não pode ser desfeita.`
+    }
+    return `Tem certeza que deseja excluir "${no.nome}"?${
+      TIPO_META[no.tipo].childTipo ? " Todo o conteúdo dentro dele será removido." : ""
+    } Esta ação não pode ser desfeita.`
   }
 
   // Acoes disparadas pelo menu de contexto.
@@ -319,6 +344,8 @@ export default function Programa() {
             onNovaTrilha={() => setNovaTrilha({ nome: "" })}
             onDuplicarTrilha={duplicarTrilha}
             onDefinirPadrao={definirPadrao}
+            // A lista nao traz `tipo`: toda entrada dela e raiz (PROGRAMA).
+            onExcluirTrilha={(t) => pedirExclusao({ ...t, tipo: "PROGRAMA" })}
             onGerenciarStartups={() => setStartupsAberto(true)}
             onExpandirTodos={prog.expandirTodos}
             onRecolherTodos={prog.recolherTodos}
@@ -386,15 +413,9 @@ export default function Programa() {
       {/* Confirmacao de exclusao */}
       <ConfirmDialog
         aberto={Boolean(confirmar)}
-        mensagem={
-          confirmar
-            ? `Tem certeza que deseja excluir "${confirmar.no.nome}"?${
-                TIPO_META[confirmar.no.tipo].childTipo
-                  ? " Todo o conteúdo dentro dele será removido."
-                  : ""
-              } Esta ação não pode ser desfeita.`
-            : ""
-        }
+        titulo={confirmar?.no.tipo === "PROGRAMA" ? "Excluir trilha" : undefined}
+        mensagem={confirmar ? mensagemExclusao(confirmar.no) : ""}
+        confirmarTexto={confirmar?.no.tipo === "PROGRAMA" ? "Excluir trilha" : undefined}
         onConfirmar={confirmarExclusao}
         onCancelar={() => setConfirmar(null)}
       />

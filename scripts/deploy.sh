@@ -59,10 +59,12 @@ etapa "$STACK: $ANTERIOR_BACKEND -> $NOVO_BACKEND"
 
 # --- 1. imagens -------------------------------------------------------------
 # So as imagens do Quiron. Um `pull` geral traria tambem um postgres:17 novo
-# e recriaria o banco no meio do deploy.
+# e recriaria o banco no meio do deploy. O conversor entra porque a versao dele
+# e fixa no compose (o pull so baixa quando ela muda) e porque sao ~440MB: aqui
+# uma falha de rede aborta sem tocar em nada; dentro do `up` viraria rollback.
 usar_imagens "$NOVO_BACKEND" "$NOVO_FRONTEND"
 etapa "baixando imagens"
-if ! docker compose pull --quiet migracao backend frontend; then
+if ! docker compose pull --quiet migracao backend frontend conversor; then
   voltar_imagens
   echo "ERRO: nao consegui baixar as imagens. Nada foi alterado."
   exit 1

@@ -162,6 +162,7 @@ services:
       GOOGLE_SCOPE_CALENDAR: ${GOOGLE_SCOPE_CALENDAR:-}
       TZ_AGENDA: ${TZ_AGENDA:-America/Sao_Paulo}
       UPLOAD_DIR: /app/uploads
+      CONVERSOR_URL: http://conversor:3000
     volumes:
       - uploads:/app/uploads
     depends_on:
@@ -173,9 +174,46 @@ services:
         condition: service_completed_successfully
     networks:
       - interna
+      - conversao
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
       interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Apresentacao e .doc -> PDF, para o incubado ver na pagina da Jornada o que
+  # o navegador nao desenha (backend/src/utils/conversorPdf.js). E o LibreOffice
+  # atras de uma API HTTP, na variante sem Chromium.
+  #
+  # A PARTE da API de proposito: convertendo ele passa de 100MB, e no container
+  # da API um PPTX pesado faria o OOM derrubar o sistema. Aqui o pior caso e uma
+  # conversao que falha. So na rede `conversao`, que nao tem saida: um documento
+  # que tente buscar recurso remoto nao alcanca a internet nem o banco.
+  conversor:
+    image: gotenberg/gotenberg:8.37.0-libreoffice
+    restart: always
+    # Medido: 6MB em repouso, ~100MB depois de um PPTX simples. O LibreOffice
+    # so sobe na primeira conversao.
+    deploy:
+      resources:
+        limits:
+          memory: ${LIMITE_CONVERSOR:-512m}
+    command:
+      - gotenberg
+      # Abaixo dos 60s do nginx (ver conversorPdf.js).
+      - --api-timeout=45s
+      # Ninguem alem da API fala com ele: as funcoes de buscar URL e chamar
+      # webhook so seriam porta de SSRF.
+      - --api-disable-download-from
+      - --webhook-disable
+      - --prometheus-disable-collect
+      - --libreoffice-max-queue-size=10
+      - --log-level=warn
+    networks:
+      - conversao
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/health > /dev/null || exit 1"]
+      interval: 15s
       timeout: 5s
       retries: 5
 
@@ -216,6 +254,10 @@ services:
 networks:
   interna:
     driver: bridge
+  # So a API e o conversor. `internal`: sem rota para fora do host.
+  conversao:
+    driver: bridge
+    internal: true
   # Criada uma vez no servidor, fora do ciclo de vida dos stacks:
   #   docker network create quiron-borda
   borda:

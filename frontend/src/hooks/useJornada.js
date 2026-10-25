@@ -350,7 +350,9 @@ export function useJornada() {
           texto_resposta: resposta,
           anexos,
         })
-        await carregar(idStartup)
+        // Com a trilha aberta: sem ela o servidor abre a primeira em
+        // andamento, e quem estava em outra trilha era jogado para la.
+        await carregar(idStartup, trilhaAtivaId)
         return { ok: true }
       } catch (err) {
         return {
@@ -359,7 +361,7 @@ export function useJornada() {
         }
       }
     },
-    [idStartup, carregar]
+    [idStartup, trilhaAtivaId, carregar]
   )
 
   const salvarRascunho = useCallback(
@@ -375,6 +377,31 @@ export function useJornada() {
       return gravar(rota, passoId, resposta, anexos)
     },
     [gravar, passosFlat]
+  )
+
+  /**
+   * Passo sem entrega: a startup marca (ou desmarca) que concluiu. Recarrega
+   * pelo mesmo motivo de `gravar` — concluir o ultimo passo pode fechar a fase.
+   */
+  const marcarConcluido = useCallback(
+    async (passoId, concluido) => {
+      if (!idStartup) return { ok: false, erro: "Startup não identificada." }
+
+      try {
+        await api.post(`/jornada/${concluido ? "concluir" : "desfazer-conclusao"}`, {
+          id_no: passoId,
+          id_startup: idStartup,
+        })
+        await carregar(idStartup, trilhaAtivaId)
+        return { ok: true }
+      } catch (err) {
+        return {
+          ok: false,
+          erro: err.response?.data?.erro || "Erro ao atualizar o passo.",
+        }
+      }
+    },
+    [idStartup, trilhaAtivaId, carregar]
   )
 
   return {
@@ -400,6 +427,7 @@ export function useJornada() {
     posicaoNoEstagio,
     salvarRascunho,
     enviarAvaliacao,
+    marcarConcluido,
     recarregar: () => carregar(idStartup, trilhaAtivaId),
     STATUS_INICIADO,
     // trilhas da startup
