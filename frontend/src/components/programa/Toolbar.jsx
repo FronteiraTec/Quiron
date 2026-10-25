@@ -35,6 +35,7 @@ import {
   Groups,
   Check,
   ContentCopy,
+  DeleteOutline,
 } from "@mui/icons-material"
 
 export default function Toolbar({
@@ -44,6 +45,7 @@ export default function Toolbar({
   onNovaTrilha,
   onDuplicarTrilha,
   onDefinirPadrao,
+  onExcluirTrilha,
   onGerenciarStartups,
   onExpandirTodos,
   onRecolherTodos,
@@ -260,6 +262,27 @@ export default function Toolbar({
             <ListItemText
               primary="Tornar esta a padrão"
               secondary="Vem pré-selecionada no cadastro de startups"
+              secondaryTypographyProps={{ fontSize: 12 }}
+            />
+          </MenuItem>
+        )}
+
+        {/* Por ultimo e separado: e a unica acao do menu que nao tem volta */}
+        {ativa && <Divider sx={{ my: 0.5 }} />}
+        {ativa && (
+          <MenuItem
+            onClick={() => {
+              setMenuTrilhas(null)
+              onExcluirTrilha?.(ativa)
+            }}
+            sx={{ color: "error.main" }}
+          >
+            <ListItemIcon>
+              <DeleteOutline fontSize="small" color="error" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Excluir esta trilha"
+              secondary="Apaga fases, matrículas e entregas dela"
               secondaryTypographyProps={{ fontSize: 12 }}
             />
           </MenuItem>

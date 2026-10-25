@@ -45,11 +45,14 @@ import {
   FormatListNumbered,
   CoPresent,
   Quiz,
+  TaskAlt,
+  Undo,
 } from "@mui/icons-material"
 import { motion } from "framer-motion"
 import StatusPasso from "./StatusPasso"
 import BlocoView from "./BlocoView"
 import { MaterialNoPasso } from "./MateriaisDoMentor"
+import ArquivoNaPagina, { temPreviaNaPagina } from "./ArquivoNaPagina"
 import { documentoVazio } from "../editor/documento"
 import PlayerYoutube from "../biblioteca/PlayerYoutube"
 import { ehYoutube } from "../../utils/youtube"
@@ -73,12 +76,13 @@ const VisualizadorDocumento = lazy(() => import("../editor/VisualizadorDocumento
 const EDITAVEL = ["NAO_INICIADA", "RASCUNHO", "AJUSTE"]
 
 /**
- * Largura da coluna de leitura. O Notion para em ~700px pelo mesmo motivo:
- * acima disso a linha fica longa demais e o olho perde a linha seguinte. A
- * coluna central da Jornada e `flex: 1`, ou seja, ia ate onde a tela desse —
- * em monitor largo o texto atravessava 1300px de ponta a ponta.
+ * Largura da coluna de leitura. A coluna central da Jornada e `flex: 1`, ou
+ * seja, ia ate onde a tela desse — em monitor largo o texto atravessava 1300px
+ * de ponta a ponta. Ja foi 740px (a medida do Notion, so texto); quase
+ * dobrou quando o passo passou a mostrar PDF e apresentacao na pagina: a
+ * 740px um slide sai pequeno e a tela larga fica com duas faixas vazias.
  */
-const LARGURA_LEITURA = 740
+const LARGURA_LEITURA = 1390
 
 /**
  * Raio de borda desta pagina.
@@ -100,6 +104,7 @@ export default function PassoConteudo({
   posicao,
   onSalvarRascunho,
   onEnviar,
+  onMarcarConcluido,
   onAnterior,
   onProximo,
   temAnterior,
@@ -125,6 +130,21 @@ export default function PassoConteudo({
   }, [passo.id]) // eslint-disable-line
 
   const status = passo.entrega.status
+  // Passo so de conteudo (o switch de entrega desligado no Construtor): o
+  // incubado le e marca como concluido, sem passar pelo mentor. Sem isto a
+  // secao de entrega aparecia em todo passo e cobrava uma resposta que o
+  // servidor nem aceita.
+  const temEntrega = Boolean(passo.permite_entrega)
+  const concluido = status === "APROVADO"
+  const [marcando, setMarcando] = useState(false)
+  const marcar = async (valor) => {
+    setMarcando(true)
+    try {
+      await onMarcarConcluido(valor)
+    } finally {
+      setMarcando(false)
+    }
+  }
   const editavel = EDITAVEL.includes(status)
   const ehAnexo = passo.entrega.tipo === "ANEXO"
   // O questionario nao se responde aqui: tem tela propria, que monta as
@@ -312,240 +332,280 @@ export default function PassoConteudo({
       )}
 
       {/* Entrega */}
-      <SecaoBloco icone={<Send />} titulo="Sua entrega">
-        {status === "APROVADO" && (
-          <Alert severity="success" variant="outlined" sx={{ mb: 2, borderRadius: raio }}>
-            Entrega aprovada pelo mentor. Este passo está construído. ✓
-          </Alert>
-        )}
-        {status === "AGUARDANDO" && (
-          <Alert severity="warning" variant="outlined" sx={{ mb: 2, borderRadius: raio }}>
-            Enviado — aguardando a avaliação do mentor.
-          </Alert>
-        )}
-
-        {ehQuestionario ? (
-          !passo.id_questionario ? (
-            <Alert severity="info" variant="outlined" sx={{ borderRadius: raio }}>
-              A incubadora ainda não definiu o questionário deste passo.
+      {temEntrega && (
+        <SecaoBloco icone={<Send />} titulo="Sua entrega">
+          {status === "APROVADO" && (
+            <Alert severity="success" variant="outlined" sx={{ mb: 2, borderRadius: raio }}>
+              Entrega aprovada pelo mentor. Este passo está construído. ✓
             </Alert>
-          ) : editavel ? (
+          )}
+          {status === "AGUARDANDO" && (
+            <Alert severity="warning" variant="outlined" sx={{ mb: 2, borderRadius: raio }}>
+              Enviado — aguardando a avaliação do mentor.
+            </Alert>
+          )}
+
+          {ehQuestionario ? (
+            !passo.id_questionario ? (
+              <Alert severity="info" variant="outlined" sx={{ borderRadius: raio }}>
+                A incubadora ainda não definiu o questionário deste passo.
+              </Alert>
+            ) : editavel ? (
+              <Box>
+                <Texto sx={{ fontSize: 15, mb: 2 }}>
+                  Este passo é respondido por um questionário. As respostas vão direto para
+                  avaliação do mentor.
+                </Texto>
+                <Button
+                  variant="contained"
+                  disableElevation
+                  startIcon={<Quiz />}
+                  onClick={() =>
+                    navigate(
+                      `/passos/${passo.id}/responder?questionario=${passo.id_questionario}`,
+                      { state: { passo: passo.titulo } }
+                    )
+                  }
+                  sx={{ textTransform: "none", borderRadius: raio, fontWeight: 600 }}
+                >
+                  {status === "AJUSTE" ? "Responder novamente" : "Responder questionário"}
+                </Button>
+              </Box>
+            ) : null
+          ) : ehAnexo ? (
+            <Box
+              onClick={abrirSeletor}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (editavel && !enviandoAnexo) adicionarArquivos(e.dataTransfer.files)
+              }}
+              sx={{
+                border: "1px dashed",
+                borderColor: "divider",
+                borderRadius: raio,
+                p: 4,
+                textAlign: "center",
+                color: "text.secondary",
+                bgcolor: "action.hover",
+                cursor: editavel ? "pointer" : "default",
+                opacity: editavel ? 1 : 0.6,
+                transition: "border-color .15s",
+                "&:hover": editavel ? { borderColor: "primary.main" } : {},
+              }}
+            >
+              {enviandoAnexo ? (
+                <>
+                  <CircularProgress size={28} />
+                  <Typography sx={{ mt: 1, fontWeight: 600 }}>Enviando…</Typography>
+                  <Typography variant="caption">Não feche esta aba</Typography>
+                </>
+              ) : (
+                <>
+                  <UploadFile sx={{ fontSize: 30, opacity: 0.45 }} />
+                  <Typography sx={{ mt: 1, fontWeight: 600 }}>
+                    Arraste o PDF ou clique para enviar
+                  </Typography>
+                  <Typography variant="caption">Somente arquivos PDF (até 15MB)</Typography>
+                </>
+              )}
+            </Box>
+          ) : (
+            <TextField
+              fullWidth
+              multiline
+              minRows={6}
+              placeholder="Escreva sua resposta aqui…"
+              value={resposta}
+              onChange={(e) => setResposta(e.target.value)}
+              disabled={!editavel}
+              sx={campoDeTexto(raio, editavel)}
+            />
+          )}
+
+          {/* Input escondido de PDF (compartilhado por dropzone e botao) */}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            multiple
+            hidden
+            onChange={(e) => {
+              adicionarArquivos(e.target.files)
+              e.target.value = ""
+            }}
+          />
+
+          {/* Anexar PDF em qualquer passo (nao so nos do tipo anexo) */}
+          {editavel && !ehAnexo && !ehQuestionario && (
+            <Button
+              variant="text"
+              disableElevation
+              startIcon={enviandoAnexo ? <CircularProgress size={16} /> : <PictureAsPdf />}
+              onClick={abrirSeletor}
+              disabled={enviandoAnexo}
+              sx={{
+                mt: 1,
+                ml: -1,
+                textTransform: "none",
+                borderRadius: raio,
+                color: "text.secondary",
+                fontWeight: 600,
+              }}
+            >
+              {enviandoAnexo ? "Enviando…" : "Anexar PDF"}
+            </Button>
+          )}
+
+          {erroAnexo && (
+            <Typography variant="caption" color="error" sx={{ display: "block", mt: 1 }}>
+              {erroAnexo}
+            </Typography>
+          )}
+
+          {/* Lista de PDFs anexados */}
+          {anexos.length > 0 && (
+            <Stack spacing={0.25} sx={{ mt: 1.5 }}>
+              {anexos.map((a, i) => {
+                const acessivel = anexoAcessivel(a)
+                return (
+                  <Box
+                    key={i}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                      px: 1.25,
+                      py: 1,
+                      mx: -1.25,
+                      borderRadius: raio,
+                      transition: "background-color .12s",
+                      "&:hover": { bgcolor: "action.hover" },
+                    }}
+                  >
+                    <PictureAsPdf sx={{ color: acessivel ? "#ef4444" : "text.disabled" }} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 600, fontSize: 14 }} noWrap>
+                        {a.nome || `Anexo ${i + 1}`}
+                      </Typography>
+                      {a.tamanho != null && (
+                        <Typography variant="caption" color="text.secondary">
+                          {formatarTamanho(a.tamanho)}
+                        </Typography>
+                      )}
+                    </Box>
+                    {/* Nao e <a href>: anexo e privado e exige token, que a tag nao
+                        envia. `abrirArquivo` busca com o cabecalho e abre o blob.
+                        Anexos antigos, que guardaram so o nome, nunca subiram ao
+                        servidor — nao ha o que abrir. */}
+                    {acessivel ? (
+                      <Tooltip title="Visualizar" arrow>
+                        <IconButton size="small" onClick={() => abrirAnexo(a)}>
+                          <OpenInNew sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    ) : (
+                      <Typography variant="caption" color="text.disabled">
+                        indisponível
+                      </Typography>
+                    )}
+                    {editavel && (
+                      <Tooltip title="Remover" arrow>
+                        <IconButton size="small" onClick={() => removerAnexo(i)}>
+                          <Close sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
+                )
+              })}
+            </Stack>
+          )}
+
+          {/* Observacoes (para entregas do tipo anexo) */}
+          {ehAnexo && (
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              placeholder="Observações (opcional)"
+              value={resposta}
+              onChange={(e) => setResposta(e.target.value)}
+              disabled={!editavel}
+              sx={{ mt: 2, ...campoDeTexto(raio, editavel) }}
+            />
+          )}
+
+          {/* Acoes de entrega */}
+          {editavel && !ehQuestionario && (
+            <Box sx={{ display: "flex", gap: 1, mt: 2.5, flexWrap: "wrap" }}>
+              <Button
+                variant="outlined"
+                disableElevation
+                startIcon={<SaveOutlined />}
+                onClick={() => onSalvarRascunho(resposta, anexos)}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: raio,
+                  borderColor: "divider",
+                  color: "text.primary",
+                  fontWeight: 600,
+                }}
+              >
+                Salvar rascunho
+              </Button>
+              <Button
+                variant="contained"
+                disableElevation
+                startIcon={status === "AJUSTE" ? <Autorenew /> : <Send />}
+                disabled={!podeEnviar}
+                onClick={() => onEnviar(resposta, anexos)}
+                sx={{ textTransform: "none", borderRadius: raio, fontWeight: 600 }}
+              >
+                {status === "AJUSTE" ? "Revisar e reenviar" : "Enviar para avaliação"}
+              </Button>
+            </Box>
+          )}
+        </SecaoBloco>
+      )}
+
+      {/* Passo sem entrega: quem conclui e o proprio incubado. */}
+      {!temEntrega && (
+        <SecaoBloco icone={<TaskAlt />} titulo="Conclusão">
+          {concluido ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Alert severity="success" variant="outlined" sx={{ flex: 1, borderRadius: raio }}>
+                Você concluiu este passo. ✓
+              </Alert>
+              <Button
+                variant="text"
+                startIcon={marcando ? <CircularProgress size={16} /> : <Undo />}
+                disabled={marcando}
+                onClick={() => marcar(false)}
+                sx={{ textTransform: "none", borderRadius: raio, color: "text.secondary" }}
+              >
+                Desfazer
+              </Button>
+            </Box>
+          ) : (
             <Box>
               <Texto sx={{ fontSize: 15, mb: 2 }}>
-                Este passo é respondido por um questionário. As respostas vão direto para
-                avaliação do mentor.
+                Este passo não tem entrega. Quando terminar o conteúdo, marque como concluído.
               </Texto>
               <Button
                 variant="contained"
                 disableElevation
-                startIcon={<Quiz />}
-                onClick={() =>
-                  navigate(
-                    `/passos/${passo.id}/responder?questionario=${passo.id_questionario}`,
-                    { state: { passo: passo.titulo } }
-                  )
-                }
+                startIcon={marcando ? <CircularProgress size={16} color="inherit" /> : <TaskAlt />}
+                disabled={marcando}
+                onClick={() => marcar(true)}
                 sx={{ textTransform: "none", borderRadius: raio, fontWeight: 600 }}
               >
-                {status === "AJUSTE" ? "Responder novamente" : "Responder questionário"}
+                Marcar como concluído
               </Button>
             </Box>
-          ) : null
-        ) : ehAnexo ? (
-          <Box
-            onClick={abrirSeletor}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault()
-              if (editavel && !enviandoAnexo) adicionarArquivos(e.dataTransfer.files)
-            }}
-            sx={{
-              border: "1px dashed",
-              borderColor: "divider",
-              borderRadius: raio,
-              p: 4,
-              textAlign: "center",
-              color: "text.secondary",
-              bgcolor: "action.hover",
-              cursor: editavel ? "pointer" : "default",
-              opacity: editavel ? 1 : 0.6,
-              transition: "border-color .15s",
-              "&:hover": editavel ? { borderColor: "primary.main" } : {},
-            }}
-          >
-            {enviandoAnexo ? (
-              <>
-                <CircularProgress size={28} />
-                <Typography sx={{ mt: 1, fontWeight: 600 }}>Enviando…</Typography>
-                <Typography variant="caption">Não feche esta aba</Typography>
-              </>
-            ) : (
-              <>
-                <UploadFile sx={{ fontSize: 30, opacity: 0.45 }} />
-                <Typography sx={{ mt: 1, fontWeight: 600 }}>
-                  Arraste o PDF ou clique para enviar
-                </Typography>
-                <Typography variant="caption">Somente arquivos PDF (até 15MB)</Typography>
-              </>
-            )}
-          </Box>
-        ) : (
-          <TextField
-            fullWidth
-            multiline
-            minRows={6}
-            placeholder="Escreva sua resposta aqui…"
-            value={resposta}
-            onChange={(e) => setResposta(e.target.value)}
-            disabled={!editavel}
-            sx={campoDeTexto(raio, editavel)}
-          />
-        )}
-
-        {/* Input escondido de PDF (compartilhado por dropzone e botao) */}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/pdf,.pdf"
-          multiple
-          hidden
-          onChange={(e) => {
-            adicionarArquivos(e.target.files)
-            e.target.value = ""
-          }}
-        />
-
-        {/* Anexar PDF em qualquer passo (nao so nos do tipo anexo) */}
-        {editavel && !ehAnexo && !ehQuestionario && (
-          <Button
-            variant="text"
-            disableElevation
-            startIcon={enviandoAnexo ? <CircularProgress size={16} /> : <PictureAsPdf />}
-            onClick={abrirSeletor}
-            disabled={enviandoAnexo}
-            sx={{
-              mt: 1,
-              ml: -1,
-              textTransform: "none",
-              borderRadius: raio,
-              color: "text.secondary",
-              fontWeight: 600,
-            }}
-          >
-            {enviandoAnexo ? "Enviando…" : "Anexar PDF"}
-          </Button>
-        )}
-
-        {erroAnexo && (
-          <Typography variant="caption" color="error" sx={{ display: "block", mt: 1 }}>
-            {erroAnexo}
-          </Typography>
-        )}
-
-        {/* Lista de PDFs anexados */}
-        {anexos.length > 0 && (
-          <Stack spacing={0.25} sx={{ mt: 1.5 }}>
-            {anexos.map((a, i) => {
-              const acessivel = anexoAcessivel(a)
-              return (
-                <Box
-                  key={i}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    px: 1.25,
-                    py: 1,
-                    mx: -1.25,
-                    borderRadius: raio,
-                    transition: "background-color .12s",
-                    "&:hover": { bgcolor: "action.hover" },
-                  }}
-                >
-                  <PictureAsPdf sx={{ color: acessivel ? "#ef4444" : "text.disabled" }} />
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: 14 }} noWrap>
-                      {a.nome || `Anexo ${i + 1}`}
-                    </Typography>
-                    {a.tamanho != null && (
-                      <Typography variant="caption" color="text.secondary">
-                        {formatarTamanho(a.tamanho)}
-                      </Typography>
-                    )}
-                  </Box>
-                  {/* Nao e <a href>: anexo e privado e exige token, que a tag nao
-                      envia. `abrirArquivo` busca com o cabecalho e abre o blob.
-                      Anexos antigos, que guardaram so o nome, nunca subiram ao
-                      servidor — nao ha o que abrir. */}
-                  {acessivel ? (
-                    <Tooltip title="Visualizar" arrow>
-                      <IconButton size="small" onClick={() => abrirAnexo(a)}>
-                        <OpenInNew sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip>
-                  ) : (
-                    <Typography variant="caption" color="text.disabled">
-                      indisponível
-                    </Typography>
-                  )}
-                  {editavel && (
-                    <Tooltip title="Remover" arrow>
-                      <IconButton size="small" onClick={() => removerAnexo(i)}>
-                        <Close sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Box>
-              )
-            })}
-          </Stack>
-        )}
-
-        {/* Observacoes (para entregas do tipo anexo) */}
-        {ehAnexo && (
-          <TextField
-            fullWidth
-            multiline
-            minRows={2}
-            placeholder="Observações (opcional)"
-            value={resposta}
-            onChange={(e) => setResposta(e.target.value)}
-            disabled={!editavel}
-            sx={{ mt: 2, ...campoDeTexto(raio, editavel) }}
-          />
-        )}
-
-        {/* Acoes de entrega */}
-        {editavel && !ehQuestionario && (
-          <Box sx={{ display: "flex", gap: 1, mt: 2.5, flexWrap: "wrap" }}>
-            <Button
-              variant="outlined"
-              disableElevation
-              startIcon={<SaveOutlined />}
-              onClick={() => onSalvarRascunho(resposta, anexos)}
-              sx={{
-                textTransform: "none",
-                borderRadius: raio,
-                borderColor: "divider",
-                color: "text.primary",
-                fontWeight: 600,
-              }}
-            >
-              Salvar rascunho
-            </Button>
-            <Button
-              variant="contained"
-              disableElevation
-              startIcon={status === "AJUSTE" ? <Autorenew /> : <Send />}
-              disabled={!podeEnviar}
-              onClick={() => onEnviar(resposta, anexos)}
-              sx={{ textTransform: "none", borderRadius: raio, fontWeight: 600 }}
-            >
-              {status === "AJUSTE" ? "Revisar e reenviar" : "Enviar para avaliação"}
-            </Button>
-          </Box>
-        )}
-      </SecaoBloco>
+          )}
+        </SecaoBloco>
+      )}
 
       {/* Navegacao entre passos — rodape da pagina, separado por um fio. */}
       <Box
@@ -670,7 +730,8 @@ function SecaoBloco({ icone, titulo, children }) {
 }
 
 // Render de um conteudo referenciado: AULA aparece inline (leitura); video do
-// YouTube toca na propria pagina; os demais como linha de material com link.
+// YouTube toca na propria pagina; arquivo com previa (PDF, Word, planilha,
+// imagem) e desenhado na pagina; os demais como linha de material com link.
 function ConteudoEnsinado({ conteudo }) {
   const theme = useTheme()
   const raio = raioPlano(theme)
@@ -797,7 +858,7 @@ function ConteudoEnsinado({ conteudo }) {
 
   if (!conteudo.url) return linha
 
-  return (
+  const clicavel = (
     <>
       <Link href={conteudo.url} target="_blank" rel="noopener" underline="none" onClick={abrir}>
         {linha}
@@ -809,6 +870,14 @@ function ConteudoEnsinado({ conteudo }) {
       )}
     </>
   )
+
+  // PDF, Word, planilha e imagem enviados pela incubadora: desenhados aqui na
+  // pagina, sem outra aba. O resto (apresentacao, zip...) segue como linha.
+  if (temPreviaNaPagina(conteudo)) {
+    return <ArquivoNaPagina conteudo={conteudo} Icone={Icone} cor={meta.cor} raio={raio} fallback={clicavel} />
+  }
+
+  return clicavel
 }
 
 /**

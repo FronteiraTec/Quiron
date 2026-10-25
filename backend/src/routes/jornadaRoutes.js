@@ -34,4 +34,8 @@ router.post("/rascunho", ctrl.salvarRascunho)
 router.post("/enviar", ctrl.enviar)
 router.post("/reenviar", ctrl.reenviar)
 
+// Passo sem entrega (so conteudo): a propria startup marca que concluiu.
+router.post("/concluir", ctrl.concluirPasso)
+router.post("/desfazer-conclusao", ctrl.desfazerConclusao)
+
 module.exports = router

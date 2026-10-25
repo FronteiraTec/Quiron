@@ -8,10 +8,11 @@
  *   2) "modulos"  -> ao escolher uma fase desbloqueada, mostra os MODULOS
  *      dela em cartoes (quantas atividades cada um tem, progresso). O
  *      incubado precisa ver os modulos antes de abrir uma atividade.
- *   3) "atividade" -> ao escolher um modulo, abre um shell de 3 colunas
- *      (estilo Coursera/Docs) com as ATIVIDADES daquele modulo a esquerda,
- *      o conteudo da atividade selecionada no centro (objetivo, conteudo e
- *      entrega) e o impacto na empresa a direita.
+ *   3) "atividade" -> ao escolher um modulo, abre um shell (estilo
+ *      Coursera/Docs) com as ATIVIDADES daquele modulo a esquerda e o
+ *      conteudo da atividade selecionada no centro (objetivo, conteudo e
+ *      entrega). Havia um painel de "impacto" a direita; saiu porque so
+ *      repetia informacao basica e roubava largura da aula.
  *
  * A jornada e da STARTUP, nao do usuario: todos os membros da equipe veem e
  * editam o mesmo estado (o topo mostra os membros para deixar isso claro).
@@ -53,7 +54,6 @@ import FasesGrid from "../components/jornada/FasesGrid"
 import ModulosGrid from "../components/jornada/ModulosGrid"
 import AtividadesSidebar from "../components/jornada/AtividadesSidebar"
 import PassoConteudo from "../components/jornada/PassoConteudo"
-import PassoImpacto from "../components/jornada/PassoImpacto"
 import MateriaisDoMentor from "../components/jornada/MateriaisDoMentor"
 import DialogMaterial from "../components/espacoMentor/DialogMaterial"
 import EmptyState from "../components/programa/EmptyState"
@@ -61,18 +61,15 @@ import { useMateriaisRecebidos } from "../hooks/useEspacoMentor"
 import { agruparRecebidos } from "../data/espacoMentorMeta"
 
 const LARGURA_NAV = 300
-const LARGURA_IMPACTO = 320
 const ZOOM = 0.8 // exibe a tela a 80%
 
 export default function Jornada() {
   const j = useJornada()
   const theme = useTheme()
-  const lgUp = useMediaQuery(theme.breakpoints.up("lg"))
   const mdUp = useMediaQuery(theme.breakpoints.up("md"))
 
   const [navMobile, setNavMobile] = useState(false)
   const [navAberta, setNavAberta] = useState(true) // recolher barra esquerda
-  const [impactoAberto, setImpactoAberto] = useState(true) // recolher barra direita
   const [toast, setToast] = useState(null)
 
   // Os materiais que os mentores entregaram a startup NESTA trilha (Espaco do
@@ -112,6 +109,15 @@ export default function Jornada() {
     setToast(
       r.ok
         ? { texto: "Enviado! O mentor foi notificado.", severidade: "success" }
+        : { texto: r.erro, severidade: "error" }
+    )
+  }
+
+  const marcarConcluido = async (concluido) => {
+    const r = await j.marcarConcluido(j.selecionadoId, concluido)
+    setToast(
+      r.ok
+        ? { texto: concluido ? "Passo concluído." : "Conclusão desfeita.", severidade: "success" }
         : { texto: r.erro, severidade: "error" }
     )
   }
@@ -353,21 +359,26 @@ export default function Jornada() {
   )
 
   return (
-    <AppLayout>
-      <Box sx={{ mx: -3, mt: -3 }}>
+    <AppLayout fullBleed>
+      <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         <Paper
           elevation={0}
           sx={{
-            border: "1px solid",
+            borderTop: "1px solid",
             borderColor: "divider",
             borderRadius: 0,
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            // Zoom de 80%: compensa largura e altura para preencher a area.
+            // Zoom de 80%. Largura e altura vem do layout (fullBleed + flex),
+            // e nao de conta: era `width: 125%` e `height: calc((100vh -
+            // 112px) / 0.8)`. A largura so dava certo no zoom antigo do
+            // Chrome — desde o padronizado (Chrome 128) o zoom nao encolhe
+            // porcentagem e o painel saia 25% mais largo, com rolagem
+            // horizontal — e os 112px deixavam uma faixa de fundo no rodape.
             zoom: ZOOM,
-            width: `${100 / ZOOM}%`,
-            height: `calc((100vh - 112px) / ${ZOOM})`,
+            flex: 1,
+            minHeight: 0,
           }}
         >
           {/* Topo: modulo + progresso + toggles das barras */}
@@ -428,21 +439,9 @@ export default function Jornada() {
               </Box>
             </Box>
 
-            {/* Recolher/expandir barra direita (so em lg) */}
-            {lgUp && j.passo && (
-              <Tooltip title={impactoAberto ? "Recolher painel" : "Expandir painel"} arrow>
-                <IconButton
-                  size="small"
-                  onClick={() => setImpactoAberto((v) => !v)}
-                  sx={{ color: impactoAberto ? "primary.main" : "text.secondary" }}
-                >
-                  <ViewSidebarOutlined fontSize="small" sx={{ transform: "scaleX(-1)" }} />
-                </IconButton>
-              </Tooltip>
-            )}
           </Box>
 
-          {/* Corpo: 3 colunas */}
+          {/* Corpo: atividades a esquerda, a aula no centro */}
           <Box sx={{ flex: 1, display: "flex", minHeight: 0 }}>
             {/* Esquerda: atividades do modulo (recolhivel em md+) */}
             <AnimatePresence initial={false}>
@@ -480,6 +479,7 @@ export default function Jornada() {
                   posicao={j.posicaoNoEstagio}
                   onSalvarRascunho={salvarRascunho}
                   onEnviar={enviar}
+                  onMarcarConcluido={marcarConcluido}
                   onAnterior={() => j.passoAnterior && selecionar(j.passoAnterior.id)}
                   onProximo={() => j.passoProximo && selecionar(j.passoProximo.id)}
                   temAnterior={Boolean(j.passoAnterior)}
@@ -495,35 +495,6 @@ export default function Jornada() {
                 </Box>
               )}
             </Box>
-
-            {/* Direita: impacto (recolhivel, so em lg+) */}
-            <AnimatePresence initial={false}>
-              {lgUp && j.passo && impactoAberto && (
-                <Box
-                  component={motion.div}
-                  key="impacto"
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: LARGURA_IMPACTO, opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  transition={{ duration: 0.22 }}
-                  sx={{
-                    flexShrink: 0,
-                    borderLeft: "1px solid",
-                    borderColor: "divider",
-                    minHeight: 0,
-                    overflow: "hidden",
-                  }}
-                >
-                  <Box data-tour="jornada-impacto" sx={{ width: LARGURA_IMPACTO, height: "100%" }}>
-                    <PassoImpacto
-                      passo={j.passo}
-                      mentor={j.jornada.mentor}
-                      progresso={progModulo}
-                    />
-                  </Box>
-                </Box>
-              )}
-            </AnimatePresence>
           </Box>
         </Paper>
       </Box>
