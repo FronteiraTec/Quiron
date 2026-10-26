@@ -105,7 +105,7 @@ export default function PainelIncubado({
       {startup.trilhas.length === 0 ? (
         <Alert severity="info" variant="outlined">
           {startup.nome} ainda não está matriculada em nenhuma trilha. Os materiais são entregues
-          dentro da trilha — peça à coordenação para matricular a startup.
+          dentro da trilha, peça à coordenação para matricular a startup.
         </Alert>
       ) : (
         <>
@@ -169,7 +169,7 @@ export default function PainelIncubado({
             </Box>
           ) : trilha && !trilha.ativa ? (
             <Alert severity="info" variant="outlined">
-              Esta trilha está desativada no Construtor — a startup não a vê na Jornada.
+              Esta trilha está desativada no Construtor, a startup não a vê na Jornada.
             </Alert>
           ) : trilha ? (
             <Box>

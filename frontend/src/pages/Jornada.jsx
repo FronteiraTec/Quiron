@@ -201,7 +201,7 @@ export default function Jornada() {
           )}
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          A construção da {j.jornada.startup} — escolha uma fase para ver os módulos dela.
+          A construção da {j.jornada.startup}, escolha uma fase para ver os módulos dela.
           Fases ainda não alcançadas aparecem bloqueadas.
         </Typography>
 

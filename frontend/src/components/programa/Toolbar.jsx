@@ -243,7 +243,7 @@ export default function Toolbar({
             </ListItemIcon>
             <ListItemText
               primary="Duplicar esta trilha"
-              secondary="Copia fases, módulos e passos — sem as startups"
+              secondary="Copia fases, módulos e passos, sem as startups"
               secondaryTypographyProps={{ fontSize: 12 }}
             />
           </MenuItem>

@@ -151,7 +151,7 @@ export function IndicadorAutoSave({ salvando, comErro }) {
       <Chip
         size="small"
         icon={<CloudOffOutlinedIcon />}
-        label="Erro ao salvar — revise sua conexão"
+        label="Erro ao salvar, revise sua conexão"
         color="warning"
         variant="outlined"
       />

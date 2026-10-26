@@ -317,7 +317,7 @@ export default function DrawerMaterial({
                     </>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      PDF, documento, planilha, apresentação, texto ou imagem — até {LIMITE_ARQUIVO_MB} MB.
+                      PDF, documento, planilha, apresentação, texto ou imagem, até {LIMITE_ARQUIVO_MB} MB.
                     </Typography>
                   )}
                 </Box>

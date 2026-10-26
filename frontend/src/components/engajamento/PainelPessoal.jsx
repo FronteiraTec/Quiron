@@ -130,7 +130,7 @@ export default function PainelPessoal({ painel, nome }) {
     return (
       <Alert severity="info" icon={<InfoOutlined />} sx={{ borderRadius: 0, mb: 3 }}>
         <strong>Você acompanha o placar, mas não disputa.</strong> O ranking é entre incubados e
-        entre mentores — a coordenação não entra, porque é ela quem registra a participação que
+        entre mentores, a coordenação não entra, porque é ela quem registra a participação que
         vira ponto. Se você faz parte de uma startup e mesmo assim vê esta mensagem, confira se o
         seu vínculo com ela está ativo.
       </Alert>

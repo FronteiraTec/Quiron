@@ -280,7 +280,7 @@ export default function ConfiguracaoTarefas() {
               Colunas do quadro
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              As etapas pelas quais uma tarefa passa. Cada coluna diz também o que ela significa —
+              As etapas pelas quais uma tarefa passa. Cada coluna diz também o que ela significa,
               é o que mantém as contagens de pendência e conclusão certas.
             </Typography>
           </Box>

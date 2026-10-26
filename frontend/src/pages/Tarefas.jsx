@@ -706,7 +706,7 @@ export default function Tarefas() {
             aviso e a diferenca entre "nao ha tarefas" e "estas sao as suas". */}
         {soAsMinhas && !carregandoInicial && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            Você está vendo as tarefas em que está envolvido — as que são sua responsabilidade e as
+            Você está vendo as tarefas em que está envolvido, as que são sua responsabilidade e as
             que você criou. Para acompanhar o quadro inteiro da incubadora é preciso a permissão
             "Ver as tarefas de toda a incubadora".
           </Alert>
@@ -903,7 +903,7 @@ function EstadoVazio({ filtrando, soAsMinhas, podeCriar, onLimpar, onCriar }) {
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, mb: podeCriar ? 1.5 : 0 }}>
         {soAsMinhas
           ? "Quando alguém atribuir uma tarefa a você, ela aparece aqui."
-          : "Registre o que a equipe precisa fazer — com responsável e prazo, nada se perde."}
+          : "Registre o que a equipe precisa fazer, com responsável e prazo, nada se perde."}
       </Typography>
       {podeCriar && (
         <Button size="small" variant="contained" startIcon={<Add />} onClick={onCriar}>

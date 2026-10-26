@@ -1,5 +1,5 @@
 /**
- * Os envios em andamento — arquivos soltos na biblioteca ou escolhidos em
+ * Os envios em andamento, arquivos soltos na biblioteca ou escolhidos em
  * "Enviar arquivos". Um painel no canto, como o de downloads do navegador:
  * a pessoa continua navegando enquanto os arquivos sobem, e ve na hora qual
  * foi recusado e por que.

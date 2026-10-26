@@ -130,7 +130,7 @@ function Conteudo({ idTenant }) {
                 Os passos que mais travam
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Quantas startups estão paradas em cada um — em rascunho, esperando avaliação ou
+                Quantas startups estão paradas em cada um, em rascunho, esperando avaliação ou
                 refazendo após um pedido de ajuste.
               </Typography>
 

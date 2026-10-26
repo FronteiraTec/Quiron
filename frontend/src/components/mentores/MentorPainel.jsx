@@ -188,7 +188,7 @@ export default function MentorPainel({ mentor, detalhe, carregando, onVincular, 
           <RocketLaunch sx={{ fontSize: 44, opacity: 0.35 }} />
           <Typography sx={{ mt: 1 }}>Ainda não acompanha nenhuma startup.</Typography>
           <Typography variant="body2" sx={{ mt: 0.5 }}>
-            Enquanto isso, a fila de entregas dele fica vazia — ele não consegue
+            Enquanto isso, a fila de entregas dele fica vazia, ele não consegue
             avaliar ninguém.
           </Typography>
         </Box>

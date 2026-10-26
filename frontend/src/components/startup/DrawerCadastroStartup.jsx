@@ -251,11 +251,11 @@ export default function DrawerCadastroStartup({
     e.preventDefault()
 
     if (form.cnpj && !cnpjValido(form.cnpj)) {
-      setAviso({ tipo: "error", texto: "CNPJ inválido — confira os números digitados." })
+      setAviso({ tipo: "error", texto: "CNPJ inválido, confira os números digitados." })
       return
     }
     if (form.cep && !cepValido(form.cep)) {
-      setAviso({ tipo: "error", texto: "CEP incompleto — informe os 8 dígitos ou deixe em branco." })
+      setAviso({ tipo: "error", texto: "CEP incompleto, informe os 8 dígitos ou deixe em branco." })
       return
     }
 
@@ -463,7 +463,7 @@ export default function DrawerCadastroStartup({
                     helperText={
                       trilhas.length === 0
                         ? "Sua incubadora ainda não tem trilhas. A startup será criada sem trilha."
-                        : "A trilha padrão já vem escolhida — troque se esta startup começa em outra."
+                        : "A trilha padrão já vem escolhida, troque se esta startup começa em outra."
                     }
                   >
                     <MenuItem value="">

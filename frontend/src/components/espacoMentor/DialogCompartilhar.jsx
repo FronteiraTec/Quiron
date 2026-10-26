@@ -373,7 +373,7 @@ export default function DialogCompartilhar({
             {semTrilha && (
               <Alert severity="info" variant="outlined">
                 {startup.nome} ainda não está matriculada em nenhuma trilha. O material é entregue dentro
-                da trilha — peça à coordenação para matricular a startup.
+                da trilha, peça à coordenação para matricular a startup.
               </Alert>
             )}
           </Secao>

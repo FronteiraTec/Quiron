@@ -240,7 +240,7 @@ export default function Perfil() {
           <Paper sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mt: 3 }}>
             <SecaoTitulo icone={<MilitaryTech />} titulo="Minhas conquistas" />
             <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
-              Selos que a incubadora concedeu a você. Eles reconhecem evolução e protagonismo —
+              Selos que a incubadora concedeu a você. Eles reconhecem evolução e protagonismo,
               não somam pontos no ranking. Ative a credencial pública para poder publicá-los no
               LinkedIn.
             </Typography>

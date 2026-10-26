@@ -341,7 +341,7 @@ export default function PassoConteudo({
           )}
           {status === "AGUARDANDO" && (
             <Alert severity="warning" variant="outlined" sx={{ mb: 2, borderRadius: raio }}>
-              Enviado — aguardando a avaliação do mentor.
+              Enviado, aguardando a avaliação do mentor.
             </Alert>
           )}
 

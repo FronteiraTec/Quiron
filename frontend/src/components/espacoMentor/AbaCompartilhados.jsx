@@ -206,7 +206,7 @@ export default function AbaCompartilhados({ idTenant, versao, onAbrir, onEditar,
         <EmptyState
           variante="selecao"
           titulo="Nenhum material compartilhado ainda"
-          descricao="Em “Meus incubados”, escolha uma startup e um ponto da trilha dela para entregar um material — da sua biblioteca ou da biblioteca da incubadora."
+          descricao="Em “Meus incubados”, escolha uma startup e um ponto da trilha dela para entregar um material, da sua biblioteca ou da biblioteca da incubadora."
         />
       </Paper>
     )

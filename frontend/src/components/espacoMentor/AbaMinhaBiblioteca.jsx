@@ -757,7 +757,7 @@ export default function AbaMinhaBiblioteca({ idTenant, versao, podeCompartilhar,
     <EmptyState
       variante="programa"
       titulo="Sua biblioteca está vazia"
-      descricao="Guarde aqui os modelos, planilhas e links que você usa nas mentorias — arraste os arquivos do seu computador para cá, ou use Novo. Organize em pastas e compartilhe cada um com a startup certa, no ponto certo da trilha."
+      descricao="Guarde aqui os modelos, planilhas e links que você usa nas mentorias, arraste os arquivos do seu computador para cá, ou use Novo. Organize em pastas e compartilhe cada um com a startup certa, no ponto certo da trilha."
       acaoTexto="Enviar arquivos"
       onAcao={() => escolherArquivos()}
     />
@@ -810,7 +810,7 @@ export default function AbaMinhaBiblioteca({ idTenant, versao, podeCompartilhar,
   return (
     <Box>
       <Typography color="text.secondary" sx={{ mb: 2 }}>
-        Seus materiais de trabalho, em pastas, como no seu computador. Só você vê esta biblioteca — o que
+        Seus materiais de trabalho, em pastas, como no seu computador. Só você vê esta biblioteca, o que
         entra aqui só chega a uma startup quando você o compartilha.
       </Typography>
 

@@ -56,7 +56,7 @@ const TOUR_DASHBOARD = {
       posicao: "direita",
       titulo: "Ache a tela pelo nome",
       texto:
-        "Digite parte do nome da página em vez de procurar pelo menu inteiro — útil quando o menu está recolhido.",
+        "Digite parte do nome da página em vez de procurar pelo menu inteiro, útil quando o menu está recolhido.",
     },
     {
       seletor: '[data-tour="nav-busca"]',
@@ -83,7 +83,7 @@ const TOUR_DASHBOARD = {
       posicao: "esquerda",
       titulo: "Sua conta",
       texto:
-        "Aqui ficam tema claro/escuro, cor principal, perfil e a Ajuda — inclusive o \"Fazer Tour\", que abre o tutorial da tela em que você estiver.",
+        "Aqui ficam tema claro/escuro, cor principal, perfil e a Ajuda, inclusive o \"Fazer Tour\", que abre o tutorial da tela em que você estiver.",
     },
     {
       seletor: '[data-tour="dashboard-agenda"]',
@@ -97,7 +97,7 @@ const TOUR_DASHBOARD = {
       posicao: "cima",
       titulo: "Números de destaque",
       texto:
-        "Um resumo do programa. Cada card vem do relatório correspondente — você só vê os cards dos relatórios que tem permissão para abrir.",
+        "Um resumo do programa. Cada card vem do relatório correspondente, você só vê os cards dos relatórios que tem permissão para abrir.",
     },
     fim("Sempre que se perder, volte ao Dashboard."),
   ],
@@ -111,7 +111,7 @@ const TOUR_PERFIL = {
   passos: [
     {
       titulo: "Seu perfil",
-      texto: "Os dados que o resto da incubadora vê sobre você. São poucos campos — vamos por eles.",
+      texto: "Os dados que o resto da incubadora vê sobre você. São poucos campos, vamos por eles.",
     },
     {
       seletor: '[data-tour="perfil-foto"]',
@@ -133,7 +133,7 @@ const TOUR_PERFIL = {
       posicao: "cima",
       titulo: "E-mail",
       texto:
-        "O e-mail é o seu login e não pode ser alterado por aqui — peça ao administrador da sua incubadora.",
+        "O e-mail é o seu login e não pode ser alterado por aqui, peça ao administrador da sua incubadora.",
     },
     {
       seletor: '[data-tour="perfil-salvar"]',
@@ -147,7 +147,7 @@ const TOUR_PERFIL = {
       posicao: "esquerda",
       titulo: "E a aparência?",
       texto:
-        "Tema claro/escuro, cor principal e densidade ficam no menu da sua conta, não nesta tela — são preferências de exibição, não dados de cadastro.",
+        "Tema claro/escuro, cor principal e densidade ficam no menu da sua conta, não nesta tela, são preferências de exibição, não dados de cadastro.",
     },
     fim("Pronto."),
   ],
@@ -170,7 +170,7 @@ const TOUR_JORNADA = {
       posicao: "auto",
       titulo: "Suas trilhas",
       texto:
-        "Sua startup está em mais de uma trilha. Escolha por qual quer começar — o progresso de cada uma é separado.",
+        "Sua startup está em mais de uma trilha. Escolha por qual quer começar, o progresso de cada uma é separado.",
     },
     {
       seletor: '[data-tour="jornada-progresso"]',
@@ -190,7 +190,7 @@ const TOUR_JORNADA = {
       seletor: '[data-tour="jornada-continuar"]',
       posicao: "esquerda",
       titulo: "Continuar de onde parou",
-      texto: "Leva direto à fase em que a sua startup está agora — o caminho mais curto para voltar ao trabalho.",
+      texto: "Leva direto à fase em que a sua startup está agora, o caminho mais curto para voltar ao trabalho.",
     },
     {
       seletor: '[data-tour="jornada-fases"]',
@@ -247,7 +247,7 @@ const TOUR_MINHA_STARTUP = {
       posicao: "baixo",
       titulo: "Membros",
       texto:
-        "Quem está na equipe — clique numa pessoa para ver o perfil dela. Quem entra e quem sai da equipe é definido pela incubadora.",
+        "Quem está na equipe, clique numa pessoa para ver o perfil dela. Quem entra e quem sai da equipe é definido pela incubadora.",
     },
     {
       seletor: '[data-tour="minha-startup-aba-modelos"]',
@@ -295,7 +295,7 @@ const TOUR_PROGRAMA = {
       posicao: "cima",
       titulo: "Comece pela trilha",
       texto:
-        "Sua incubadora ainda não tem trilha nenhuma. A árvore precisa de uma raiz antes de aceitar fases — crie a primeira para começar.",
+        "Sua incubadora ainda não tem trilha nenhuma. A árvore precisa de uma raiz antes de aceitar fases, crie a primeira para começar.",
       permitirInteracao: true,
     },
     {
@@ -318,13 +318,13 @@ const TOUR_PROGRAMA = {
       posicao: "esquerda",
       titulo: "As propriedades do item",
       texto:
-        "Selecione um item na árvore e edite aqui: nome, descrição, conteúdo da Biblioteca, questionário e prazo. Não há modal — o que você digita é salvo neste painel.",
+        "Selecione um item na árvore e edite aqui: nome, descrição, conteúdo da Biblioteca, questionário e prazo. Não há modal, o que você digita é salvo neste painel.",
     },
     {
       seletor: '[data-tour="programa-expandir"]',
       posicao: "baixo",
       titulo: "Abrir e fechar tudo",
-      texto: "Expande ou recolhe a árvore inteira — ajuda quando a trilha já tem muitas fases.",
+      texto: "Expande ou recolhe a árvore inteira, ajuda quando a trilha já tem muitas fases.",
     },
     {
       seletor: '[data-tour="programa-startups"]',
@@ -380,7 +380,7 @@ const TOUR_BIBLIOTECA = {
       posicao: "auto",
       titulo: "Os conteúdos",
       texto:
-        "Clique num card para editar. Cada card também permite duplicar e excluir — um conteúdo usado em algum passo da trilha precisa ser desvinculado antes de sair.",
+        "Clique num card para editar. Cada card também permite duplicar e excluir, um conteúdo usado em algum passo da trilha precisa ser desvinculado antes de sair.",
     },
     {
       seletor: '[data-tour="biblioteca-novo"]',
@@ -452,7 +452,7 @@ const TOUR_RESPONDER = {
       seletor: '[data-tour="responder-startup"]',
       posicao: "baixo",
       titulo: "Em nome de qual startup",
-      texto: "A entrega é registrada para a startup escolhida aqui — confira antes de enviar.",
+      texto: "A entrega é registrada para a startup escolhida aqui, confira antes de enviar.",
       permitirInteracao: true,
     },
     {
@@ -547,7 +547,7 @@ const TOUR_STARTUPS = {
       posicao: "auto",
       titulo: "Uma linha por startup",
       texto:
-        "A barra é o progresso na trilha. Clique na linha para abrir a página da startup. Clique no cabeçalho para ordenar, arraste-o para mudar a ordem das colunas, e use o botão de ajustes (à direita do cabeçalho) para escolher quais colunas aparecem — inclusive as dos campos personalizados. Marcando as caixas você altera o status de várias de uma vez.",
+        "A barra é o progresso na trilha. Clique na linha para abrir a página da startup. Clique no cabeçalho para ordenar, arraste-o para mudar a ordem das colunas, e use o botão de ajustes (à direita do cabeçalho) para escolher quais colunas aparecem, inclusive as dos campos personalizados. Marcando as caixas você altera o status de várias de uma vez.",
     },
     {
       seletor: '[data-tour="startups-nova"]',
@@ -570,14 +570,14 @@ const TOUR_MEMBROS = {
     {
       titulo: "Membros",
       texto:
-        "Quem está em cada startup da incubadora — e, principalmente, quem ainda não está em nenhuma.",
+        "Quem está em cada startup da incubadora, e, principalmente, quem ainda não está em nenhuma.",
     },
     {
       seletor: '[data-tour="membros-sem-startup"]',
       posicao: "baixo",
       titulo: "Os que ficaram de fora",
       texto:
-        "Sem vínculo, essas pessoas entram no sistema e não encontram jornada nem entrega. Clique num nome para vinculá-lo a uma startup — é a única ação urgente desta tela.",
+        "Sem vínculo, essas pessoas entram no sistema e não encontram jornada nem entrega. Clique num nome para vinculá-lo a uma startup, é a única ação urgente desta tela.",
       permitirInteracao: true,
     },
     {
@@ -599,7 +599,7 @@ const TOUR_MEMBROS = {
       posicao: "auto",
       titulo: "A tabela",
       texto:
-        "Cada linha é uma pessoa numa startup — quem está em duas aparece duas vezes. Clique no cabeçalho para ordenar, arraste-o para reordenar as colunas e use o botão de ajustes para escolher o que aparece.",
+        "Cada linha é uma pessoa numa startup, quem está em duas aparece duas vezes. Clique no cabeçalho para ordenar, arraste-o para reordenar as colunas e use o botão de ajustes para escolher o que aparece.",
     },
     fim("Ninguém deve ficar sem startup."),
   ],
@@ -621,7 +621,7 @@ const TOUR_STARTUP_DETALHE = {
       posicao: "baixo",
       titulo: "Onde ela está",
       texto:
-        "A fase atual, o status e a barra de progresso na trilha — os três números que resumem a incubação dela.",
+        "A fase atual, o status e a barra de progresso na trilha, os três números que resumem a incubação dela.",
     },
     {
       seletor: '[data-tour="startup-editar"]',
@@ -642,7 +642,7 @@ const TOUR_STARTUP_DETALHE = {
       posicao: "baixo",
       titulo: "As abas",
       texto:
-        "Cadastro traz os dados da empresa — contatos, endereço, campos complementares. As outras três (Membros, Modelos e Fases concluídas) são as mesmas que a própria startup vê em Minha Startup.",
+        "Cadastro traz os dados da empresa, contatos, endereço, campos complementares. As outras três (Membros, Modelos e Fases concluídas) são as mesmas que a própria startup vê em Minha Startup.",
     },
     {
       seletor: '[data-tour="startup-conteudo"]',
@@ -670,7 +670,7 @@ const TOUR_MENTORES = {
       posicao: "baixo",
       titulo: "Quantos e quem está livre",
       texto:
-        "O aviso laranja mostra os mentores sem nenhuma startup — normalmente é aí que a próxima startup deve ir.",
+        "O aviso laranja mostra os mentores sem nenhuma startup, normalmente é aí que a próxima startup deve ir.",
     },
     {
       seletor: '[data-tour="mentores-busca"]',
@@ -684,21 +684,21 @@ const TOUR_MENTORES = {
       posicao: "baixo",
       titulo: "Filtrar",
       texto:
-        "Abre um painel com status, formato, carga, disponibilidade e a última mentoria — mais uma lista de especialidades, demandas, vínculos e áreas montada a partir do que a sua incubadora de fato cadastrou.",
+        "Abre um painel com status, formato, carga, disponibilidade e a última mentoria, mais uma lista de especialidades, demandas, vínculos e áreas montada a partir do que a sua incubadora de fato cadastrou.",
     },
     {
       seletor: '[data-tour="mentores-periodo"]',
       posicao: "baixo",
       titulo: "O período das mentorias",
       texto:
-        "A coluna \"Mentorias\" conta as atividades de Mentoria da agenda que já aconteceram e têm aquele mentor como responsável. Aqui você escolhe a janela — e o título da coluna acompanha.",
+        "A coluna \"Mentorias\" conta as atividades de Mentoria da agenda que já aconteceram e têm aquele mentor como responsável. Aqui você escolhe a janela, e o título da coluna acompanha.",
     },
     {
       seletor: '[data-tour="mentores-lista"]',
       posicao: "auto",
       titulo: "Uma linha por mentor",
       texto:
-        "Clique na linha para abrir o painel dele na aba Startups, que é onde se vincula e desvincula — mover uma startup ali muda a fila de avaliação na hora. O lápis abre a mesma janela na aba Cadastro. Clique no cabeçalho para ordenar, arraste-o para reordenar as colunas, e use o botão de ajustes para escolher quais aparecem (contato e observações da coordenação vêm desligados). Marcando as caixas você altera o status de vários de uma vez.",
+        "Clique na linha para abrir o painel dele na aba Startups, que é onde se vincula e desvincula, mover uma startup ali muda a fila de avaliação na hora. O lápis abre a mesma janela na aba Cadastro. Clique no cabeçalho para ordenar, arraste-o para reordenar as colunas, e use o botão de ajustes para escolher quais aparecem (contato e observações da coordenação vêm desligados). Marcando as caixas você altera o status de vários de uma vez.",
     },
     {
       seletor: '[data-tour="mentores-novo"]',
@@ -728,7 +728,7 @@ const TOUR_ENTREGAS = {
       posicao: "direita",
       titulo: "Quanto está esperando",
       texto:
-        "O aviso laranja conta as entregas paradas há uma semana ou mais — são elas que precisam de resposta hoje.",
+        "O aviso laranja conta as entregas paradas há uma semana ou mais, são elas que precisam de resposta hoje.",
     },
     {
       seletor: '[data-tour="entregas-busca"]',
@@ -757,7 +757,7 @@ const TOUR_ENTREGAS = {
       texto:
         "Leia o que foi enviado e registre a devolutiva: aprovar, pedir ajuste ou reprovar, com comentário e nota opcional. Pedir ajuste devolve a entrega para a startup refazer.",
     },
-    fim("O comentário é o que a startup lê — vale escrever."),
+    fim("O comentário é o que a startup lê, vale escrever."),
   ],
 }
 
@@ -797,7 +797,7 @@ const TOUR_FEEDBACK = {
       posicao: "auto",
       titulo: "A lista",
       texto:
-        "Os ajustes pedidos vêm primeiro — são os únicos que ainda esperam algo da startup. O resto segue da devolutiva mais recente para a mais antiga.",
+        "Os ajustes pedidos vêm primeiro, são os únicos que ainda esperam algo da startup. O resto segue da devolutiva mais recente para a mais antiga.",
     },
     fim("Bom para chegar preparado na próxima conversa."),
   ],
@@ -819,7 +819,7 @@ const TOUR_AVALIACOES = {
       posicao: "baixo",
       titulo: "Os quatro números",
       texto:
-        "Quantidade, tempo médio de resposta, nota média e — o mais importante — quantas devolutivas saíram sem comentário nenhum.",
+        "Quantidade, tempo médio de resposta, nota média e, o mais importante, quantas devolutivas saíram sem comentário nenhum.",
     },
     {
       seletor: '[data-tour="avaliacoes-busca"]',
@@ -832,7 +832,7 @@ const TOUR_AVALIACOES = {
       seletor: '[data-tour="avaliacoes-filtros"]',
       posicao: "baixo",
       titulo: "Filtrar",
-      texto: "Por decisão e por avaliador — útil para olhar o trabalho de um mentor específico.",
+      texto: "Por decisão e por avaliador, útil para olhar o trabalho de um mentor específico.",
     },
     {
       seletor: '[data-tour="avaliacoes-lista"]',
@@ -860,7 +860,7 @@ function tourRelatorio({ titulo, abertura, kpis, graficos, tabela, encerramento 
         posicao: "baixo",
         titulo: "Escolha a incubadora",
         texto:
-          "Você está logado como root, que não pertence a nenhuma incubadora — escolha aqui de qual delas é o relatório.",
+          "Você está logado como root, que não pertence a nenhuma incubadora, escolha aqui de qual delas é o relatório.",
       },
       {
         seletor: '[data-tour="relatorio-periodo"]',
@@ -895,7 +895,7 @@ function tourRelatorio({ titulo, abertura, kpis, graficos, tabela, encerramento 
         posicao: "esquerda",
         titulo: "Levar para fora",
         texto:
-          "Baixa a tabela em CSV, com os mesmos filtros aplicados — bom para relatório de conselho ou planilha própria.",
+          "Baixa a tabela em CSV, com os mesmos filtros aplicados, bom para relatório de conselho ou planilha própria.",
       },
       fim(encerramento),
     ],
@@ -907,7 +907,7 @@ const TOUR_REL_PROGRESSO = tourRelatorio({
   abertura:
     "O relatório que responde à pergunta de toda semana: quem está avançando, quem travou e por quê. Uma linha por startup incubada.",
   kpis:
-    "Quantas startups há, o progresso médio na trilha e — os que importam — quantas estão em risco alto, paradas ou com passo atrasado.",
+    "Quantas startups há, o progresso médio na trilha e, os que importam, quantas estão em risco alto, paradas ou com passo atrasado.",
   tabela:
     "Clique em qualquer cabeçalho para ordenar: o mesmo quadro serve para achar o atraso e para montar o ranking de quem vai bem. A coluna Risco resume prazo vencido + falta de atividade; passe o mouse nela para ver o motivo. Clicar na linha abre a startup.",
   encerramento: "Comece pelas linhas de risco alto.",
@@ -928,7 +928,7 @@ const TOUR_REL_ENTREGAS = tourRelatorio({
 const TOUR_REL_GARGALOS = tourRelatorio({
   titulo: "Gargalos do programa",
   abertura:
-    "Este relatório não olha startups — olha a trilha. Quais passos seguram mais gente, quanto tempo levam para ser aprovados e onde os prazos estouram.",
+    "Este relatório não olha startups, olha a trilha. Quais passos seguram mais gente, quanto tempo levam para ser aprovados e onde os prazos estouram.",
   kpis: "Quantos passos há na trilha, quantos travam e o tempo médio até a aprovação.",
   graficos:
     "O ranking dos passos que mais travam: quantas startups estão paradas em cada um e quantas estão refazendo depois de um pedido de ajuste. Um passo no topo aqui costuma ser um enunciado confuso, não uma turma fraca.",
@@ -956,7 +956,7 @@ const TOUR_USUARIOS = {
     {
       titulo: "Usuários da incubadora",
       texto:
-        "As pessoas que entram no sistema e o que cada uma pode fazer. As abas do topo separam os assuntos — vamos por elas.",
+        "As pessoas que entram no sistema e o que cada uma pode fazer. As abas do topo separam os assuntos, vamos por elas.",
     },
     {
       seletor: '[data-tour="usuarios-aba-usuarios"]',
@@ -969,7 +969,7 @@ const TOUR_USUARIOS = {
       posicao: "baixo",
       titulo: "Permissões",
       texto:
-        "O papel já é um pacote de permissões. Aqui você concede o que vai ALÉM dele — permissão só acrescenta, nunca tira o que o papel dá.",
+        "O papel já é um pacote de permissões. Aqui você concede o que vai ALÉM dele, permissão só acrescenta, nunca tira o que o papel dá.",
     },
     {
       seletor: '[data-tour="usuarios-aba-grupos"]',
@@ -982,7 +982,7 @@ const TOUR_USUARIOS = {
       posicao: "baixo",
       titulo: "Ativar usuários",
       texto:
-        "Usuários desativados ficam aqui. Desativar não apaga a pessoa — o histórico dela continua no sistema e pode ser reativado.",
+        "Usuários desativados ficam aqui. Desativar não apaga a pessoa, o histórico dela continua no sistema e pode ser reativado.",
     },
     {
       seletor: '[data-tour="usuarios-aba-startups"]',
@@ -1016,7 +1016,7 @@ const TOUR_USUARIOS = {
       posicao: "esquerda",
       titulo: "Os detalhes",
       texto:
-        "Editar dados, trocar o papel, desativar e reenviar o link de redefinição de senha — tudo do usuário selecionado.",
+        "Editar dados, trocar o papel, desativar e reenviar o link de redefinição de senha, tudo do usuário selecionado.",
     },
     fim("Permissão é o que estende o papel; não é o que o substitui."),
   ],
@@ -1045,7 +1045,7 @@ const TOUR_TENANTS = {
       posicao: "esquerda",
       titulo: "Nova incubadora",
       texto:
-        "Cadastro, limites de usuários e de startups. Depois de criar, crie também o administrador dela — é quem vai tocar a incubadora daí em diante.",
+        "Cadastro, limites de usuários e de startups. Depois de criar, crie também o administrador dela, é quem vai tocar a incubadora daí em diante.",
       permitirInteracao: true,
     },
     fim("Cada incubadora é um mundo separado."),
@@ -1075,7 +1075,7 @@ const TOUR_CONFIG_DADOS = {
       posicao: "baixo",
       titulo: "As abas",
       texto:
-        "Dados cadastrais, e-mail, categorias e locais da agenda, e auditoria. Usuários, grupos e permissões não ficam aqui — têm tela própria, em Incubadora > Usuários.",
+        "Dados cadastrais, e-mail, categorias e locais da agenda, e auditoria. Usuários, grupos e permissões não ficam aqui, têm tela própria, em Incubadora > Usuários.",
     },
     {
       seletor: '[data-tour="dados-cadastrais"]',
@@ -1161,14 +1161,14 @@ const TOUR_CONFIG_AGENDA = {
       posicao: "auto",
       titulo: "Categorias de evento",
       texto:
-        "Cada categoria tem nome e cor — é a cor que a atividade ganha no calendário e o que o filtro da agenda usa. Desativar uma categoria a esconde dos novos eventos sem mexer nos antigos.",
+        "Cada categoria tem nome e cor, é a cor que a atividade ganha no calendário e o que o filtro da agenda usa. Desativar uma categoria a esconde dos novos eventos sem mexer nos antigos.",
     },
     {
       seletor: '[data-tour="agenda-locais"]',
       posicao: "auto",
       titulo: "Locais",
       texto:
-        "As salas e espaços que se repetem. Cadastrá-los aqui evita digitar o mesmo endereço toda semana — no evento ainda dá para escrever um local avulso.",
+        "As salas e espaços que se repetem. Cadastrá-los aqui evita digitar o mesmo endereço toda semana, no evento ainda dá para escrever um local avulso.",
     },
     fim("O calendário passa a falar a língua da sua incubadora."),
   ],
@@ -1193,7 +1193,7 @@ const TOUR_CONFIG_STARTUPS = {
       posicao: "auto",
       titulo: "Tipos de startup",
       texto:
-        "Como você classifica as empresas — incubada, residente, associada, ou o nome que a sua incubadora usa. Vira um filtro na lista de startups.",
+        "Como você classifica as empresas, incubada, residente, associada, ou o nome que a sua incubadora usa. Vira um filtro na lista de startups.",
     },
     {
       seletor: '[data-tour="startups-config-situacoes"]',
@@ -1219,7 +1219,7 @@ const TOUR_CONFIG_AUDITORIA = {
     {
       titulo: "Auditoria",
       texto:
-        "O que foi feito na incubadora e por quem. É registro de conformidade — serve para reconstruir o que aconteceu, não para tomar decisão do dia a dia (isso são os Relatórios).",
+        "O que foi feito na incubadora e por quem. É registro de conformidade, serve para reconstruir o que aconteceu, não para tomar decisão do dia a dia (isso são os Relatórios).",
     },
     {
       seletor: '[data-tour="auditoria-busca"]',
@@ -1242,7 +1242,7 @@ const TOUR_CONFIG_AUDITORIA = {
       texto:
         "Quando, qual ação, sobre qual entidade e a descrição do que mudou. Clique no cabeçalho para ordenar e use o botão de ajustes para escolher as colunas; a lista vem paginada, do mais recente para o mais antigo.",
     },
-    fim("Nada aqui é editável — é justamente esse o ponto."),
+    fim("Nada aqui é editável, é justamente esse o ponto."),
   ],
 }
 
@@ -1421,7 +1421,7 @@ const TOUR_ENVIAR_FEEDBACK = {
       texto: "A mensagem fica registrada com o seu nome e a sua incubadora.",
       permitirInteracao: true,
     },
-    fim("Obrigado — feedback é o que faz a plataforma melhorar."),
+    fim("Obrigado, feedback é o que faz a plataforma melhorar."),
   ],
 }
 
@@ -1437,7 +1437,7 @@ const TOUR_ENGAJAMENTO = {
     {
       titulo: "Engajamento",
       texto:
-        "O placar de participação da incubadora, por temporada. Mentores disputam com mentores e incubados com incubados — são volumes de participação diferentes, e um placar só faria um dos grupos nunca ganhar.",
+        "O placar de participação da incubadora, por temporada. Mentores disputam com mentores e incubados com incubados, são volumes de participação diferentes, e um placar só faria um dos grupos nunca ganhar.",
     },
     {
       seletor: '[data-tour="engajamento-temporada"]',
@@ -1451,14 +1451,14 @@ const TOUR_ENGAJAMENTO = {
       posicao: "baixo",
       titulo: "O seu nível",
       texto:
-        "Antes do placar vem o seu progresso. O ranking é relativo — só um é o primeiro; o nível é absoluto, e todo mundo pode chegar ao topo. A frase 'faltam N pontos' é o que diz o que fazer a seguir.",
+        "Antes do placar vem o seu progresso. O ranking é relativo, só um é o primeiro; o nível é absoluto, e todo mundo pode chegar ao topo. A frase 'faltam N pontos' é o que diz o que fazer a seguir.",
     },
     {
       seletor: '[data-tour="engajamento-regras"]',
       posicao: "cima",
       titulo: "O que pontua, e o que não",
       texto:
-        "Pontuam presença e relacionamento com a incubadora. NÃO pontuam experimentos, validação de hipótese, pivotagem, conclusão de momento formativo, ajudar outro empreendedor ou publicar conteúdo — e isso é de propósito: transformar esse trabalho em pontos faria você fazê-lo pelo ponto.",
+        "Pontuam presença e relacionamento com a incubadora. NÃO pontuam experimentos, validação de hipótese, pivotagem, conclusão de momento formativo, ajudar outro empreendedor ou publicar conteúdo, e isso é de propósito: transformar esse trabalho em pontos faria você fazê-lo pelo ponto.",
     },
     {
       seletor: '[data-tour="engajamento-selos"]',
@@ -1467,7 +1467,7 @@ const TOUR_ENGAJAMENTO = {
       texto:
         "É aqui que aquele trabalho é reconhecido. Selo não vale ponto nenhum: vale uma credencial verificável, com o critério escrito e o nome de quem concedeu, que você publica no LinkedIn pelo seu Perfil.",
     },
-    fim("Participe pelo que faz sentido — os pontos são consequência, não o objetivo."),
+    fim("Participe pelo que faz sentido, os pontos são consequência, não o objetivo."),
   ],
 }
 

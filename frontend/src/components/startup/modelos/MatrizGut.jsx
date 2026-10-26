@@ -162,7 +162,7 @@ export default function MatrizGut({ idStartup, nomeStartup }) {
             </Tooltip>
           </Box>
           <Typography variant="body2" color="text.secondary">
-            Dê notas de 1 a 5 para Gravidade, Urgência e Tendência — a prioridade (G × U × T) mostra o que atacar primeiro.
+            Dê notas de 1 a 5 para Gravidade, Urgência e Tendência, a prioridade (G × U × T) mostra o que atacar primeiro.
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogAberto(true)} sx={{ textTransform: "none" }}>
@@ -540,7 +540,7 @@ function TooltipGut({ active, payload, modo }) {
         Gravidade {item.gravidade} · Urgência {item.urgencia} · Tendência {item.tendencia}
       </Typography>
       <Typography variant="caption" component="p" sx={{ color: faixa.cor, fontWeight: 700 }}>
-        Prioridade {item.prioridade} — {faixa.rotulo}
+        Prioridade {item.prioridade}, {faixa.rotulo}
       </Typography>
     </Paper>
   )

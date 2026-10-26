@@ -163,7 +163,7 @@ export default function DrawerLancamento({
             onChange={setPessoas}
             exigirLiga
             rotulo="Quem participou"
-            ajuda="Quem não disputa nenhuma liga aparece desabilitado — a coordenação não pontua."
+            ajuda="Quem não disputa nenhuma liga aparece desabilitado, a coordenação não pontua."
           />
 
           <TextField

@@ -155,7 +155,7 @@ export default function GoogleAgendaCard({ onAviso }) {
         <>
           <Typography color="text.secondary" sx={{ mb: 2 }}>
             Conecte sua conta e os eventos da sua incubadora aparecem no seu celular, numa agenda
-            separada chamada <strong>Quiron</strong>. O Quiron so escreve nessa agenda — ele nao
+            separada chamada <strong>Quiron</strong>. O Quiron so escreve nessa agenda, ele nao
             consegue ler seus compromissos pessoais.
           </Typography>
           <Button

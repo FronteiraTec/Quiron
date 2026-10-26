@@ -170,7 +170,7 @@ export default function Feedback() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          As devolutivas que você já deu — o que pediu para cada startup e o que
+          As devolutivas que você já deu, o que pediu para cada startup e o que
           ainda está em aberto.
         </Typography>
 

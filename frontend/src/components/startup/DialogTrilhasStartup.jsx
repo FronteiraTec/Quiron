@@ -148,7 +148,7 @@ export default function DialogTrilhasStartup({ aberto, startup, trilhas = [], on
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               A startup só enxerga na Jornada as trilhas habilitadas. Desabilitar não apaga as
-              entregas — elas voltam se a trilha for habilitada de novo.
+              entregas, elas voltam se a trilha for habilitada de novo.
             </Typography>
 
             <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary" }}>

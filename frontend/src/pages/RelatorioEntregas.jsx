@@ -153,7 +153,7 @@ function Conteudo({ idTenant, dias }) {
                   Onde estão as entregas
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Cada passo da trilha, para cada startup incubada — {dados.funil.total} no total.
+                  Cada passo da trilha, para cada startup incubada, {dados.funil.total} no total.
                 </Typography>
 
                 <ResponsiveContainer width="100%" height={260}>

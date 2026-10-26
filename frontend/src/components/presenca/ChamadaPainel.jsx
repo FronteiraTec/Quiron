@@ -349,7 +349,7 @@ export default function ChamadaPainel({ chamada, carregando, salvandoIds, onMarc
           </Typography>
           {publico.length === 0 && (
             <Typography variant="body2" sx={{ mt: 0.5 }}>
-              O público são os membros ativos das startups convidadas — sem
+              O público são os membros ativos das startups convidadas, sem
               membros ativos, não há chamada a fazer.
             </Typography>
           )}

@@ -188,7 +188,7 @@ export default function DialogMaterial({ aberto, item, onFechar }) {
 
         {!ehAula && !temAbertura(item) && (
           <Alert severity="info" variant="outlined">
-            Este material não tem arquivo nem link — o conteúdo é a descrição acima.
+            Este material não tem arquivo nem link, o conteúdo é a descrição acima.
           </Alert>
         )}
       </DialogContent>

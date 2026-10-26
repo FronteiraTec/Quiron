@@ -48,7 +48,7 @@ export default function PlacarStartups({ linhas = [] }) {
             <TableCell width={56}>#</TableCell>
             <TableCell>Startup</TableCell>
             <TableCell align="right">
-              <Tooltip title="Pontos da startup divididos pelos membros ativos. É por aqui que o placar ordena — pela soma, o time maior venceria sem participar mais.">
+              <Tooltip title="Pontos da startup divididos pelos membros ativos. É por aqui que o placar ordena, pela soma, o time maior venceria sem participar mais.">
                 <span>Média por membro</span>
               </Tooltip>
             </TableCell>

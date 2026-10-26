@@ -202,7 +202,7 @@ export default function Plano5w2h({ idStartup }) {
             Plano de ação da sua startup
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Transforme intenções em iniciativas: o quê, quem, quando — e acompanhe o andamento.
+            Transforme intenções em iniciativas: o quê, quem, quando, e acompanhe o andamento.
             {itens.length > 0 && ` ${concluidas} de ${itens.length} concluídas.`}
           </Typography>
         </Box>
@@ -810,7 +810,7 @@ function DialogNovaAcao({ aberto, idStartup, onFechar, onCriado }) {
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField label="Onde?" placeholder="Ex.: Online — site da startup" fullWidth value={form.onde} onChange={alterar("onde")} />
+              <TextField label="Onde?" placeholder="Ex.: Online, site da startup" fullWidth value={form.onde} onChange={alterar("onde")} />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField

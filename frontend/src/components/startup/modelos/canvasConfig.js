@@ -50,7 +50,7 @@ export const BLOCOS_CANVAS = [
     placeholder: "Ex.:\n• UFFS\n• Sebrae\n• AWS (infraestrutura)\n• Fornecedores de insumos\n• Aceleradoras",
     ajuda: {
       oQueE:
-        "São as organizações e pessoas de fora da startup que tornam o negócio possível — quem fornece, apoia, financia ou abre portas.",
+        "São as organizações e pessoas de fora da startup que tornam o negócio possível, quem fornece, apoia, financia ou abre portas.",
       exemplos: ["UFFS (pesquisa e talentos)", "Sebrae (mentorias)", "AWS (créditos de nuvem)", "Distribuidor regional"],
       errosComuns: [
         "Listar qualquer contato da agenda como 'parceiro'.",
@@ -74,7 +74,7 @@ export const BLOCOS_CANVAS = [
       exemplos: ["Desenvolvimento do software", "Logística de entrega", "Marketing digital", "Suporte ao cliente"],
       errosComuns: [
         "Listar tarefas administrativas genéricas (reuniões, e-mails).",
-        "Confundir atividades com recursos — atividade é o que você FAZ.",
+        "Confundir atividades com recursos, atividade é o que você FAZ.",
       ],
       dica: "Pense no que não pode parar: se a equipe só pudesse fazer 3 coisas esta semana, quais seriam?",
     },
@@ -114,7 +114,7 @@ export const BLOCOS_CANVAS = [
       exemplos: ["Economia de tempo", "Redução de custo", "Conveniência (tudo em um lugar)", "Status ou exclusividade"],
       errosComuns: [
         "Descrever funcionalidades ('temos um app') em vez de benefícios.",
-        "Prometer valor para 'todo mundo' — proposta boa tem público claro.",
+        "Prometer valor para 'todo mundo', proposta boa tem público claro.",
       ],
       dica: "Complete a frase: 'Ajudamos [cliente] a [resultado] sem [dor]'. Se ficou claro, sua proposta está no caminho.",
     },
@@ -136,7 +136,7 @@ export const BLOCOS_CANVAS = [
         "Prometer atendimento personalizado sem ter equipe para isso.",
         "Pensar só em conquistar e esquecer a retenção.",
       ],
-      dica: "Pergunte-se: como o cliente prefere ser tratado — e quanto isso custa? O relacionamento precisa caber no seu modelo.",
+      dica: "Pergunte-se: como o cliente prefere ser tratado, e quanto isso custa? O relacionamento precisa caber no seu modelo.",
     },
   },
   {
@@ -154,7 +154,7 @@ export const BLOCOS_CANVAS = [
       exemplos: ["Redes sociais", "Google / SEO", "Venda direta B2B", "Marketplace"],
       errosComuns: [
         "Querer estar em todos os canais ao mesmo tempo.",
-        "Esquecer o canal de ENTREGA — o cliente compra, mas recebe como?",
+        "Esquecer o canal de ENTREGA, o cliente compra, mas recebe como?",
       ],
       dica: "Onde seu cliente já está? Comece por 1 ou 2 canais que você consegue fazer bem, e meça o resultado.",
     },
@@ -173,7 +173,7 @@ export const BLOCOS_CANVAS = [
         "Os grupos de pessoas ou empresas que você quer atender. Cada segmento tem dores, comportamentos e disposição de pagar diferentes.",
       exemplos: ["Pequenas clínicas", "Produtores rurais da região", "Escolas particulares", "Desenvolvedores freelancer"],
       errosComuns: [
-        "Dizer que o cliente é 'todo mundo' — sem foco, nada conversa com ninguém.",
+        "Dizer que o cliente é 'todo mundo', sem foco, nada conversa com ninguém.",
         "Confundir usuário (quem usa) com cliente (quem paga).",
       ],
       dica: "Descreva seu cliente como descreveria uma pessoa: onde trabalha, o que o incomoda, quanto pode pagar.",
@@ -216,7 +216,7 @@ export const BLOCOS_CANVAS = [
         "Definir preço só olhando o concorrente, sem olhar os custos.",
         "Depender de uma única fonte de receita frágil.",
       ],
-      dica: "O cliente pagaria quanto pelo valor que você entrega? Teste preços cedo — receita é hipótese até alguém pagar.",
+      dica: "O cliente pagaria quanto pelo valor que você entrega? Teste preços cedo, receita é hipótese até alguém pagar.",
     },
   },
 ]

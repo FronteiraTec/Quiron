@@ -233,7 +233,7 @@ export default function AbaMateriaisIncubadora({
     <Box>
       <Typography color="text.secondary" sx={{ mb: 2 }}>
         {podeCriar
-          ? "O que a incubadora disponibiliza aos mentores: guias, rubricas de avaliação, modelos. Só quem mentora vê esta lista — as startups não."
+          ? "O que a incubadora disponibiliza aos mentores: guias, rubricas de avaliação, modelos. Só quem mentora vê esta lista, as startups não."
           : "O que a incubadora preparou para apoiar a sua mentoria: guias, rubricas de avaliação e modelos."}
       </Typography>
 

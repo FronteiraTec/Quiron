@@ -293,7 +293,7 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
             </Typography>
           ) : (
             <Typography variant="body2" color="text.secondary" fontStyle="italic">
-              Sem texto — veja os anexos.
+              Sem texto, veja os anexos.
             </Typography>
           )}
         </Box>
@@ -328,7 +328,7 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
                       </IconButton>
                     </Tooltip>
                   ) : (
-                    <Tooltip title="O arquivo não foi armazenado no servidor — peça a startup pelo canal combinado." arrow>
+                    <Tooltip title="O arquivo não foi armazenado no servidor, peça a startup pelo canal combinado." arrow>
                       <Typography variant="caption" color="text.secondary">
                         indisponível
                       </Typography>
@@ -399,7 +399,7 @@ export default function EntregaPainel({ entrega, carregando, onAvaliar }) {
             </Paper>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: "block" }}>
               {entrega.situacao === "AJUSTE"
-                ? "A startup pode corrigir e reenviar — quando isso acontecer, a entrega volta para a sua fila."
+                ? "A startup pode corrigir e reenviar, quando isso acontecer, a entrega volta para a sua fila."
                 : "Esta entrega já foi respondida."}
             </Typography>
           </>

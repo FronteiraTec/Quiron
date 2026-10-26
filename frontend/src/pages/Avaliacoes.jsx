@@ -121,7 +121,7 @@ export default function Avaliacoes() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Todas as devolutivas dadas às startups — quem respondeu, quando e o
+          Todas as devolutivas dadas às startups, quem respondeu, quando e o
           que disse.
         </Typography>
 
@@ -283,7 +283,7 @@ export default function Avaliacoes() {
                         >
                           <CommentsDisabled sx={{ fontSize: 15 }} />
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            Sem comentário — a startup recebeu só a decisão.
+                            Sem comentário, a startup recebeu só a decisão.
                           </Typography>
                         </Box>
                       ) : (

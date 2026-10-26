@@ -199,7 +199,7 @@ export default function MeusSelos({ idTenant, incubadora }) {
       <Paper sx={{ borderRadius: 0, p: 3, textAlign: "center" }}>
         <MilitaryTech sx={{ fontSize: 40, color: "text.disabled", mb: 1 }} />
         <Typography color="text.secondary">
-          Você ainda não recebeu selos. Eles reconhecem evolução e protagonismo — e não dependem
+          Você ainda não recebeu selos. Eles reconhecem evolução e protagonismo, e não dependem
           de acumular pontos.
         </Typography>
         <Link href="/engajamento" variant="body2" sx={{ mt: 1, display: "inline-block" }}>

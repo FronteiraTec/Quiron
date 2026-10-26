@@ -32,7 +32,7 @@ export default function IndicadoresTarefas({ itens, ativo, onAlternar, carregand
   return (
     <Box
       role="group"
-      aria-label="Indicadores de tarefas — clique para filtrar"
+      aria-label="Indicadores de tarefas, clique para filtrar"
       sx={{
         display: "grid",
         gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: `repeat(${itens.length}, minmax(0, 1fr))` },

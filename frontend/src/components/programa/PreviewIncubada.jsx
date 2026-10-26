@@ -163,7 +163,7 @@ export default function PreviewIncubada({ programa, onFechar }) {
       >
         <Chip
           icon={<Visibility />}
-          label="Pré-visualização — modo incubada"
+          label="Pré-visualização, modo incubada"
           size="small"
           color="primary"
           sx={{ fontWeight: 600 }}

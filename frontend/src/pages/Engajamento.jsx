@@ -230,7 +230,7 @@ export default function Engajamento() {
 
         <Typography color="text.secondary" sx={{ mb: 3 }}>
           Participação e relacionamento com a incubadora, por temporada. Mentores disputam com
-          mentores e incubados com incubados — e os selos reconhecem o que não vira ponto.
+          mentores e incubados com incubados, e os selos reconhecem o que não vira ponto.
         </Typography>
 
         <FaixaTemporada

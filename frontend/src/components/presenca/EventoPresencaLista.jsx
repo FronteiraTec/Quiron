@@ -30,7 +30,7 @@ export default function EventoPresencaLista({ eventos, selecionado, onSelecionar
         <EventBusy sx={{ fontSize: 48, opacity: 0.4 }} />
         <Typography sx={{ mt: 1 }}>Nenhum evento realizado.</Typography>
         <Typography variant="body2" sx={{ mt: 0.5 }}>
-          A chamada só faz sentido depois que o evento acontece — eventos
+          A chamada só faz sentido depois que o evento acontece, eventos
           futuros não aparecem aqui.
         </Typography>
       </Box>

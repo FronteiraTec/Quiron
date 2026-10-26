@@ -295,7 +295,7 @@ export default function ConfiguracaoStartups() {
               Tipos de startup
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Como você classifica as empresas: incubada, residente, associada — ou o que a sua
+              Como você classifica as empresas: incubada, residente, associada, ou o que a sua
               incubadora usar.
             </Typography>
           </Box>
@@ -384,7 +384,7 @@ export default function ConfiguracaoStartups() {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               O vocabulário do acompanhamento. Cada status diz também se a startup ainda está no
-              programa — é o que mantém os relatórios certos.
+              programa, é o que mantém os relatórios certos.
             </Typography>
           </Box>
           <Button

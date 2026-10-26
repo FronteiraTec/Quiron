@@ -44,7 +44,7 @@ export default function RegrasDoJogo({ acoes = [], naoPontuam = [], motivo }) {
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Participação e relacionamento com a incubadora. O ponto vem sempre de um registro
-            feito por outra pessoa — presença marcada na lista de chamada ou lançamento da
+            feito por outra pessoa, presença marcada na lista de chamada ou lançamento da
             coordenação.
           </Typography>
 

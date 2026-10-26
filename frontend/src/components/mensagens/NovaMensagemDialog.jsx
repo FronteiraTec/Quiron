@@ -272,7 +272,7 @@ export default function NovaMensagemDialog({ aberto, idTenant, onFechar, onEnvia
               label="Também enviar por e-mail"
             />
             <Typography variant="caption" color="text.secondary">
-              A mensagem sempre aparece nas notificações de quem recebe. O e-mail é um reforço — use
+              A mensagem sempre aparece nas notificações de quem recebe. O e-mail é um reforço, use
               quando o aviso não puder esperar o próximo acesso.
             </Typography>
           </Box>

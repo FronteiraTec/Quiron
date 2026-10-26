@@ -302,7 +302,7 @@ export default function Biblioteca() {
                   // junto com o conteudo, e quem exclui precisa saber disso antes.
                   `Excluir "${confirmar.titulo || "este conteúdo"}"? Mentores o compartilharam com startups ${
                     confirmar.compartilhamentos
-                  } vez(es) — esses compartilhamentos também serão removidos, e as startups deixam de vê-lo. Esta ação não pode ser desfeita.`
+                  } vez(es), esses compartilhamentos também serão removidos, e as startups deixam de vê-lo. Esta ação não pode ser desfeita.`
                 : `Excluir "${confirmar.titulo || "este conteúdo"}"? Esta ação não pode ser desfeita.`
             : ""
         }

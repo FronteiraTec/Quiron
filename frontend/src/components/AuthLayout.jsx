@@ -102,7 +102,7 @@ export default function AuthLayout({ titulo, subtitulo, children }) {
                 color: alpha(MARCA.branco, 0.86),
               }}
             >
-              A plataforma que organiza o dia a dia do seu programa de incubação —
+              A plataforma que organiza o dia a dia do seu programa de incubação,
               das startups às mentorias, da jornada às entregas.
             </Typography>
           </Box>

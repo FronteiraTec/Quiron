@@ -275,7 +275,7 @@ export default function Programa() {
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 3 }}>
               Sua incubadora ainda não tem nenhuma trilha. Crie uma para
-              começar a montar fases, módulos e passos — depois é possível ter
+              começar a montar fases, módulos e passos, depois é possível ter
               quantas quiser, reaproveitando o mesmo material da Biblioteca.
             </Typography>
             {prog.erro && (
@@ -495,7 +495,7 @@ function DialogRascunho({ pendente, onSalvar, onDescartar, onCancelar }) {
         </Typography>
         {pendente && !pendente.podeSalvar && (
           <Alert severity="warning" sx={{ mt: 2, borderRadius: "6px" }}>
-            Do jeito que está, não dá para salvar — falta preencher um campo
+            Do jeito que está, não dá para salvar, falta preencher um campo
             obrigatório. Volte para completar, ou descarte o que mudou.
           </Alert>
         )}
@@ -534,7 +534,7 @@ function DialogNovaTrilha({ estado, salvando, onChange, onCriar, onFechar }) {
       <DialogContent dividers>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Uma trilha nova nasce vazia. O material da Biblioteca continua o
-          mesmo — os passos desta trilha podem apontar para os conteúdos que
+          mesmo, os passos desta trilha podem apontar para os conteúdos que
           você já tem.
         </Typography>
         <TextField

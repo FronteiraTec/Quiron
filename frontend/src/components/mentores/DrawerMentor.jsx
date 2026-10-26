@@ -400,7 +400,7 @@ export default function DrawerMentor({
                 titulo={criando ? "O que ele atende" : undefined}
                 descricao={
                   criando
-                    ? "Tudo aqui é opcional e pode ser preenchido depois — mas é o que faz o mentor aparecer nos filtros de quem procura por especialidade."
+                    ? "Tudo aqui é opcional e pode ser preenchido depois, mas é o que faz o mentor aparecer nos filtros de quem procura por especialidade."
                     : undefined
                 }
               >

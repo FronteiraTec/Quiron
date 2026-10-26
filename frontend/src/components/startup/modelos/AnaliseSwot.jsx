@@ -133,8 +133,8 @@ export default function AnaliseSwot({ idStartup }) {
           <Typography key={e.nome} variant="caption" color="text.secondary">
             <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>
               {e.nome} ({e.letras})
-            </Box>{" "}
-            — {e.detalhe}
+            </Box>
+            , {e.detalhe}
           </Typography>
         ))}
       </Box>

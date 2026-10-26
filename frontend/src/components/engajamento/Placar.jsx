@@ -169,7 +169,7 @@ export default function Placar({ linhas = [], idUsuarioLogado, vazio }) {
 
                   <TableCell align="right">
                     {linha.selos > 0 ? (
-                      <Tooltip title="Selos recebidos. Reconhecimento de evolução e protagonismo — não somam pontos.">
+                      <Tooltip title="Selos recebidos. Reconhecimento de evolução e protagonismo não somam pontos.">
                         <Box
                           sx={{
                             display: "inline-flex",

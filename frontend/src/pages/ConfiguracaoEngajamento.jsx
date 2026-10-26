@@ -227,7 +227,7 @@ function DialogoTemporada({ aberto, inicial, onFechar, onSalvar }) {
           multiline
           minRows={2}
           placeholder="Viagem para o South Summit, imersão de 3 dias, a definir..."
-          helperText="Aparece no topo da tela de Engajamento. Texto livre — a viabilidade muda a cada semestre."
+          helperText="Aparece no topo da tela de Engajamento. Texto livre, a viabilidade muda a cada semestre."
         />
       </DialogContent>
       <DialogActions>
@@ -340,7 +340,7 @@ function DialogoAcao({ aberto, inicial, categorias, acoes, onFechar, onSalvar })
             >
               {g.rotulo}
               {!editando && g.valor === "MENTORIA_MINISTRADA" && acaoMentoria
-                ? ` — já existe ("${acaoMentoria.rotulo}")`
+                ? `, já existe ("${acaoMentoria.rotulo}")`
                 : ""}
             </MenuItem>
           ))}
@@ -361,7 +361,7 @@ function DialogoAcao({ aberto, inicial, categorias, acoes, onFechar, onSalvar })
                 <MenuItem key={c.chave} value={c.chave} disabled={!editando && Boolean(dono)}>
                   {c.rotulo}
                   {!editando && dono
-                    ? ` — já pontuada por "${dono.rotulo}"${dono.ativo ? "" : " (desativada)"}`
+                    ? `, já pontuada por "${dono.rotulo}"${dono.ativo ? "" : " (desativada)"}`
                     : ""}
                 </MenuItem>
               )
@@ -531,7 +531,7 @@ function DialogoSelo({ aberto, inicial, onFechar, onSalvar }) {
           value={form.categoria}
           onChange={(e) => setForm({ ...form, categoria: e.target.value })}
           placeholder="Protagonismo, Comunidade, Aprendizado..."
-          helperText="Texto livre — serve para agrupar o mural."
+          helperText="Texto livre, serve para agrupar o mural."
         />
 
         <TextField
@@ -555,7 +555,7 @@ function DialogoSelo({ aberto, inicial, onFechar, onSalvar }) {
         />
 
         <Alert severity="info" sx={{ borderRadius: 0 }}>
-          Selo não vale pontos. Ele reconhece evolução e protagonismo — o que a coordenação
+          Selo não vale pontos. Ele reconhece evolução e protagonismo, o que a coordenação
           decidiu que <strong>não</strong> deve virar moeda de ranking.
         </Alert>
       </DialogContent>
@@ -663,7 +663,7 @@ export default function ConfiguracaoEngajamento() {
       {/* --- TEMPORADAS --- */}
       <Bloco
         titulo="Temporadas"
-        descricao="O período que se disputa. O ranking e os níveis são sempre dentro de uma temporada — encerrar congela o resultado para a premiação."
+        descricao="O período que se disputa. O ranking e os níveis são sempre dentro de uma temporada, encerrar congela o resultado para a premiação."
         acao={
           <Button startIcon={<Add />} onClick={() => setDlgTemporada({ inicial: null })}>
             Nova
@@ -740,7 +740,7 @@ export default function ConfiguracaoEngajamento() {
       {/* --- ACOES --- */}
       <Bloco
         titulo="O que gera pontos"
-        descricao="Participação e relacionamento com a incubadora. Categoria de agenda sem ação aqui não vale ponto — o opt-in é explícito."
+        descricao="Participação e relacionamento com a incubadora. Categoria de agenda sem ação aqui não vale ponto, o opt-in é explícito."
         acao={
           <Button startIcon={<Add />} onClick={() => setDlgAcao({ inicial: null })}>
             Nova ação
@@ -817,7 +817,7 @@ export default function ConfiguracaoEngajamento() {
       {/* --- NIVEIS --- */}
       <Bloco
         titulo="Níveis"
-        descricao="A escada de cada liga, dentro da temporada. São duas porque mentor e incubado participam em volumes diferentes — uma escada só deixaria a liga dos mentores parada no primeiro degrau."
+        descricao="A escada de cada liga, dentro da temporada. São duas porque mentor e incubado participam em volumes diferentes, uma escada só deixaria a liga dos mentores parada no primeiro degrau."
       >
         <Grid container spacing={3}>
           {LIGAS.map((liga) => (
@@ -953,7 +953,7 @@ export default function ConfiguracaoEngajamento() {
             value={linkedin}
             onChange={(e) => setLinkedin(e.target.value)}
             placeholder="1234567"
-            helperText="Só dígitos — é o número que aparece na URL de administração da página."
+            helperText="Só dígitos, é o número que aparece na URL de administração da página."
           />
           <Button
             onClick={() =>

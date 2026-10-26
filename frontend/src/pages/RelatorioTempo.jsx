@@ -88,7 +88,7 @@ export default function RelatorioTempo() {
   return (
     <RelatorioShell
       titulo="Tempo por etapa"
-      descricao="Há quanto tempo cada startup está em cada etapa da trilha — e quanto desse tempo foi ela produzindo, quanto foi entrega parada esperando correção."
+      descricao="Há quanto tempo cada startup está em cada etapa da trilha, e quanto desse tempo foi ela produzindo, quanto foi entrega parada esperando correção."
       icone={<HourglassBottom />}
     >
       {({ idTenant }) => <Conteudo idTenant={idTenant} />}
@@ -177,7 +177,7 @@ function Conteudo({ idTenant }) {
               sx={{ borderRadius: 0, p: { xs: 2, sm: 3 }, mb: 3 }}
             >
               <Typography variant="h6" fontWeight={700}>
-                Onde cada startup está parada — e por quê
+                Onde cada startup está parada, e por quê
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Dias na etapa atual, divididos entre o tempo em que a startup tinha algum passo
@@ -312,7 +312,7 @@ function Conteudo({ idTenant }) {
                 rotulo: "Bloqueada",
                 alinhamento: "right",
                 ajuda:
-                  "Tempo em que tudo o que faltava estava na fila do mentor — a startup não tinha o que entregar.",
+                  "Tempo em que tudo o que faltava estava na fila do mentor, a startup não tinha o que entregar.",
                 render: (l) =>
                   l.dias_bloqueada > 0 ? (
                     <Typography
@@ -409,7 +409,7 @@ function Conteudo({ idTenant }) {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Média por startup que passou pelo passo. Um passo com muito tempo de fila não é
-                difícil de fazer — é difícil de corrigir.
+                difícil de fazer, é difícil de corrigir.
               </Typography>
             </Box>
             <BotaoExportar
@@ -504,7 +504,7 @@ function Conteudo({ idTenant }) {
 
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
             O relógio de cada etapa começa quando a etapa anterior é aprovada (a primeira, na
-            matrícula na trilha) — a mesma sequência que a Jornada usa para liberar as fases. As
+            matrícula na trilha), a mesma sequência que a Jornada usa para liberar as fases. As
             durações anteriores à implantação do registro de tempo são um piso: os ciclos de ajuste
             já apagados por reenvios antigos não puderam ser reconstruídos.
           </Typography>

@@ -586,7 +586,7 @@ export default function DrawerTarefa({
                         <TextField
                           {...params}
                           label="Startup (opcional)"
-                          placeholder="Nenhuma — tarefa interna da incubadora"
+                          placeholder="Nenhuma, tarefa interna da incubadora"
                           error={Boolean(erros.id_startup)}
                           helperText={erros.id_startup}
                           InputProps={{

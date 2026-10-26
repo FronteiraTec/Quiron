@@ -315,7 +315,7 @@ export default function Membros() {
                 </AlertTitle>
                 <Typography variant="body2" sx={{ mb: 1.5 }}>
                   Sem vínculo, essas pessoas entram no sistema e não encontram
-                  jornada, entrega nem startup — e a tela delas não explica o
+                  jornada, entrega nem startup, e a tela delas não explica o
                   porquê.
                 </Typography>
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>

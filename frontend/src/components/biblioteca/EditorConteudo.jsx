@@ -503,7 +503,7 @@ function EditorConteudoInterno({ conteudo, onSalvar, onFechar, registrarFechar }
                       : "Enviar arquivo"}
                 </Button>
                 <Typography variant="caption" color="text.secondary">
-                  PDF, documento, planilha, apresentação, texto ou imagem — até{" "}
+                  PDF, documento, planilha, apresentação, texto ou imagem, até{" "}
                   {LIMITE_ARQUIVO_MB} MB.
                 </Typography>
               </Box>

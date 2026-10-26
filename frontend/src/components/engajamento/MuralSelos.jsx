@@ -88,7 +88,7 @@ export default function MuralSelos({
   return (
     <Box data-tour="engajamento-selos">
       <Alert severity="info" icon={<MilitaryTech />} sx={{ borderRadius: 0, mb: 3 }}>
-        <strong>Selos não valem pontos — e é de propósito.</strong> Eles reconhecem evolução e
+        <strong>Selos não valem pontos e é de propósito.</strong> Eles reconhecem evolução e
         protagonismo: validar uma hipótese, pivotar com evidência, ajudar outro empreendedor,
         compartilhar conhecimento. Transformar isso em pontuação faria as pessoas fazerem o
         trabalho pelo ponto. Cada selo vira uma credencial verificável que a pessoa publica no

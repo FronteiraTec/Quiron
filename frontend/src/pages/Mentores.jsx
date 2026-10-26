@@ -260,7 +260,7 @@ export default function Mentores() {
         // janela e escolhida na barra acima da tabela.
         rotulo: `Mentorias (${diasAplicados}d)`,
         ajuda:
-          "Atividades de Mentoria da agenda, já ocorridas, com este mentor como responsável — dentro do período escolhido na barra acima.",
+          "Atividades de Mentoria da agenda, já ocorridas, com este mentor como responsável, dentro do período escolhido na barra acima.",
         largura: 150,
         alinhamento: "right",
         valorOrdenacao: (m) => m.mentorias_periodo,

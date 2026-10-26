@@ -581,7 +581,7 @@ export default function Tenants() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Usuários — {usuariosDialog?.nome}</DialogTitle>
+        <DialogTitle>Usuários: {usuariosDialog?.nome}</DialogTitle>
         <DialogContent dividers>
           {avisoUsuario && (
             <Alert severity={avisoUsuario.tipo} sx={{ mb: 2 }} onClose={() => setAvisoUsuario(null)}>
@@ -702,7 +702,7 @@ export default function Tenants() {
                       </TableCell>
                       <TableCell align="center">
                         {u.deve_redefinir_senha ? (
-                          <Tooltip title="Senha provisória — será trocada no primeiro acesso">
+                          <Tooltip title="Senha provisória, será trocada no primeiro acesso">
                             <Chip size="small" color="warning" icon={<Key />} label="Provisória" />
                           </Tooltip>
                         ) : (

@@ -132,7 +132,7 @@ export default function DrawerConcederSelo({
             valor={pessoas}
             onChange={setPessoas}
             rotulo="Quem recebe"
-            ajuda="Qualquer pessoa da incubadora pode receber — selo não entra no placar."
+            ajuda="Qualquer pessoa da incubadora pode receber, selo não entra no placar."
           />
 
           <TextField

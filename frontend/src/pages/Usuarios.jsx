@@ -1608,7 +1608,7 @@ function DialogNovaStartup({ aberto, onFechar, idTenant, onCriada }) {
   const salvar = async (e) => {
     e.preventDefault()
     if (form.cnpj && !cnpjValido(form.cnpj)) {
-      setErro("CNPJ inválido — confira os números digitados.")
+      setErro("CNPJ inválido, confira os números digitados.")
       return
     }
     setSalvando(true)

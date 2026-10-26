@@ -681,7 +681,7 @@ export default function InspectorPanel({
                         error={faltaQuestionario}
                         helperText={
                           questionarios.length === 0
-                            ? "Nenhum questionário cadastrado ainda — crie um em Programa › Questionários."
+                            ? "Nenhum questionário cadastrado ainda, crie um em Programa › Questionários."
                             : faltaQuestionario
                               ? "Escolha o questionário que este passo aplica."
                               : " "
@@ -725,7 +725,7 @@ export default function InspectorPanel({
               <Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   A moldura pedagógica do passo. É o que aparece na Jornada
-                  antes da entrega — e a área define que parte da empresa este
+                  antes da entrega, e a área define que parte da empresa este
                   passo constrói em "Minha Empresa".
                 </Typography>
 
