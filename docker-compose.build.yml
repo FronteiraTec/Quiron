@@ -40,6 +40,10 @@ services:
     build: ./backend
     image: ${IMAGEM_BACKEND:-quiron-backend:local}
 
+  processamento:
+    build: ./backend
+    image: ${IMAGEM_BACKEND:-quiron-backend:local}
+
   frontend:
     build: ./frontend
     image: ${IMAGEM_FRONTEND:-quiron-frontend:local}

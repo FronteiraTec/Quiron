@@ -33,6 +33,12 @@ app.use(helmet()) // Cabecalhos de seguranca.
 // localhost:5173, que e uma origem diferente do Nginx em localhost:80.
 app.use(cors({ origin: process.env.FRONTEND_URL || true }))
 
+// O webhook do LiveKit precisa do corpo CRU: a assinatura confere o sha256 dos
+// bytes exatos, e o express.json abaixo reserializaria o JSON. Montado ANTES
+// dele, para qualquer content-type (o LiveKit manda application/webhook+json,
+// mas um proxy no caminho pode trocar). Ver routes/livekitRoutes.js.
+app.use("/livekit/webhook", express.raw({ type: () => true, limit: "256kb" }))
+
 app.use(express.json({ limit: "4mb" })) // Parse do corpo JSON (limite maior por causa da foto de perfil em base64).
 
 // Atras do Nginx/Caddy, o IP que interessa vem no X-Forwarded-For. Sem isto o

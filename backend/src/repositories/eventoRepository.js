@@ -36,8 +36,14 @@ const SELECT_EVENTO = `
               JOIN startup st ON st.id_startup = es.id_startup
              WHERE es.id_evento = e.id_evento),
            '[]'
-         ) AS startups
+         ) AS startups,
+         -- A reuniao por video deste evento, quando ha (migracao 027). E o que
+         -- faz a Agenda oferecer "Abrir reuniao" no lugar de editar: o evento
+         -- de uma reuniao se edita pela tela de Reunioes.
+         reu.id_reuniao,
+         reu.status AS reuniao_status
     FROM evento e
+    LEFT JOIN reuniao reu ON reu.id_evento = e.id_evento
     LEFT JOIN usuarios u ON u.id_usuario = e.criado_por
     LEFT JOIN evento_categoria cat
            ON cat.id_tenant = e.id_tenant AND cat.chave = e.categoria
@@ -53,8 +59,11 @@ const SELECT_EVENTO = `
  * @param {number[]|null} [idsStartupsPermitidos] - Quando informado, restringe
  *   aos eventos gerais (sem startups) OU direcionados a alguma dessas startups.
  *   `null` = sem restricao (admin/mentor veem tudo).
+ * @param {number|null} [idUsuario] - Quem esta olhando, usado so junto com a
+ *   restricao acima: o evento de uma REUNIAO nao segue as startups, segue os
+ *   convidados (migracao 027) — aparece so para quem foi convidado.
  */
-async function listarPorTenant(idTenant, periodo = {}, idsStartupsPermitidos = null) {
+async function listarPorTenant(idTenant, periodo = {}, idsStartupsPermitidos = null, idUsuario = null) {
   const { inicio, fim } = periodo
   const condicoes = ["e.id_tenant = $1", "e.ativo = TRUE"]
   const params = [idTenant]
@@ -70,11 +79,23 @@ async function listarPorTenant(idTenant, periodo = {}, idsStartupsPermitidos = n
 
   if (idsStartupsPermitidos) {
     params.push(idsStartupsPermitidos)
+    const pStartups = params.length
+    params.push(idUsuario)
+    const pUsuario = params.length
     condicoes.push(`(
-      NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = e.id_evento)
+      (
+        reu.id_reuniao IS NULL
+        AND (
+          NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = e.id_evento)
+          OR EXISTS (
+            SELECT 1 FROM evento_startups es
+             WHERE es.id_evento = e.id_evento AND es.id_startup = ANY($${pStartups}::int[])
+          )
+        )
+      )
       OR EXISTS (
-        SELECT 1 FROM evento_startups es
-         WHERE es.id_evento = e.id_evento AND es.id_startup = ANY($${params.length}::int[])
+        SELECT 1 FROM reuniao_participante rp
+         WHERE rp.id_reuniao = reu.id_reuniao AND rp.id_usuario = $${pUsuario}::int
       )
     )`)
   }
@@ -86,9 +107,14 @@ async function listarPorTenant(idTenant, periodo = {}, idsStartupsPermitidos = n
   return rows
 }
 
-/** Busca um evento pelo id. */
-async function buscarPorId(id) {
-  const { rows } = await query(`${SELECT_EVENTO} WHERE e.id_evento = $1`, [id])
+/**
+ * Busca um evento pelo id.
+ * @param {import('pg').PoolClient} [client] - dentro de uma transacao, para
+ *   enxergar o evento que ela acabou de gravar.
+ */
+async function buscarPorId(id, client) {
+  const executor = client || { query }
+  const { rows } = await executor.query(`${SELECT_EVENTO} WHERE e.id_evento = $1`, [id])
   return rows[0]
 }
 
@@ -108,10 +134,17 @@ async function buscarPorId(id) {
  * relatorioRepository. Aqui ela vira um trecho so, montado com o alias e a
  * expressao de usuario que cada consulta tem em maos.
  *
- * As tres formas de enxergar um evento, na ordem em que aparecem abaixo:
+ * As formas de enxergar um evento, na ordem em que aparecem abaixo:
  *   1. criou o evento (mesmo sem vinculo com startup nenhuma);
- *   2. e admin do tenant do evento (a agenda inteira e dele);
- *   3. e membro ou mentor de alguma startup do publico do evento.
+ *   2. foi convidado para a REUNIAO do evento (migracao 027);
+ *   3. e admin do tenant do evento (a agenda inteira e dele);
+ *   4. e membro ou mentor de alguma startup do publico do evento.
+ *
+ * O EVENTO DE UMA REUNIAO so vale pela forma 1 ou pela 2. Nem as startups nem
+ * o papel de admin o levam ao Google de ninguem: a mentoria marcada com tres
+ * pessoas vai para a agenda dessas tres. (Na TELA da Agenda o admin continua
+ * vendo todas — ver listarPorTenant —, que e a visao da coordenacao, e nao o
+ * compromisso dele.)
  *
  * @param {string} alias - Alias da tabela `evento` na consulta (ex.: "e").
  * @param {string} usuario - Expressao SQL do id do usuario: um placeholder
@@ -122,38 +155,50 @@ function sqlUsuarioVeEvento(alias, usuario) {
   return `(
     ${alias}.criado_por = ${usuario}
     OR EXISTS (
-      SELECT 1 FROM tenant_usuarios tu
-       WHERE tu.id_tenant = ${alias}.id_tenant
-         AND tu.id_usuario = ${usuario}
-         AND tu.ativo = TRUE
-         AND tu.papel = 'admin'
-    )
-    OR EXISTS (
       SELECT 1
-        FROM startup s
-       WHERE s.id_tenant = ${alias}.id_tenant
-         AND s.status <> 'ENCERRADA'
-         -- Direcionamento: sem linhas em evento_startups o evento e GERAL.
-         AND (
-           NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = ${alias}.id_evento)
-           OR EXISTS (
-             SELECT 1 FROM evento_startups es
-              WHERE es.id_evento = ${alias}.id_evento AND es.id_startup = s.id_startup
-           )
-         )
-         AND (
-           EXISTS (
-             SELECT 1 FROM startup_membros sm
-              WHERE sm.id_startup = s.id_startup
-                AND sm.id_usuario = ${usuario}
-                AND sm.ativo = TRUE
-           )
-           OR EXISTS (
-             SELECT 1 FROM mentor_startup ms
-              WHERE ms.id_startup = s.id_startup
-                AND ms.id_usuario_mentor = ${usuario}
-           )
-         )
+        FROM reuniao rv
+        JOIN reuniao_participante rvp ON rvp.id_reuniao = rv.id_reuniao
+       WHERE rv.id_evento = ${alias}.id_evento
+         AND rvp.id_usuario = ${usuario}
+    )
+    OR (
+      NOT EXISTS (SELECT 1 FROM reuniao rv WHERE rv.id_evento = ${alias}.id_evento)
+      AND (
+        EXISTS (
+          SELECT 1 FROM tenant_usuarios tu
+           WHERE tu.id_tenant = ${alias}.id_tenant
+             AND tu.id_usuario = ${usuario}
+             AND tu.ativo = TRUE
+             AND tu.papel = 'admin'
+        )
+        OR EXISTS (
+          SELECT 1
+            FROM startup s
+           WHERE s.id_tenant = ${alias}.id_tenant
+             AND s.status <> 'ENCERRADA'
+             -- Direcionamento: sem linhas em evento_startups o evento e GERAL.
+             AND (
+               NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = ${alias}.id_evento)
+               OR EXISTS (
+                 SELECT 1 FROM evento_startups es
+                  WHERE es.id_evento = ${alias}.id_evento AND es.id_startup = s.id_startup
+               )
+             )
+             AND (
+               EXISTS (
+                 SELECT 1 FROM startup_membros sm
+                  WHERE sm.id_startup = s.id_startup
+                    AND sm.id_usuario = ${usuario}
+                    AND sm.ativo = TRUE
+               )
+               OR EXISTS (
+                 SELECT 1 FROM mentor_startup ms
+                  WHERE ms.id_startup = s.id_startup
+                    AND ms.id_usuario_mentor = ${usuario}
+               )
+             )
+        )
+      )
     )
   )`
 }
@@ -201,13 +246,18 @@ async function definirStartups(idEvento, idsStartups, client) {
   }
 }
 
-/** Cria um novo evento. */
-async function criar(dados) {
+/**
+ * Cria um novo evento.
+ * @param {import('pg').PoolClient} [client] - para criar o evento na mesma
+ *   transacao de quem depende dele (a reuniao, migracao 027).
+ */
+async function criar(dados, client) {
+  const executor = client || { query }
   const {
     idTenant, titulo, descricao, categoria, local, idLocal, inicioTs, fimTs,
     idsStartups, idUsuarioMentor, mentorNome, anexos, vagas, obrigatorio, criadoPor,
   } = dados
-  const { rows } = await query(
+  const { rows } = await executor.query(
     `INSERT INTO evento
        (id_tenant, titulo, descricao, categoria, local, id_local, inicio_ts, fim_ts,
         id_usuario_mentor, mentor_nome, anexos, vagas, obrigatorio, criado_por)
@@ -222,17 +272,21 @@ async function criar(dados) {
     ]
   )
   const idEvento = rows[0].id_evento
-  await definirStartups(idEvento, idsStartups)
-  return buscarPorId(idEvento)
+  await definirStartups(idEvento, idsStartups, client)
+  return buscarPorId(idEvento, client)
 }
 
-/** Atualiza um evento existente. */
-async function atualizar(id, dados) {
+/**
+ * Atualiza um evento existente.
+ * @param {import('pg').PoolClient} [client] - ver criar().
+ */
+async function atualizar(id, dados, client) {
+  const executor = client || { query }
   const {
     titulo, descricao, categoria, local, idLocal, inicioTs, fimTs,
     idsStartups, idUsuarioMentor, mentorNome, anexos, vagas, obrigatorio,
   } = dados
-  const { rows } = await query(
+  const { rows } = await executor.query(
     `UPDATE evento
         SET titulo = $1, descricao = $2, categoria = $3, local = $4, id_local = $5,
             inicio_ts = $6, fim_ts = $7, id_usuario_mentor = $8, mentor_nome = $9,
@@ -247,13 +301,17 @@ async function atualizar(id, dados) {
     ]
   )
   if (!rows[0]) return undefined
-  await definirStartups(id, idsStartups)
-  return buscarPorId(id)
+  await definirStartups(id, idsStartups, client)
+  return buscarPorId(id, client)
 }
 
-/** Remove (soft delete) um evento. */
-async function excluir(id) {
-  const { rows } = await query(
+/**
+ * Remove (soft delete) um evento.
+ * @param {import('pg').PoolClient} [client] - ver criar().
+ */
+async function excluir(id, client) {
+  const executor = client || { query }
+  const { rows } = await executor.query(
     `UPDATE evento SET ativo = FALSE, atualizado_ts = NOW()
       WHERE id_evento = $1 AND ativo = TRUE
       RETURNING id_evento`,
@@ -273,53 +331,84 @@ async function excluir(id) {
 // ---------------------------------------------------------------------------
 
 /**
- * Quem foi convidado para um evento.
+ * O PUBLICO de um conjunto de eventos: uma linha por (id_evento, id_usuario,
+ * id_startup). E a UNICA definicao de "quem foi convidado" — a tela de
+ * presenca, o resumo dela, o e-mail de evento novo e o relatorio de
+ * engajamento leem daqui. Antes eram tres copias do mesmo criterio, cada uma
+ * com o aviso de "mexeu aqui, mexa la".
  *
- * Um evento sem linhas em evento_startups e GERAL: vale para todas as startups
- * incubadas. Com linhas, so para as listadas.
+ * Duas regras, que nao se misturam:
+ *   - EVENTO COMUM: os membros ativos das startups nao encerradas do tenant.
+ *     Sem linhas em evento_startups o evento e GERAL (todas as startups); com
+ *     linhas, so as listadas.
+ *   - EVENTO DE REUNIAO (migracao 027): os convidados da reuniao, e so eles —
+ *     uma mentoria com tres pessoas nao convoca a incubadora inteira.
+ *     `id_startup` vem preenchido quando o convidado e membro da startup da
+ *     reuniao, e NULL para quem nao e (o mentor, a coordenacao).
  *
- * ESTA REGRA PRECISA CONCORDAR com SQL_PUBLICO_EVENTOS em relatorioRepository,
- * que calcula o mesmo publico em lote para o relatorio de engajamento. Se as
- * duas divergirem, a tela de presenca marca gente que o relatorio nao conta (ou
- * o contrario) e a taxa de presenca fica sem sentido. Sao dois SQLs porque as
- * formas sao diferentes — aqui uma linha por PESSOA de UM evento, la uma linha
- * por (evento, pessoa) de um periodo inteiro — mas o criterio e o mesmo:
- * membros ativos de startups nao encerradas do tenant, respeitando o
- * direcionamento.
+ * @param {string} filtroEventos - condicao SQL sobre `ev` (a tabela evento)
+ *   que escolhe os eventos. E repetida nas duas metades da uniao.
+ * @returns {string} SQL de um SELECT (id_evento, id_usuario, id_startup).
+ */
+function sqlPublicoEventos(filtroEventos) {
+  return `
+    SELECT ev.id_evento, sm.id_usuario, s.id_startup
+      FROM evento ev
+      JOIN startup s
+        ON s.id_tenant = ev.id_tenant AND s.status <> 'ENCERRADA'
+      JOIN startup_membros sm
+        ON sm.id_startup = s.id_startup AND sm.ativo = TRUE
+     WHERE ${filtroEventos}
+       AND NOT EXISTS (SELECT 1 FROM reuniao rpub WHERE rpub.id_evento = ev.id_evento)
+       AND (
+         NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = ev.id_evento)
+         OR EXISTS (
+           SELECT 1 FROM evento_startups es
+            WHERE es.id_evento = ev.id_evento AND es.id_startup = s.id_startup
+         )
+       )
+    UNION ALL
+    SELECT ev.id_evento, rpp.id_usuario, smr.id_startup
+      FROM evento ev
+      JOIN reuniao rpub ON rpub.id_evento = ev.id_evento
+      JOIN reuniao_participante rpp ON rpp.id_reuniao = rpub.id_reuniao
+      LEFT JOIN startup_membros smr
+             ON smr.id_startup = rpub.id_startup
+            AND smr.id_usuario = rpp.id_usuario
+            AND smr.ativo = TRUE
+     WHERE ${filtroEventos}
+  `
+}
+
+/**
+ * Quem foi convidado para um evento. O criterio e o de sqlPublicoEventos.
  *
  * Uma pessoa aparece UMA vez mesmo pertencendo a varias startups: a presenca e
  * por (evento, usuario), entao duas linhas seriam dois checkboxes editando o
- * mesmo registro. As startups dela vem agregadas em `startups`.
+ * mesmo registro. As startups dela vem agregadas em `startups` (vazio para o
+ * convidado de reuniao que nao e de startup nenhuma).
  */
 async function listarPublico(idEvento) {
   const { rows } = await query(
-    `SELECT u.id_usuario, u.nome, u.email, u.foto_url,
-            json_agg(json_build_object('id_startup', s.id_startup, 'nome', s.nome)
-                     ORDER BY s.nome) AS startups,
+    `WITH publico AS (${sqlPublicoEventos("ev.id_evento = $1 AND ev.ativo = TRUE")})
+     SELECT u.id_usuario, u.nome, u.email, u.foto_url,
+            COALESCE(
+              json_agg(json_build_object('id_startup', s.id_startup, 'nome', s.nome)
+                       ORDER BY s.nome) FILTER (WHERE s.id_startup IS NOT NULL),
+              '[]'
+            ) AS startups,
             c.status                        AS confirmacao,
             p.presente,
             p.checkin_ts,
             mp.nome                         AS marcado_por_nome
-       FROM evento ev
-       JOIN startup s
-         ON s.id_tenant = ev.id_tenant AND s.status <> 'ENCERRADA'
-       JOIN startup_membros sm
-         ON sm.id_startup = s.id_startup AND sm.ativo = TRUE
-       JOIN usuarios u ON u.id_usuario = sm.id_usuario
+       FROM publico pu
+       JOIN usuarios u ON u.id_usuario = pu.id_usuario
+       LEFT JOIN startup s ON s.id_startup = pu.id_startup
        LEFT JOIN evento_confirmacao c
-              ON c.id_evento = ev.id_evento AND c.id_usuario = u.id_usuario
+              ON c.id_evento = pu.id_evento AND c.id_usuario = u.id_usuario
        LEFT JOIN evento_presenca p
-              ON p.id_evento = ev.id_evento AND p.id_usuario = u.id_usuario
+              ON p.id_evento = pu.id_evento AND p.id_usuario = u.id_usuario
        LEFT JOIN usuarios mp ON mp.id_usuario = p.marcado_por
-      WHERE ev.id_evento = $1
-        AND ev.ativo = TRUE
-        AND (
-          NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = ev.id_evento)
-          OR EXISTS (
-            SELECT 1 FROM evento_startups es
-             WHERE es.id_evento = ev.id_evento AND es.id_startup = s.id_startup
-          )
-        )
       GROUP BY u.id_usuario, u.nome, u.email, u.foto_url,
                c.status, p.presente, p.checkin_ts, mp.nome
       ORDER BY u.nome`,
@@ -337,32 +426,22 @@ async function listarPublico(idEvento) {
  */
 async function listarResumoPresenca(idTenant, dias) {
   const { rows } = await query(
-    `SELECT ev.id_evento, ev.titulo, ev.categoria, ev.inicio_ts, ev.local,
+    `WITH publico AS (${sqlPublicoEventos(`
+        ev.id_tenant = $1
+        AND ev.ativo = TRUE
+        AND ev.inicio_ts <= NOW()
+        AND ev.inicio_ts >= NOW() - make_interval(days => $2)`)})
+     SELECT ev.id_evento, ev.titulo, ev.categoria, ev.inicio_ts, ev.local,
             ev.obrigatorio,
             -- ::int porque COUNT devolve bigint, que o pg entrega como STRING:
             -- sem o cast a tela compara e soma texto ("10" < "9").
-            COUNT(DISTINCT u.id_usuario)::int                             AS publico,
-            COUNT(DISTINCT u.id_usuario) FILTER (WHERE p.id_usuario IS NOT NULL)::int AS marcados,
-            COUNT(DISTINCT u.id_usuario) FILTER (WHERE p.presente)::int   AS presentes
-       FROM evento ev
-       JOIN startup s
-         ON s.id_tenant = ev.id_tenant AND s.status <> 'ENCERRADA'
-       JOIN startup_membros sm
-         ON sm.id_startup = s.id_startup AND sm.ativo = TRUE
-       JOIN usuarios u ON u.id_usuario = sm.id_usuario
+            COUNT(DISTINCT pu.id_usuario)::int                             AS publico,
+            COUNT(DISTINCT pu.id_usuario) FILTER (WHERE p.id_usuario IS NOT NULL)::int AS marcados,
+            COUNT(DISTINCT pu.id_usuario) FILTER (WHERE p.presente)::int   AS presentes
+       FROM publico pu
+       JOIN evento ev ON ev.id_evento = pu.id_evento
        LEFT JOIN evento_presenca p
-              ON p.id_evento = ev.id_evento AND p.id_usuario = u.id_usuario
-      WHERE ev.id_tenant = $1
-        AND ev.ativo = TRUE
-        AND ev.inicio_ts <= NOW()
-        AND ev.inicio_ts >= NOW() - make_interval(days => $2)
-        AND (
-          NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = ev.id_evento)
-          OR EXISTS (
-            SELECT 1 FROM evento_startups es
-             WHERE es.id_evento = ev.id_evento AND es.id_startup = s.id_startup
-          )
-        )
+              ON p.id_evento = ev.id_evento AND p.id_usuario = pu.id_usuario
       GROUP BY ev.id_evento, ev.titulo, ev.categoria, ev.inicio_ts, ev.local,
                ev.obrigatorio
       ORDER BY ev.inicio_ts DESC`,
@@ -427,6 +506,9 @@ module.exports = {
   // Exportado para o googleAgendaRepository montar a pergunta inversa ("quem
   // recebe este evento?") com a MESMA regra de visibilidade.
   sqlUsuarioVeEvento,
+  // Exportado para o relatorio de engajamento contar o MESMO publico que a
+  // tela de presenca marca.
+  sqlPublicoEventos,
   listarVisiveisParaUsuario,
   criar,
   atualizar,

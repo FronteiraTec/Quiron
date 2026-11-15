@@ -4,6 +4,7 @@
  * participantes e anexos, com acoes de editar/excluir.
  */
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import {
   Drawer,
   Box,
@@ -28,6 +29,8 @@ import {
   Place,
   AttachFile,
   Check,
+  Login,
+  VideoCall,
 } from "@mui/icons-material"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -53,6 +56,7 @@ function Campo({ icone, rotulo, children }) {
 }
 
 export default function EventDrawer({ evento, aberto, onClose, onEditar, onExcluir, usuarioId }) {
+  const navigate = useNavigate()
   const [participantes, setParticipantes] = useState([])
   const [confirmando, setConfirmando] = useState(false)
   // Antes do `if (!evento) return null` abaixo: hook nao pode ficar depois de
@@ -222,15 +226,30 @@ export default function EventDrawer({ evento, aberto, onClose, onEditar, onExclu
 
         <Divider />
 
-        {/* Acoes */}
-        <Box sx={{ p: 2, display: "flex", gap: 1 }}>
-          <Button fullWidth variant="outlined" startIcon={<Edit />} onClick={() => onEditar(evento)}>
-            Editar
-          </Button>
-          <Button fullWidth variant="outlined" color="error" startIcon={<DeleteOutline />} onClick={() => onExcluir(evento)}>
-            Excluir
-          </Button>
-        </Box>
+        {/* Acoes. O evento de uma reuniao por video (migracao 027) se edita
+            pela tela de Reunioes — a Agenda recusaria (409) —, entao no lugar
+            de Editar/Excluir vem o caminho ate a sala. */}
+        {evento.id_reuniao ? (
+          <Box sx={{ p: 2, display: "flex", gap: 1 }}>
+            {["AGENDADA", "EM_ANDAMENTO"].includes(evento.reuniao_status) && (
+              <Button fullWidth variant="contained" startIcon={<Login />} onClick={() => navigate(`/reunioes/${evento.id_reuniao}/sala`)}>
+                Entrar na reunião
+              </Button>
+            )}
+            <Button fullWidth variant="outlined" startIcon={<VideoCall />} onClick={() => navigate(`/reunioes/${evento.id_reuniao}`)}>
+              Ver a reunião
+            </Button>
+          </Box>
+        ) : (
+          <Box sx={{ p: 2, display: "flex", gap: 1 }}>
+            <Button fullWidth variant="outlined" startIcon={<Edit />} onClick={() => onEditar(evento)}>
+              Editar
+            </Button>
+            <Button fullWidth variant="outlined" color="error" startIcon={<DeleteOutline />} onClick={() => onExcluir(evento)}>
+              Excluir
+            </Button>
+          </Box>
+        )}
       </Box>
     </Drawer>
   )

@@ -9,9 +9,9 @@
  * - /         -> dashboard (protegido por Bearer Token)
  * - /perfil   -> perfil e personalizacao (protegido)
  */
-import { useEffect, useMemo } from "react"
+import { Suspense, lazy, useEffect, useMemo } from "react"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
-import { ThemeProvider, CssBaseline } from "@mui/material"
+import { ThemeProvider, CssBaseline, Box, CircularProgress } from "@mui/material"
 
 import Login from "./pages/Login"
 import ForgotPassword from "./pages/ForgotPassword"
@@ -35,6 +35,7 @@ import ConfiguracaoAgenda from "./pages/ConfiguracaoAgenda"
 import ConfiguracaoStartups from "./pages/ConfiguracaoStartups"
 import ConfiguracaoTarefas from "./pages/ConfiguracaoTarefas"
 import ConfiguracaoEngajamento from "./pages/ConfiguracaoEngajamento"
+import ConfiguracaoIA from "./pages/ConfiguracaoIA"
 import Auditoria from "./pages/Auditoria"
 import RelatorioProgresso from "./pages/RelatorioProgresso"
 import RelatorioEntregas from "./pages/RelatorioEntregas"
@@ -56,6 +57,15 @@ import Mensagens from "./pages/Mensagens"
 import Tarefas from "./pages/Tarefas"
 import Avaliacoes from "./pages/Avaliacoes"
 import EspacoMentor from "./pages/EspacoMentor"
+import CrmLayout from "./pages/crm/CrmLayout"
+import CrmPainel from "./pages/crm/CrmPainel"
+import CrmClientes from "./pages/crm/CrmClientes"
+import CrmClienteDetalhe from "./pages/crm/CrmClienteDetalhe"
+import CrmOportunidades from "./pages/crm/CrmOportunidades"
+import CrmOportunidadeDetalhe from "./pages/crm/CrmOportunidadeDetalhe"
+import CrmTarefas from "./pages/crm/CrmTarefas"
+import Reunioes from "./pages/Reunioes"
+import ReuniaoDetalhe from "./pages/ReuniaoDetalhe"
 import NotFound from "./pages/NotFound"
 import ProtectedRoute from "./components/ProtectedRoute"
 import RootRoute from "./components/RootRoute"
@@ -63,6 +73,20 @@ import AdminOuRootRoute from "./components/AdminOuRootRoute"
 import { TourProvider } from "./tour/TourProvider"
 import { construirTema } from "./theme"
 import { usePreferenciaStore } from "./store/preferenciaStore"
+
+// A sala de video e o teste de gravacao carregam sob demanda: o livekit-client
+// sozinho e maior que boa parte do resto do app, e so quem entra numa reuniao
+// precisa dele.
+const ReuniaoSala = lazy(() => import("./pages/ReuniaoSala"))
+const DiagnosticoGravacao = lazy(() => import("./pages/DiagnosticoGravacao"))
+
+function CarregandoTela() {
+  return (
+    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <CircularProgress />
+    </Box>
+  )
+}
 
 
 export default function App() {
@@ -310,6 +334,69 @@ export default function App() {
               }
             />
 
+            {/* Mini CRM: clientes, oportunidades, tarefas e historico da
+                startup. ProtectedRoute e nao AdminOuRootRoute: quem entra e
+                MEMBRO de startup com o beneficio CRM concedido pela
+                incubadora — o backend confere as duas coisas a cada pedido, e
+                o CrmLayout mostra o aviso de "nao liberado" a quem nao tem. */}
+            <Route
+              path="/crm"
+              element={
+                <ProtectedRoute>
+                  <CrmLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<CrmPainel />} />
+              <Route path="clientes" element={<CrmClientes />} />
+              <Route path="clientes/:idCliente" element={<CrmClienteDetalhe />} />
+              <Route path="oportunidades" element={<CrmOportunidades />} />
+              <Route path="oportunidades/:idOportunidade" element={<CrmOportunidadeDetalhe />} />
+              <Route path="tarefas" element={<CrmTarefas />} />
+            </Route>
+
+            {/* Reunioes por video (docs/reunioes.md): mentorias e reunioes
+                dentro do Quiron. ProtectedRoute e nao AdminOuRootRoute: o
+                convidado sempre ve as suas, com chave ou sem — o recorte e do
+                backend (reuniaoService). A SALA fica fora do AppLayout (tela
+                cheia) e carrega sob demanda. "diagnostico" antes de ":id". */}
+            <Route
+              path="/reunioes"
+              element={
+                <ProtectedRoute>
+                  <Reunioes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reunioes/diagnostico"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<CarregandoTela />}>
+                    <DiagnosticoGravacao />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reunioes/:id"
+              element={
+                <ProtectedRoute>
+                  <ReuniaoDetalhe />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reunioes/:id/sala"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<CarregandoTela />}>
+                    <ReuniaoSala />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+
             {/* Mentores: distribuicao das startups entre os mentores. O vinculo
                 editado aqui e o que recorta a fila de avaliacao de cada um.
                 Restrita ao admin da propria incubadora (ou root), como o
@@ -457,6 +544,7 @@ export default function App() {
               <Route path="startups" element={<ConfiguracaoStartups />} />
               <Route path="tarefas" element={<ConfiguracaoTarefas />} />
               <Route path="engajamento" element={<ConfiguracaoEngajamento />} />
+              <Route path="ia" element={<ConfiguracaoIA />} />
               <Route path="auditoria" element={<Auditoria />} />
             </Route>
 

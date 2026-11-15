@@ -28,6 +28,8 @@
  *   GET   /trilha/programas         -> trilhas, para o seletor do cadastro
  *   /trilha/:id/startups              -> habilitar/desabilitar trilhas da startup
  *                                        (DialogTrilhasStartup)
+ *   /startups/:id/beneficios          -> conceder/revogar beneficios, como o Mini CRM
+ *                                        (DialogBeneficiosStartup)
  */
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -41,7 +43,7 @@ import {
   Alert,
   Link,
 } from "@mui/material"
-import { AccountTree, Add, EditOutlined, RocketLaunch, SwapHoriz } from "@mui/icons-material"
+import { AccountTree, Add, CardGiftcard, EditOutlined, RocketLaunch, SwapHoriz } from "@mui/icons-material"
 import AppLayout from "../components/AppLayout"
 import api from "../services/api"
 import { useAuthStore } from "../store/authStore"
@@ -49,6 +51,7 @@ import { useStartupConfigStore } from "../store/startupConfigStore"
 import { usePermissaoStore } from "../store/permissaoStore"
 import DrawerCadastroStartup from "../components/startup/DrawerCadastroStartup"
 import DialogTrilhasStartup from "../components/startup/DialogTrilhasStartup"
+import DialogBeneficiosStartup from "../components/startup/DialogBeneficiosStartup"
 import ChipSituacao from "../components/startup/ChipSituacao"
 import TabelaDados from "../components/tabela/TabelaDados"
 import ToolbarTabela from "../components/tabela/ToolbarTabela"
@@ -84,6 +87,9 @@ export default function Startups() {
   // Matricular cobra a permissao da TRILHA, nao a da startup (trilhaService):
   // quem decide a composicao de uma turma e quem gere o programa.
   const podeGerirTrilhas = usePermissaoStore((s) => s.pode("programa.trilha.editar"))
+  // Beneficios (migracao 026): ver e conceder/revogar sao chaves proprias.
+  const podeVerBeneficios = usePermissaoStore((s) => s.pode("startups.beneficios.visualizar"))
+  const podeGerirBeneficios = usePermissaoStore((s) => s.pode("startups.beneficios.gerenciar"))
 
   const tipos = useStartupConfigStore((s) => s.tipos) || []
   const situacoes = useStartupConfigStore((s) => s.situacoes) || []
@@ -114,6 +120,8 @@ export default function Startups() {
   const [startupEditando, setStartupEditando] = useState(null)
   // Startup cujas trilhas estao sendo habilitadas/desabilitadas.
   const [startupTrilhas, setStartupTrilhas] = useState(null)
+  // Startup cujos beneficios (Mini CRM) estao sendo concedidos/revogados.
+  const [startupBeneficios, setStartupBeneficios] = useState(null)
 
   const carregar = async () => {
     if (!idTenant) {
@@ -202,6 +210,20 @@ export default function Startups() {
         valorOrdenacao: (s) => s.situacao_rotulo || s.status,
         valorTexto: (s) => s.situacao_rotulo || s.status || "",
         render: (s) => <ChipSituacao startup={s} />,
+      },
+      {
+        chave: "beneficios",
+        rotulo: "Benefícios",
+        largura: 140,
+        ajuda: "Recursos que a incubadora liberou para a startup. O Mini CRM é um deles.",
+        valorOrdenacao: (s) => (s.beneficios || []).length,
+        valorTexto: (s) => ((s.beneficios || []).includes("CRM") ? "Mini CRM" : ""),
+        render: (s) =>
+          (s.beneficios || []).includes("CRM") ? (
+            <Chip label="Mini CRM" size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: 11.5, fontWeight: 600 }} />
+          ) : (
+            "—"
+          ),
       },
       {
         chave: "progresso_pct",
@@ -342,6 +364,16 @@ export default function Startups() {
 
     grupos.push({ id: "criado", rotulo: "Data de cadastro", tipo: "data" })
 
+    grupos.push({
+      id: "beneficio",
+      rotulo: "Benefícios",
+      tipo: "checkbox",
+      itens: [
+        { id: "CRM", rotulo: "Com Mini CRM" },
+        { id: "SEM_CRM", rotulo: "Sem Mini CRM" },
+      ],
+    })
+
     campos.forEach((campo) => {
       const grupo = grupoFiltroCampoExtra(campo)
       if (grupo) grupos.push(grupo)
@@ -375,6 +407,12 @@ export default function Startups() {
 
       const ufsSel = filtros.uf || []
       if (ufsSel.length && !ufsSel.includes(s.uf)) return false
+
+      const beneficiosSel = filtros.beneficio || []
+      if (beneficiosSel.length) {
+        const temCrm = (s.beneficios || []).includes("CRM")
+        if (!beneficiosSel.includes(temCrm ? "CRM" : "SEM_CRM")) return false
+      }
 
       // O <input type="date"> devolve YYYY-MM-DD e o timestamp comeca do mesmo
       // jeito: comparar os dez primeiros caracteres compara as datas sem
@@ -466,6 +504,11 @@ export default function Startups() {
       icone: <AccountTree fontSize="small" />,
       onClick: setStartupTrilhas,
     },
+    podeVerBeneficios && {
+      rotulo: "Benefícios",
+      icone: <CardGiftcard fontSize="small" />,
+      onClick: setStartupBeneficios,
+    },
   ].filter(Boolean)
 
   const totalFiltros = contarFiltros(filtros)
@@ -540,7 +583,7 @@ export default function Startups() {
             selecionavel={podeEditar}
             selecionados={selecionados}
             onSelecionadosChange={setSelecionados}
-            larguraAcoes={acoesLinha.length > 1 ? 88 : 56}
+            larguraAcoes={acoesLinha.length > 2 ? 120 : acoesLinha.length > 1 ? 88 : 56}
             acoes={acoesLinha.length ? acoesLinha : undefined}
           />
         </Paper>
@@ -578,6 +621,14 @@ export default function Startups() {
         startup={startupEditando}
         trilhas={trilhas}
         onSalvo={carregar}
+      />
+
+      <DialogBeneficiosStartup
+        aberto={Boolean(startupBeneficios)}
+        startup={startupBeneficios}
+        podeGerenciar={podeGerirBeneficios}
+        onFechar={() => setStartupBeneficios(null)}
+        onMudou={carregar}
       />
 
       <DialogTrilhasStartup

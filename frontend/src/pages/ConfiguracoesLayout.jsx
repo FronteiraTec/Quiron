@@ -27,6 +27,7 @@ const ABAS = [
   { valor: "startups", rotulo: "Cadastro de startups" },
   { valor: "tarefas", rotulo: "Quadro de tarefas" },
   { valor: "engajamento", rotulo: "Engajamento e selos" },
+  { valor: "ia", rotulo: "Inteligência artificial" },
   { valor: "auditoria", rotulo: "Auditoria" },
 ]
 
@@ -60,7 +61,7 @@ export default function ConfiguracoesLayout() {
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Dados cadastrais, e-mail, agenda, cadastro de startups, quadro de tarefas, engajamento e auditoria da incubadora.
+          Dados cadastrais, e-mail, agenda, cadastro de startups, quadro de tarefas, engajamento, inteligência artificial e auditoria da incubadora.
         </Typography>
 
         {ehRoot && (
