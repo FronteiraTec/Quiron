@@ -20,6 +20,8 @@ import { usePermissaoStore } from "../store/permissaoStore"
 import { useAgendaConfigStore } from "../store/agendaConfigStore"
 import { useStartupConfigStore } from "../store/startupConfigStore"
 import { useTarefaConfigStore } from "../store/tarefaConfigStore"
+import { useBeneficioStore } from "../store/beneficioStore"
+import { useReuniaoStore } from "../store/reuniaoStore"
 
 /**
  * @param {boolean} [fullBleed] Remove o padding do main e faz o conteudo ocupar
@@ -34,6 +36,8 @@ export default function AppLayout({ children, fullBleed = false }) {
   const carregarAgendaConfig = useAgendaConfigStore((s) => s.carregar)
   const carregarStartupConfig = useStartupConfigStore((s) => s.carregar)
   const carregarTarefaConfig = useTarefaConfigStore((s) => s.carregar)
+  const carregarBeneficios = useBeneficioStore((s) => s.carregar)
+  const carregarReunioes = useReuniaoStore((s) => s.carregar)
 
   const theme = useTheme()
   const smUp = useMediaQuery(theme.breakpoints.up("sm"))
@@ -93,6 +97,20 @@ export default function AppLayout({ children, fullBleed = false }) {
   useEffect(() => {
     if (usuario?.id_tenant) carregarTarefaConfig(usuario.id_tenant)
   }, [usuario?.id_tenant, carregarTarefaConfig])
+
+  // Os beneficios das startups de que a pessoa e membro (o item "CRM" do
+  // menu). Recarrega a cada tela de proposito: se a incubadora revogar o
+  // beneficio, o item some na proxima navegacao, e nao so no proximo login.
+  useEffect(() => {
+    if (usuario?.id_tenant) carregarBeneficios(usuario.id_tenant)
+  }, [usuario?.id_tenant, carregarBeneficios])
+
+  // As reunioes por video existem nesta instalacao? (O item "Reunioes" do menu
+  // so aparece com o LiveKit configurado.) Uma vez por sessao: so muda com
+  // deploy, e o store ignora a chamada repetida.
+  useEffect(() => {
+    if (usuario) carregarReunioes()
+  }, [usuario, carregarReunioes])
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>

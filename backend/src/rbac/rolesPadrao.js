@@ -62,6 +62,11 @@ const PERMISSOES_MENTOR = [
 
   "eventos.agenda.visualizar",
 
+  // Reunioes por video (migracao 027): mentorar e o trabalho do mentor, e ele
+  // nasce podendo marcar a conversa com a startup. Ver as reunioes dos outros
+  // e mexer nelas fica com a coordenacao.
+  "reunioes.reunioes.criar",
+
   // Mensagens (migracao 012) nao existiam antes do RBAC, entao aqui nao ha
   // "conjunto anterior" a reproduzir — e uma escolha. O mentor nasce podendo
   // falar com as startups que acompanha e com pessoas especificas, que e o

@@ -66,6 +66,30 @@ const CATALOGO_PERMISSOES = [
         ],
       },
       {
+        recurso: "beneficios",
+        rotulo: "Benefícios",
+        // O que a incubadora libera para cada startup (migracao 026) — hoje,
+        // o Mini CRM. Conceder e revogar sao uma chave so: os dois sao a mesma
+        // decisao, tomada por quem gere o programa. Revogar nao apaga os dados.
+        //
+        // NAO da acesso ao CRM em si: os dados comerciais sao da startup, e so
+        // os membros dela os alcancam (crmAcessoService).
+        acoes: [
+          { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "gerenciar", rotulo: "Conceder e revogar" },
+        ],
+      },
+      {
+        recurso: "faturamento",
+        rotulo: "Faturamento",
+        // O total vendido que a startup registra no Mini CRM, so em soma (por
+        // periodo e mes a mes), no cadastro dela. E a unica coisa do CRM que a
+        // incubadora enxerga — clientes e negociacoes continuam da startup.
+        // Chave propria porque nem todo mundo que acompanha a startup precisa
+        // saber quanto ela vende: o mentor nao nasce com ela.
+        acoes: [{ acao: "visualizar", rotulo: "Ver o faturamento (vendas ganhas no CRM)" }],
+      },
+      {
         recurso: "canvas",
         rotulo: "Business Model Canvas",
         acoes: [
@@ -194,6 +218,47 @@ const CATALOGO_PERMISSOES = [
     ],
   },
   {
+    modulo: "reunioes",
+    rotulo: "Reuniões",
+    // Reunioes por video (migracao 027, docs/reunioes.md). O desenho e o de
+    // Tarefas: NAO HA chave para ver as PROPRIAS reunioes — quem foi convidado
+    // sempre ve a reuniao e entra na sala, com chave ou sem, porque ser chamado
+    // para uma conversa nao pode depender de permissao. E o ANFITRIAO sempre
+    // edita, cancela e encerra a dele.
+    //
+    // As chaves sao o degrau acima, sobre as reunioes DOS OUTROS. Nenhuma delas
+    // da entrada na sala: ver uma mentoria na lista nao e estar nela.
+    //
+    // A TRANSCRICAO segue o mesmo desenho: o anfitriao sempre le a da propria
+    // reuniao; a chave e para ler a dos outros. Os demais convidados nao leem
+    // a transcricao (so o relatorio aprovado e compartilhado, na Etapa 5).
+    //
+    // (As chaves do relatorio — visualizar e revisar — entram com a Etapa 5;
+    // uma chave sem nada atras so confundiria a tela de roles.)
+    recursos: [
+      {
+        recurso: "reunioes",
+        rotulo: "Reuniões",
+        acoes: [
+          { acao: "visualizar", rotulo: "Ver as reuniões de toda a incubadora" },
+          { acao: "criar", rotulo: "Criar reuniões" },
+          { acao: "editar", rotulo: "Editar, cancelar e encerrar reuniões de outras pessoas" },
+          { acao: "excluir", rotulo: "Excluir reuniões de outras pessoas" },
+        ],
+      },
+      {
+        recurso: "transcricoes",
+        rotulo: "Transcrições",
+        acoes: [{ acao: "visualizar", rotulo: "Ler a transcrição de qualquer reunião" }],
+      },
+      {
+        recurso: "relatorios",
+        rotulo: "Transcrições e relatórios por IA",
+        acoes: [{ acao: "reprocessar", rotulo: "Pedir nova transcrição ou novo relatório" }],
+      },
+    ],
+  },
+  {
     modulo: "comunicacao",
     rotulo: "Comunicacao",
     // Mensagens internas (migracao 012). RECEBER nao entra no catalogo, pelo
@@ -311,6 +376,18 @@ const CATALOGO_PERMISSOES = [
         acoes: [
           { acao: "visualizar", rotulo: "Visualizar" },
           { acao: "editar", rotulo: "Editar" },
+        ],
+      },
+      // O provedor de IA que a incubadora contrata (transcricao das reunioes;
+      // o relatorio na Etapa 5) e a retencao do que foi gravado. `editar`
+      // inclui cadastrar a chave de API — que ninguem le de volta, nem com
+      // esta chave.
+      {
+        recurso: "ia",
+        rotulo: "Integracoes de Inteligencia Artificial",
+        acoes: [
+          { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "editar", rotulo: "Editar (inclui a chave de API e a retencao)" },
         ],
       },
       {

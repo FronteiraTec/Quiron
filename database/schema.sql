@@ -63,6 +63,39 @@ CREATE TYPE mentorSituacao AS ENUM ('ATIVO', 'INDISPONIVEL', 'INATIVO');
 CREATE TYPE engajamentoLiga AS ENUM ('INCUBADO', 'MENTOR');
 CREATE TYPE engajamentoGatilho AS ENUM ('PRESENCA_EVENTO', 'MENTORIA_MINISTRADA', 'MANUAL');
 CREATE TYPE engajamentoPeriodo AS ENUM ('MES', 'TEMPORADA');
+-- Mini CRM (migracao 026). O beneficio que a incubadora concede a startup, e os
+-- estados do CRM que tem codigo atras: o tipo de pessoa decide o documento, a
+-- situacao separa o funil aberto do encerrado, o status da tarefa decide o que
+-- esta pendente, e cada tipo de evento tem frase e icone proprios no historico.
+CREATE TYPE beneficioTipo AS ENUM ('CRM');
+CREATE TYPE crmTipoPessoa AS ENUM ('PF', 'PJ');
+CREATE TYPE crmClienteStatus AS ENUM ('LEAD', 'ATIVO', 'INATIVO');
+CREATE TYPE crmSituacao AS ENUM ('ABERTA', 'GANHA', 'PERDIDA');
+CREATE TYPE crmPrioridade AS ENUM ('BAIXA', 'MEDIA', 'ALTA');
+CREATE TYPE crmTarefaStatus AS ENUM ('PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA', 'CANCELADA');
+CREATE TYPE crmEventoTipo AS ENUM (
+    'CLIENTE_CRIADO', 'CLIENTE_ALTERADO', 'CLIENTE_EXCLUIDO',
+    'OPORTUNIDADE_CRIADA', 'OPORTUNIDADE_ALTERADA', 'RESPONSAVEL_ALTERADO',
+    'CLIENTE_ASSOCIADO', 'ETAPA_ALTERADA',
+    'OPORTUNIDADE_GANHA', 'OPORTUNIDADE_PERDIDA', 'OPORTUNIDADE_REABERTA',
+    'OPORTUNIDADE_EXCLUIDA',
+    'TAREFA_CRIADA', 'TAREFA_EDITADA', 'TAREFA_INICIADA', 'TAREFA_CONCLUIDA',
+    'TAREFA_REABERTA', 'TAREFA_CANCELADA',
+    'ANOTACAO', 'CONTATO', 'REUNIAO'
+);
+-- Reunioes por video (migracao 027). O ciclo da reuniao (o webhook do LiveKit
+-- e o encerramento mudam o status), o resultado da transcricao (Etapa 4) e o
+-- papel de quem esta na sala (so o anfitriao encerra).
+CREATE TYPE reuniaoStatus AS ENUM ('AGENDADA', 'EM_ANDAMENTO', 'ENCERRADA', 'CANCELADA');
+CREATE TYPE reuniaoTranscricao AS ENUM ('PENDENTE', 'COMPLETA', 'INCOMPLETA', 'DESATIVADA');
+CREATE TYPE reuniaoPapel AS ENUM ('ANFITRIAO', 'PARTICIPANTE');
+-- Gravacao, fila do lote noturno e provedores de IA (migracao 028).
+CREATE TYPE reuniaoAudioStatus AS ENUM ('GRAVANDO', 'DISPONIVEL', 'TRANSCRITO', 'FALHOU', 'EXCLUIDO');
+CREATE TYPE reuniaoProcTipo AS ENUM ('TRANSCRICAO', 'RELATORIO');
+CREATE TYPE reuniaoProcStatus AS ENUM ('PENDENTE', 'PROCESSANDO', 'CONCLUIDO', 'FALHOU', 'CANCELADO');
+CREATE TYPE reuniaoProcEvento AS ENUM ('INICIO', 'SUCESSO', 'ERRO', 'ADIADO');
+CREATE TYPE iaFinalidade AS ENUM ('TRANSCRICAO', 'RELATORIO');
+CREATE TYPE iaProvedor AS ENUM ('OPENAI', 'ANTHROPIC', 'GEMINI', 'OPENAI_COMPATIVEL', 'DEEPGRAM');
 -- NOTA: a categoria de evento ERA o enum `eventoCategoria`, com oito valores
 -- fixos. Virou dado por incubadora na tabela `evento_categoria` (migracao 008),
 -- porque enum e tipo de coluna: acrescentar uma categoria para UMA incubadora
@@ -94,8 +127,15 @@ CREATE TABLE IF NOT EXISTS tenant (
 	linkedin_org_id VARCHAR(20),
     criado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
     atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
+    -- Retencao das reunioes gravadas (migracao 028). Audio: 0 = apaga logo
+    -- depois de transcrever; teto de 30 dias, que e quando a faxina do lote
+    -- apaga qualquer pasta de audio de todo jeito.
+    reuniao_retencao_audio_dias INTEGER NOT NULL DEFAULT 0,
+    reuniao_retencao_transcricao_dias INTEGER NOT NULL DEFAULT 180,
 
-    CONSTRAINT pk_tenant PRIMARY KEY (id_tenant)
+    CONSTRAINT pk_tenant PRIMARY KEY (id_tenant),
+    CONSTRAINT ck_tenant_retencao_audio CHECK (reuniao_retencao_audio_dias BETWEEN 0 AND 30),
+    CONSTRAINT ck_tenant_retencao_transcricao CHECK (reuniao_retencao_transcricao_dias BETWEEN 1 AND 3650)
 );
 
 
@@ -304,6 +344,9 @@ CREATE TABLE IF NOT EXISTS startup (
     atualizado_ts TIMESTAMP NOT NULL DEFAULT NOW(),
 
     CONSTRAINT pk_startup PRIMARY KEY (id_startup),
+    -- Alvo das FKs compostas (id_tenant, id_startup) das tabelas filhas
+    -- (migracao 027).
+    CONSTRAINT uq_startup_dono UNIQUE (id_tenant, id_startup),
 
     CONSTRAINT fk_startup_tenant
         FOREIGN KEY (id_tenant)
@@ -1346,6 +1389,9 @@ CREATE TABLE IF NOT EXISTS evento (
     atualizado_ts TIMESTAMP DEFAULT NOW(),
 
     CONSTRAINT pk_evento PRIMARY KEY (id_evento),
+    -- Alvo das FKs compostas (id_tenant, id_evento) — hoje, a da reuniao
+    -- (migracao 027).
+    CONSTRAINT uq_evento_dono UNIQUE (id_tenant, id_evento),
 
     CONSTRAINT fk_evento_categoria
         FOREIGN KEY (id_tenant, categoria)
@@ -2705,3 +2751,705 @@ CREATE INDEX IF NOT EXISTS ix_selo_concessao_usuario
 CREATE INDEX IF NOT EXISTS ix_selo_concessao_selo
     ON selo_concessao (id_selo);
 
+
+-- ===========================================================================
+-- MINI CRM (migracao 026)
+--
+-- Clientes, oportunidades num funil, tarefas comerciais e o historico de cada
+-- venda, POR STARTUP. So alcanca quem e membro ativo da startup E enquanto a
+-- incubadora mantiver o beneficio CRM concedido (startup_beneficio). Revogar
+-- desliga o acesso e nao apaga nada. As FKs compostas com id_startup impedem,
+-- no proprio banco, ligar registros de startups diferentes. O porque de cada
+-- decisao esta no cabecalho da migracao.
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- 2. BENEFICIOS DA STARTUP
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS startup_beneficio (
+    id_startup    INTEGER       NOT NULL,
+    beneficio     beneficioTipo NOT NULL,
+    ativo         BOOLEAN       NOT NULL DEFAULT TRUE,
+    concedido_por INTEGER,
+    concedido_ts  TIMESTAMP     NOT NULL DEFAULT NOW(),
+    revogado_por  INTEGER,
+    revogado_ts   TIMESTAMP,
+
+    CONSTRAINT pk_startup_beneficio PRIMARY KEY (id_startup, beneficio),
+
+    CONSTRAINT fk_startup_beneficio_startup
+        FOREIGN KEY (id_startup) REFERENCES startup (id_startup) ON DELETE CASCADE,
+    CONSTRAINT fk_startup_beneficio_concedente
+        FOREIGN KEY (concedido_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+    CONSTRAINT fk_startup_beneficio_revogador
+        FOREIGN KEY (revogado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    -- Ativo nao tem data de revogacao; revogado tem.
+    CONSTRAINT ck_startup_beneficio_revogacao CHECK (ativo = (revogado_ts IS NULL))
+);
+
+
+-- ---------------------------------------------------------------------------
+-- 3. ETAPAS DO FUNIL — as abertas. Semeadas pelo backend na primeira
+--    concessao do CRM (ver crm/padroes.js).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS crm_etapa (
+    id_etapa   INTEGER     GENERATED ALWAYS AS IDENTITY,
+    id_startup INTEGER     NOT NULL,
+    nome       VARCHAR(60) NOT NULL,
+    cor        CHAR(7)     NOT NULL DEFAULT '#64748b',
+    ordem      SMALLINT    NOT NULL DEFAULT 0,
+    ativo      BOOLEAN     NOT NULL DEFAULT TRUE,
+    criado_ts  TIMESTAMP   NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_crm_etapa PRIMARY KEY (id_etapa),
+    CONSTRAINT uq_crm_etapa_dono UNIQUE (id_startup, id_etapa),
+
+    CONSTRAINT fk_crm_etapa_startup
+        FOREIGN KEY (id_startup) REFERENCES startup (id_startup) ON DELETE CASCADE,
+
+    CONSTRAINT ck_crm_etapa_cor CHECK (cor ~ '^#[0-9a-fA-F]{6}$')
+);
+
+CREATE INDEX IF NOT EXISTS ix_crm_etapa_startup ON crm_etapa (id_startup, ordem);
+
+
+-- ---------------------------------------------------------------------------
+-- 4. CLIENTES
+--
+-- `documento` so com digitos: 11 para CPF (PF), 14 para CNPJ (PJ). Unico por
+-- startup entre os clientes nao excluidos — dois cadastros com o mesmo CPF sao
+-- o mesmo cliente duplicado.
+--
+-- `origem` e texto livre, como as especialidades do mentor: nao ha codigo atras
+-- do valor, e a tela sugere as origens que a startup ja usa.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS crm_cliente (
+    id_cliente    INTEGER          GENERATED ALWAYS AS IDENTITY,
+    id_startup    INTEGER          NOT NULL,
+    tipo_pessoa   crmTipoPessoa    NOT NULL DEFAULT 'PF',
+    nome          VARCHAR(150)     NOT NULL,
+    documento     VARCHAR(14),
+    email         VARCHAR(150),
+    telefone      VARCHAR(15),
+    whatsapp      VARCHAR(15),
+    empresa       VARCHAR(150),
+    cargo         VARCHAR(100),
+    origem        VARCHAR(60),
+    status        crmClienteStatus NOT NULL DEFAULT 'LEAD',
+    observacoes   TEXT,
+    criado_por    INTEGER,
+    criado_ts     TIMESTAMP        NOT NULL DEFAULT NOW(),
+    atualizado_ts TIMESTAMP        NOT NULL DEFAULT NOW(),
+    excluido_ts   TIMESTAMP,
+    excluido_por  INTEGER,
+
+    CONSTRAINT pk_crm_cliente PRIMARY KEY (id_cliente),
+    CONSTRAINT uq_crm_cliente_dono UNIQUE (id_startup, id_cliente),
+
+    CONSTRAINT fk_crm_cliente_startup
+        FOREIGN KEY (id_startup) REFERENCES startup (id_startup) ON DELETE CASCADE,
+    CONSTRAINT fk_crm_cliente_criado_por
+        FOREIGN KEY (criado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+    CONSTRAINT fk_crm_cliente_excluido_por
+        FOREIGN KEY (excluido_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    CONSTRAINT ck_crm_cliente_documento CHECK (
+        documento IS NULL
+        OR (tipo_pessoa = 'PF' AND documento ~ '^[0-9]{11}$')
+        OR (tipo_pessoa = 'PJ' AND documento ~ '^[0-9]{14}$')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS ix_crm_cliente_startup
+    ON crm_cliente (id_startup, lower(nome)) WHERE excluido_ts IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_cliente_documento
+    ON crm_cliente (id_startup, documento)
+    WHERE documento IS NOT NULL AND excluido_ts IS NULL;
+
+
+-- ---------------------------------------------------------------------------
+-- 5. OPORTUNIDADES
+--
+-- `etapa_ts` e quando ela entrou na etapa atual: e o que o cartao usa para
+-- dizer "parada ha 12 dias".
+--
+-- ENCERRAMENTO COERENTE: aberta nao tem data de encerramento; ganha tem valor
+-- vendido e data de fechamento; perdida tem motivo e data. Reabrir limpa os
+-- tres — o que eles eram continua no historico.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS crm_oportunidade (
+    id_oportunidade     INTEGER       GENERATED ALWAYS AS IDENTITY,
+    id_startup          INTEGER       NOT NULL,
+    id_cliente          INTEGER       NOT NULL,
+    id_etapa            INTEGER       NOT NULL,
+    titulo              VARCHAR(150)  NOT NULL,
+    descricao           TEXT,
+    valor_estimado      NUMERIC(14,2),
+    probabilidade       SMALLINT,
+    previsao_fechamento DATE,
+    origem              VARCHAR(60),
+    id_responsavel      INTEGER,
+    observacoes         TEXT,
+
+    situacao            crmSituacao   NOT NULL DEFAULT 'ABERTA',
+    etapa_ts            TIMESTAMP     NOT NULL DEFAULT NOW(),
+    valor_vendido       NUMERIC(14,2),
+    fechamento_dt       DATE,
+    motivo_perda        VARCHAR(500),
+    encerrado_ts        TIMESTAMP,
+    encerrado_por       INTEGER,
+
+    criado_por          INTEGER,
+    criado_ts           TIMESTAMP     NOT NULL DEFAULT NOW(),
+    atualizado_ts       TIMESTAMP     NOT NULL DEFAULT NOW(),
+    excluido_ts         TIMESTAMP,
+    excluido_por        INTEGER,
+
+    CONSTRAINT pk_crm_oportunidade PRIMARY KEY (id_oportunidade),
+    CONSTRAINT uq_crm_oportunidade_dono UNIQUE (id_startup, id_oportunidade),
+
+    CONSTRAINT fk_crm_oportunidade_startup
+        FOREIGN KEY (id_startup) REFERENCES startup (id_startup) ON DELETE CASCADE,
+    CONSTRAINT fk_crm_oportunidade_cliente
+        FOREIGN KEY (id_startup, id_cliente) REFERENCES crm_cliente (id_startup, id_cliente),
+    CONSTRAINT fk_crm_oportunidade_etapa
+        FOREIGN KEY (id_startup, id_etapa) REFERENCES crm_etapa (id_startup, id_etapa),
+    CONSTRAINT fk_crm_oportunidade_responsavel
+        FOREIGN KEY (id_responsavel) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+    CONSTRAINT fk_crm_oportunidade_encerrado_por
+        FOREIGN KEY (encerrado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+    CONSTRAINT fk_crm_oportunidade_criado_por
+        FOREIGN KEY (criado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+    CONSTRAINT fk_crm_oportunidade_excluido_por
+        FOREIGN KEY (excluido_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    CONSTRAINT ck_crm_oportunidade_valores CHECK (
+        (valor_estimado IS NULL OR valor_estimado >= 0)
+        AND (valor_vendido IS NULL OR valor_vendido >= 0)
+    ),
+    CONSTRAINT ck_crm_oportunidade_probabilidade
+        CHECK (probabilidade IS NULL OR probabilidade BETWEEN 0 AND 100),
+    CONSTRAINT ck_crm_oportunidade_encerramento CHECK (
+        (situacao = 'ABERTA') = (encerrado_ts IS NULL)
+        AND (situacao = 'ABERTA') = (fechamento_dt IS NULL)
+        AND (situacao = 'GANHA') = (valor_vendido IS NOT NULL)
+        AND (situacao = 'PERDIDA') = (motivo_perda IS NOT NULL)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS ix_crm_oportunidade_etapa
+    ON crm_oportunidade (id_startup, situacao, id_etapa) WHERE excluido_ts IS NULL;
+CREATE INDEX IF NOT EXISTS ix_crm_oportunidade_atualizado
+    ON crm_oportunidade (id_startup, atualizado_ts DESC) WHERE excluido_ts IS NULL;
+CREATE INDEX IF NOT EXISTS ix_crm_oportunidade_cliente
+    ON crm_oportunidade (id_cliente);
+
+
+-- ---------------------------------------------------------------------------
+-- 6. TAREFAS COMERCIAIS
+--
+-- Separadas de `tarefa` (migracao 014) de proposito: aquela e a gestao INTERNA
+-- da incubadora, com o vocabulario de status de cada tenant e a visibilidade
+-- da equipe dela. Estas sao da startup, e quem as ve sao os membros dela.
+--
+-- `vencimento_ts` e um instante (UTC, como criado_ts). Cliente e oportunidade
+-- sao opcionais; com oportunidade, o cliente e o dela (o service preenche).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS crm_tarefa (
+    id_tarefa       INTEGER         GENERATED ALWAYS AS IDENTITY,
+    id_startup      INTEGER         NOT NULL,
+    titulo          VARCHAR(150)    NOT NULL,
+    descricao       TEXT,
+    id_responsavel  INTEGER,
+    vencimento_ts   TIMESTAMP,
+    prioridade      crmPrioridade   NOT NULL DEFAULT 'MEDIA',
+    status          crmTarefaStatus NOT NULL DEFAULT 'PENDENTE',
+    id_cliente      INTEGER,
+    id_oportunidade INTEGER,
+    concluida_ts    TIMESTAMP,
+    concluida_por   INTEGER,
+    criado_por      INTEGER,
+    criado_ts       TIMESTAMP       NOT NULL DEFAULT NOW(),
+    atualizado_ts   TIMESTAMP       NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_crm_tarefa PRIMARY KEY (id_tarefa),
+    CONSTRAINT uq_crm_tarefa_dono UNIQUE (id_startup, id_tarefa),
+
+    CONSTRAINT fk_crm_tarefa_startup
+        FOREIGN KEY (id_startup) REFERENCES startup (id_startup) ON DELETE CASCADE,
+    CONSTRAINT fk_crm_tarefa_cliente
+        FOREIGN KEY (id_startup, id_cliente) REFERENCES crm_cliente (id_startup, id_cliente),
+    CONSTRAINT fk_crm_tarefa_oportunidade
+        FOREIGN KEY (id_startup, id_oportunidade)
+        REFERENCES crm_oportunidade (id_startup, id_oportunidade),
+    CONSTRAINT fk_crm_tarefa_responsavel
+        FOREIGN KEY (id_responsavel) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+    CONSTRAINT fk_crm_tarefa_concluida_por
+        FOREIGN KEY (concluida_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+    CONSTRAINT fk_crm_tarefa_criado_por
+        FOREIGN KEY (criado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    CONSTRAINT ck_crm_tarefa_conclusao
+        CHECK ((status = 'CONCLUIDA') = (concluida_ts IS NOT NULL))
+);
+
+CREATE INDEX IF NOT EXISTS ix_crm_tarefa_responsavel
+    ON crm_tarefa (id_startup, id_responsavel, status);
+CREATE INDEX IF NOT EXISTS ix_crm_tarefa_vencimento
+    ON crm_tarefa (id_startup, vencimento_ts)
+    WHERE status IN ('PENDENTE', 'EM_ANDAMENTO');
+CREATE INDEX IF NOT EXISTS ix_crm_tarefa_oportunidade
+    ON crm_tarefa (id_oportunidade) WHERE id_oportunidade IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_crm_tarefa_cliente
+    ON crm_tarefa (id_cliente) WHERE id_cliente IS NOT NULL;
+
+
+-- ---------------------------------------------------------------------------
+-- 7. HISTORICO
+--
+-- `descricao` e a frase pronta, escrita pelo servidor no momento do fato
+-- ("alterou o valor estimado de R$ 2.000,00 para R$ 3.500,00"). Os JSONB guardam
+-- o estado de antes e de depois e o contexto (o campo, a tarefa, o canal do
+-- contato), para a tela e para quem auditar.
+--
+-- `autor_nome` e uma copia do nome de quem fez: se a conta for apagada, o
+-- `id_usuario` vira NULL, mas a linha do tempo continua dizendo quem foi.
+--
+-- `id_cliente` e o cliente no momento do evento: e o que monta o "historico de
+-- interacoes" na tela do cliente. Trocar o cliente de uma oportunidade nao
+-- reescreve o passado.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS crm_evento (
+    id_evento        BIGINT        GENERATED ALWAYS AS IDENTITY,
+    id_startup       INTEGER       NOT NULL,
+    id_oportunidade  INTEGER,
+    id_cliente       INTEGER,
+    id_tarefa        INTEGER,
+    tipo             crmEventoTipo NOT NULL,
+    descricao        TEXT          NOT NULL,
+    dados_anteriores JSONB,
+    dados_novos      JSONB,
+    metadados        JSONB         NOT NULL DEFAULT '{}',
+    id_usuario       INTEGER,
+    autor_nome       VARCHAR(150),
+    criado_ts        TIMESTAMP     NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_crm_evento PRIMARY KEY (id_evento),
+
+    CONSTRAINT fk_crm_evento_startup
+        FOREIGN KEY (id_startup) REFERENCES startup (id_startup) ON DELETE CASCADE,
+    CONSTRAINT fk_crm_evento_oportunidade
+        FOREIGN KEY (id_startup, id_oportunidade)
+        REFERENCES crm_oportunidade (id_startup, id_oportunidade),
+    CONSTRAINT fk_crm_evento_cliente
+        FOREIGN KEY (id_startup, id_cliente) REFERENCES crm_cliente (id_startup, id_cliente),
+    CONSTRAINT fk_crm_evento_tarefa
+        FOREIGN KEY (id_startup, id_tarefa) REFERENCES crm_tarefa (id_startup, id_tarefa),
+    CONSTRAINT fk_crm_evento_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    -- Todo evento e de uma oportunidade, de um cliente, ou dos dois.
+    CONSTRAINT ck_crm_evento_alvo CHECK (id_oportunidade IS NOT NULL OR id_cliente IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS ix_crm_evento_oportunidade
+    ON crm_evento (id_oportunidade, criado_ts DESC, id_evento DESC)
+    WHERE id_oportunidade IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_crm_evento_cliente
+    ON crm_evento (id_cliente, criado_ts DESC, id_evento DESC)
+    WHERE id_cliente IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_crm_evento_startup
+    ON crm_evento (id_startup, criado_ts DESC, id_evento DESC);
+
+
+-- O historico nao se edita nem se apaga. Exclusao e SET NULL vindos de uma FK
+-- rodam dentro da trigger de integridade referencial (profundidade > 1) e
+-- passam: sao a startup, a incubadora ou uma conta saindo do sistema.
+CREATE OR REPLACE FUNCTION fn_crm_evento_imutavel()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF pg_trigger_depth() > 1 THEN
+        IF TG_OP = 'DELETE' THEN
+            RETURN OLD;
+        END IF;
+        RETURN NEW;
+    END IF;
+    RAISE EXCEPTION 'O historico do CRM nao pode ser alterado nem apagado (evento %)', OLD.id_evento
+        USING ERRCODE = 'check_violation';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_crm_evento_imutavel ON crm_evento;
+CREATE TRIGGER trg_crm_evento_imutavel
+    BEFORE UPDATE OR DELETE ON crm_evento
+    FOR EACH ROW EXECUTE FUNCTION fn_crm_evento_imutavel();
+
+
+-- ===========================================================================
+-- REUNIOES POR VIDEO (migracao 027)
+--
+-- Toda reuniao e um evento da Agenda; aqui fica so o que e da sala: quem foi
+-- convidado e quem de fato entrou. O PUBLICO do evento de uma reuniao sao os
+-- convidados, e nao as startups do evento (ver eventoRepository). As FKs
+-- compostas com id_tenant impedem, no proprio banco, ligar a reuniao ao evento
+-- ou ao convidado de outra incubadora. O porque de cada decisao esta no
+-- cabecalho da migracao e em docs/reunioes.md.
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- 3. REUNIAO
+--
+-- `sala` e o nome da sala no LiveKit: 'q-' + uuid, sem dado pessoal nenhum —
+-- o nome aparece no painel do LiveKit e nos logs dele.
+--
+-- `transcricao` fica NULL ate a reuniao ser encerrada: so ai se sabe se houve
+-- gravacao (Etapa 4).
+--
+-- A FK para `evento` nao tem ON DELETE: o evento de uma reuniao nao se apaga
+-- (ele e desativado, `ativo = FALSE`). E NO ACTION, e nao RESTRICT, para que
+-- a saida de uma incubadora inteira (cascata a partir de `tenant`) apague os
+-- dois na mesma instrucao.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reuniao (
+    id_reuniao      INTEGER            GENERATED ALWAYS AS IDENTITY,
+    id_tenant       INTEGER            NOT NULL,
+    id_evento       INTEGER            NOT NULL,
+    id_startup      INTEGER,
+    sala            VARCHAR(64)        NOT NULL DEFAULT ('q-' || gen_random_uuid()::text),
+    status          reuniaoStatus      NOT NULL DEFAULT 'AGENDADA',
+    -- O anfitriao pode desligar a gravacao da reuniao inteira (Etapa 4).
+    gravar_audio    BOOLEAN            NOT NULL DEFAULT TRUE,
+    transcricao     reuniaoTranscricao,
+    transcricao_obs TEXT,
+    id_anfitriao    INTEGER            NOT NULL,
+    iniciada_ts     TIMESTAMP,
+    encerrada_ts    TIMESTAMP,
+    -- NULL com `encerrada_ts` preenchido = a sala fechou sozinha (todos sairam).
+    encerrada_por   INTEGER,
+    criado_por      INTEGER,
+    criado_ts       TIMESTAMP          NOT NULL DEFAULT NOW(),
+    atualizado_ts   TIMESTAMP          NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_reuniao PRIMARY KEY (id_reuniao),
+    CONSTRAINT uq_reuniao_dono UNIQUE (id_tenant, id_reuniao),
+    CONSTRAINT uq_reuniao_evento UNIQUE (id_evento),
+    CONSTRAINT uq_reuniao_sala UNIQUE (sala),
+
+    CONSTRAINT fk_reuniao_tenant
+        FOREIGN KEY (id_tenant) REFERENCES tenant (id_tenant) ON DELETE CASCADE,
+    CONSTRAINT fk_reuniao_evento
+        FOREIGN KEY (id_tenant, id_evento) REFERENCES evento (id_tenant, id_evento),
+    -- So a startup sai: a reuniao continua no historico, sem a startup.
+    CONSTRAINT fk_reuniao_startup
+        FOREIGN KEY (id_tenant, id_startup) REFERENCES startup (id_tenant, id_startup)
+        ON DELETE SET NULL (id_startup),
+    CONSTRAINT fk_reuniao_anfitriao
+        FOREIGN KEY (id_anfitriao) REFERENCES usuarios (id_usuario),
+    CONSTRAINT fk_reuniao_encerrada_por
+        FOREIGN KEY (encerrada_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+    CONSTRAINT fk_reuniao_criado_por
+        FOREIGN KEY (criado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    CONSTRAINT ck_reuniao_sala CHECK (sala ~ '^q-[0-9a-f-]{36}$'),
+    -- Encerrada sempre diz quando.
+    CONSTRAINT ck_reuniao_encerramento
+        CHECK (status <> 'ENCERRADA' OR encerrada_ts IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS ix_reuniao_tenant_status ON reuniao (id_tenant, status);
+CREATE INDEX IF NOT EXISTS ix_reuniao_startup ON reuniao (id_startup) WHERE id_startup IS NOT NULL;
+
+
+-- ---------------------------------------------------------------------------
+-- 4. CONVIDADOS
+--
+-- Um ANFITRIAO por reuniao (o indice parcial abaixo), e ele e o mesmo de
+-- `reuniao.id_anfitriao` — o service grava os dois juntos.
+--
+-- `consentiu_ts` NULL = a fala desta pessoa nao e gravada. Preenchido pela
+-- tela da sala a partir da Etapa 4.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reuniao_participante (
+    id_tenant                 INTEGER      NOT NULL,
+    id_reuniao                INTEGER      NOT NULL,
+    id_usuario                INTEGER      NOT NULL,
+    papel                     reuniaoPapel NOT NULL DEFAULT 'PARTICIPANTE',
+    consentiu_ts              TIMESTAMP,
+    consentimento_revogado_ts TIMESTAMP,
+    convidado_por             INTEGER,
+    convidado_ts              TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_reuniao_participante PRIMARY KEY (id_reuniao, id_usuario),
+
+    CONSTRAINT fk_reuniao_participante_reuniao
+        FOREIGN KEY (id_tenant, id_reuniao) REFERENCES reuniao (id_tenant, id_reuniao)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_reuniao_participante_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario) ON DELETE CASCADE,
+    CONSTRAINT fk_reuniao_participante_convidado_por
+        FOREIGN KEY (convidado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_reuniao_participante_anfitriao
+    ON reuniao_participante (id_reuniao) WHERE papel = 'ANFITRIAO';
+-- "As minhas reunioes" e a pergunta da listagem de quem nao tem a chave.
+CREATE INDEX IF NOT EXISTS ix_reuniao_participante_usuario
+    ON reuniao_participante (id_usuario, id_reuniao);
+
+
+-- ---------------------------------------------------------------------------
+-- 5. ENTRADAS E SAIDAS DA SALA
+--
+-- Uma linha por conexao do LiveKit (`sid_participante`): quem caiu e voltou
+-- tem duas. O UNIQUE e o que torna o webhook idempotente — o reenvio do mesmo
+-- `participant_joined` nao duplica nada, e um `participant_left` que chegue
+-- antes do `joined` cria a linha ja fechada.
+--
+-- `id_usuario` vem da identidade do token (`u-<id_usuario>`). Fica NULL se a
+-- identidade nao for de ninguem desta reuniao — o que nao deveria acontecer,
+-- porque o token so e emitido para convidados.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reuniao_sessao (
+    id_sessao          BIGINT       GENERATED ALWAYS AS IDENTITY,
+    id_tenant          INTEGER      NOT NULL,
+    id_reuniao         INTEGER      NOT NULL,
+    id_usuario         INTEGER,
+    identidade_livekit VARCHAR(128) NOT NULL,
+    sid_participante   VARCHAR(64)  NOT NULL,
+    entrou_ts          TIMESTAMP    NOT NULL,
+    saiu_ts            TIMESTAMP,
+
+    CONSTRAINT pk_reuniao_sessao PRIMARY KEY (id_sessao),
+    CONSTRAINT uq_reuniao_sessao_sid UNIQUE (sid_participante),
+
+    CONSTRAINT fk_reuniao_sessao_reuniao
+        FOREIGN KEY (id_tenant, id_reuniao) REFERENCES reuniao (id_tenant, id_reuniao)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_reuniao_sessao_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    CONSTRAINT ck_reuniao_sessao_periodo CHECK (saiu_ts IS NULL OR saiu_ts >= entrou_ts)
+);
+
+CREATE INDEX IF NOT EXISTS ix_reuniao_sessao_reuniao ON reuniao_sessao (id_reuniao, entrou_ts);
+
+
+-- ===========================================================================
+-- REUNIOES: GRAVACAO E TRANSCRICAO (migracao 028, Etapa 4 de docs/reunioes.md)
+--
+-- Os enums estao no bloco de tipos do inicio do arquivo, e a retencao em
+-- `tenant`. O cabecalho da migracao 028 explica o desenho.
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- 3. REUNIAO_AUDIO — uma gravacao continua de UMA pessoa
+--
+-- Nasce GRAVANDO quando o navegador abre a gravacao; vira DISPONIVEL quando
+-- fecha (ou quando o servidor fecha pelo ultimo pedaco recebido); TRANSCRITO
+-- depois do lote; EXCLUIDO quando o audio sai do disco. FALHOU = o arquivo
+-- nao pode ser lido (o motivo fica em `erro`).
+--
+-- `inicio_ts` vem do RELOGIO DO SERVIDOR, e nao do navegador: e o que poe as
+-- falas de pessoas diferentes na mesma linha do tempo.
+--
+-- `partes`, `ultima_parte` e `tamanho_bytes` sao o placar do recebimento. Quem
+-- manda e o disco: o lote conta os arquivos de novo antes de transcrever.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reuniao_audio (
+    id_audio         BIGINT             GENERATED ALWAYS AS IDENTITY,
+    id_tenant        INTEGER            NOT NULL,
+    id_reuniao       INTEGER            NOT NULL,
+    id_usuario       INTEGER            NOT NULL,
+    status           reuniaoAudioStatus NOT NULL DEFAULT 'GRAVANDO',
+    mime             VARCHAR(60)        NOT NULL,
+    partes           INTEGER            NOT NULL DEFAULT 0,
+    ultima_parte     INTEGER,
+    tamanho_bytes    BIGINT             NOT NULL DEFAULT 0,
+    inicio_ts        TIMESTAMP          NOT NULL DEFAULT NOW(),
+    ultima_parte_ts  TIMESTAMP,
+    fim_ts           TIMESTAMP,
+    erro             TEXT,
+    transcrito_ts    TIMESTAMP,
+    excluido_ts      TIMESTAMP,
+
+    CONSTRAINT pk_reuniao_audio PRIMARY KEY (id_audio),
+    CONSTRAINT uq_reuniao_audio_dono UNIQUE (id_tenant, id_audio),
+
+    CONSTRAINT fk_reuniao_audio_reuniao
+        FOREIGN KEY (id_tenant, id_reuniao) REFERENCES reuniao (id_tenant, id_reuniao)
+        ON DELETE CASCADE,
+    -- A voz e da pessoa: se a conta for apagada, a gravacao vai junto.
+    CONSTRAINT fk_reuniao_audio_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario) ON DELETE CASCADE,
+
+    CONSTRAINT ck_reuniao_audio_mime
+        CHECK (mime ~ '^audio/(webm|ogg|mp4)(;[ a-z0-9=.,"-]*)?$'),
+    CONSTRAINT ck_reuniao_audio_partes CHECK (partes >= 0 AND tamanho_bytes >= 0),
+    CONSTRAINT ck_reuniao_audio_periodo CHECK (fim_ts IS NULL OR fim_ts >= inicio_ts)
+);
+
+CREATE INDEX IF NOT EXISTS ix_reuniao_audio_reuniao ON reuniao_audio (id_reuniao, id_usuario);
+
+
+-- ---------------------------------------------------------------------------
+-- 4. REUNIAO_TRECHO — o que foi dito
+--
+-- `ordem` e a posicao do trecho dentro da gravacao: UNIQUE (id_audio, ordem)
+-- faz o reprocessamento substituir em vez de duplicar. `inicio_ts`/`fim_ts`
+-- sao absolutos (inicio da gravacao + deslocamento dentro do arquivo).
+-- `origem` diz quem transcreveu, ex. 'OPENAI:whisper-1'.
+--
+-- ECO: quem fala sem fone pode ter a voz dos outros captada no proprio
+-- microfone, e a mesma frase sai em duas gravacoes. O lote apaga a copia
+-- (mesmo texto, mesmo momento, pessoas diferentes) e fica com a de maior
+-- `confianca`.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reuniao_trecho (
+    id_trecho      BIGINT       GENERATED ALWAYS AS IDENTITY,
+    id_tenant      INTEGER      NOT NULL,
+    id_reuniao     INTEGER      NOT NULL,
+    id_audio       BIGINT       NOT NULL,
+    id_usuario     INTEGER      NOT NULL,
+    ordem          INTEGER      NOT NULL,
+    texto          TEXT         NOT NULL,
+    inicio_ts      TIMESTAMP    NOT NULL,
+    fim_ts         TIMESTAMP    NOT NULL,
+    origem         VARCHAR(80),
+    -- 0 a 1, quando o provedor informa. E o desempate da deduplicacao do eco.
+    confianca      REAL,
+    persistido_ts  TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_reuniao_trecho PRIMARY KEY (id_trecho),
+    CONSTRAINT uq_reuniao_trecho_ordem UNIQUE (id_audio, ordem),
+
+    CONSTRAINT fk_reuniao_trecho_reuniao
+        FOREIGN KEY (id_tenant, id_reuniao) REFERENCES reuniao (id_tenant, id_reuniao)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_reuniao_trecho_audio
+        FOREIGN KEY (id_tenant, id_audio) REFERENCES reuniao_audio (id_tenant, id_audio)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_reuniao_trecho_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario) ON DELETE CASCADE,
+
+    CONSTRAINT ck_reuniao_trecho_periodo CHECK (fim_ts >= inicio_ts)
+);
+
+CREATE INDEX IF NOT EXISTS ix_reuniao_trecho_reuniao ON reuniao_trecho (id_reuniao, inicio_ts);
+
+
+-- ---------------------------------------------------------------------------
+-- 5. REUNIAO_PROCESSAMENTO — a fila E o historico
+--
+-- O worker reserva com `FOR UPDATE SKIP LOCKED`. `travado_ate` e o prazo dele:
+-- vencido, o job volta a PENDENTE (o worker morreu no meio). O indice parcial
+-- impede dois jobs ATIVOS do mesmo tipo para a mesma reuniao — reprocessar
+-- com um ja na fila responde 409 em vez de duplicar.
+--
+-- `erro_mensagem` NUNCA leva segredo: passa por um filtro que corta o corpo
+-- da resposta do provedor e qualquer sequencia com cara de chave.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reuniao_processamento (
+    id_processamento      BIGINT            GENERATED ALWAYS AS IDENTITY,
+    id_tenant             INTEGER           NOT NULL,
+    id_reuniao            INTEGER           NOT NULL,
+    tipo                  reuniaoProcTipo   NOT NULL,
+    status                reuniaoProcStatus NOT NULL DEFAULT 'PENDENTE',
+    tentativas            INTEGER           NOT NULL DEFAULT 0,
+    max_tentativas        INTEGER           NOT NULL DEFAULT 5,
+    proxima_tentativa_ts  TIMESTAMP         NOT NULL DEFAULT NOW(),
+    travado_ate           TIMESTAMP,
+    erro_codigo           VARCHAR(40),
+    erro_mensagem         TEXT,
+    provedor              VARCHAR(40),
+    modelo                VARCHAR(100),
+    tokens_entrada        INTEGER,
+    tokens_saida          INTEGER,
+    segundos_audio        INTEGER,
+    duracao_ms            INTEGER,
+    solicitado_por        INTEGER,
+    criado_ts             TIMESTAMP         NOT NULL DEFAULT NOW(),
+    iniciado_ts           TIMESTAMP,
+    concluido_ts          TIMESTAMP,
+
+    CONSTRAINT pk_reuniao_processamento PRIMARY KEY (id_processamento),
+
+    CONSTRAINT fk_reuniao_processamento_reuniao
+        FOREIGN KEY (id_tenant, id_reuniao) REFERENCES reuniao (id_tenant, id_reuniao)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_reuniao_processamento_solicitante
+        FOREIGN KEY (solicitado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    CONSTRAINT ck_reuniao_processamento_trava CHECK (status <> 'PROCESSANDO' OR travado_ate IS NOT NULL),
+    CONSTRAINT ck_reuniao_processamento_tentativas CHECK (tentativas >= 0 AND max_tentativas >= 1)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_reuniao_processamento_ativo
+    ON reuniao_processamento (id_reuniao, tipo)
+    WHERE status IN ('PENDENTE', 'PROCESSANDO');
+
+CREATE INDEX IF NOT EXISTS ix_reuniao_processamento_fila
+    ON reuniao_processamento (status, proxima_tentativa_ts);
+
+CREATE INDEX IF NOT EXISTS ix_reuniao_processamento_reuniao
+    ON reuniao_processamento (id_reuniao, criado_ts);
+
+
+-- Cada tentativa, so insere. `detalhe` nunca leva segredo (o mesmo filtro).
+CREATE TABLE IF NOT EXISTS reuniao_processamento_log (
+    id_log            BIGINT            GENERATED ALWAYS AS IDENTITY,
+    id_processamento  BIGINT            NOT NULL,
+    tentativa         INTEGER           NOT NULL,
+    evento            reuniaoProcEvento NOT NULL,
+    detalhe           JSONB,
+    criado_ts         TIMESTAMP         NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_reuniao_processamento_log PRIMARY KEY (id_log),
+    CONSTRAINT fk_reuniao_processamento_log_proc
+        FOREIGN KEY (id_processamento) REFERENCES reuniao_processamento (id_processamento)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_reuniao_processamento_log_proc
+    ON reuniao_processamento_log (id_processamento, id_log);
+
+
+-- ---------------------------------------------------------------------------
+-- 6. TENANT_IA_CONFIG — o provedor de IA de cada incubadora
+--
+-- Uma linha por finalidade. Cada finalidade aceita so os provedores que a
+-- fazem (o CHECK abaixo). `chave_final` sao os ultimos 4 caracteres, para a
+-- tela mostrar "termina em …abcd" sem nunca devolver a chave.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tenant_ia_config (
+    id_tenant              INTEGER       NOT NULL,
+    finalidade             iaFinalidade  NOT NULL,
+    provedor               iaProvedor    NOT NULL,
+    modelo                 VARCHAR(100)  NOT NULL,
+    url_base               VARCHAR(255),
+    chave_cifrada          TEXT          NOT NULL,
+    chave_final            VARCHAR(4),
+    prompt_personalizado   TEXT,
+    ativo                  BOOLEAN       NOT NULL DEFAULT TRUE,
+    ultima_validacao_ts    TIMESTAMP,
+    ultima_validacao_ok    BOOLEAN,
+    ultima_validacao_erro  TEXT,
+    atualizado_por         INTEGER,
+    atualizado_ts          TIMESTAMP     NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pk_tenant_ia_config PRIMARY KEY (id_tenant, finalidade),
+
+    CONSTRAINT fk_tenant_ia_config_tenant
+        FOREIGN KEY (id_tenant) REFERENCES tenant (id_tenant) ON DELETE CASCADE,
+    CONSTRAINT fk_tenant_ia_config_autor
+        FOREIGN KEY (atualizado_por) REFERENCES usuarios (id_usuario) ON DELETE SET NULL,
+
+    CONSTRAINT ck_tenant_ia_config_provedor CHECK (
+        (finalidade = 'TRANSCRICAO' AND provedor IN ('OPENAI', 'DEEPGRAM', 'OPENAI_COMPATIVEL'))
+        OR (finalidade = 'RELATORIO' AND provedor IN ('OPENAI', 'ANTHROPIC', 'GEMINI', 'OPENAI_COMPATIVEL'))
+    ),
+    -- So o provedor compativel tem endereco proprio; os outros sao fixos no codigo.
+    CONSTRAINT ck_tenant_ia_config_url CHECK (
+        (provedor = 'OPENAI_COMPATIVEL') = (url_base IS NOT NULL)
+    )
+);

@@ -12,6 +12,7 @@ import { usePermissaoStore } from "./permissaoStore"
 import { useAgendaConfigStore } from "./agendaConfigStore"
 import { useStartupConfigStore } from "./startupConfigStore"
 import { useTarefaConfigStore } from "./tarefaConfigStore"
+import { useBeneficioStore } from "./beneficioStore"
 
 export const useAuthStore = create((set) => ({
   // Estado inicial: recupera o token salvo (se houver).
@@ -51,6 +52,8 @@ export const useAuthStore = create((set) => ({
     useStartupConfigStore.getState().limpar()
     // Idem para o do quadro de tarefas (colunas e campos).
     useTarefaConfigStore.getState().limpar()
+    // Idem para os beneficios (o item "CRM" do menu e de quem e membro).
+    useBeneficioStore.getState().limpar()
     // Volta as preferencias visuais ao padrao para o proximo usuario.
     usePreferenciaStore.getState().resetar()
   },

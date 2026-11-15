@@ -17,6 +17,7 @@ const eventoRepository = require("../repositories/eventoRepository")
 const agendaConfigRepository = require("../repositories/agendaConfigRepository")
 const tenantRepository = require("../repositories/tenantRepository")
 const startupRepository = require("../repositories/startupRepository")
+const reuniaoRepository = require("../repositories/reuniaoRepository")
 const rbacService = require("./rbacService")
 const auditLogService = require("./auditLogService")
 const notificacaoService = require("./notificacaoService")
@@ -53,15 +54,47 @@ async function listar(idTenant, periodo, idUsuario, usuario) {
     ? await startupRepository.listarIdsPorUsuario(idTenant, idUsuario)
     : null
 
-  return eventoRepository.listarPorTenant(idTenant, periodo, idsPermitidos)
+  // O idUsuario vai junto do recorte: o evento de uma REUNIAO nao segue as
+  // startups, segue os convidados (migracao 027).
+  return eventoRepository.listarPorTenant(idTenant, periodo, idsPermitidos, idUsuario)
 }
 
-/** Busca um evento pelo id. */
+/**
+ * Busca um evento pelo id.
+ *
+ * O evento de uma REUNIAO tem o mesmo recorte da listagem: so o admin da
+ * incubadora e os convidados o abrem. Para os demais e "nao encontrado", e nao
+ * 403 — o id e sequencial, e um 403 confirmaria que existe uma mentoria ali.
+ */
 async function buscar(id, usuario) {
   const evento = await eventoRepository.buscarPorId(id)
   if (!evento) throw erroNegocio(404, "Evento nao encontrado.")
   await rbacService.garantirPermissao(evento.id_tenant, usuario, "eventos.agenda.visualizar")
+
+  if (evento.id_reuniao && !usuario?.root) {
+    const papel = await tenantRepository.buscarPapel(evento.id_tenant, usuario?.id)
+    const convidado = await reuniaoRepository.buscarParticipante(evento.id_reuniao, usuario?.id)
+    if (papel !== "admin" && !convidado) throw erroNegocio(404, "Evento nao encontrado.")
+  }
   return evento
+}
+
+/**
+ * O evento de uma reuniao se edita e se exclui pela tela de Reunioes.
+ *
+ * Pela Agenda daria para trocar as startups do evento sem trocar as da
+ * reuniao, ou desativar o evento deixando a reuniao viva e sem horario. Os
+ * dados sao os mesmos (a reuniao le titulo e horario do evento); o que muda e
+ * que, la, cada mudanca passa pelas regras da reuniao.
+ */
+function recusarSeForReuniao(evento) {
+  if (evento?.id_reuniao) {
+    throw erroNegocio(
+      409,
+      "Esta atividade é uma reunião por vídeo. Edite, cancele ou exclua pela tela de Reuniões.",
+      "EVENTO_DE_REUNIAO"
+    )
+  }
 }
 
 /**
@@ -173,6 +206,7 @@ async function atualizar(id, dados, usuarioAutenticado) {
   const antes = await eventoRepository.buscarPorId(id)
   if (!antes) throw erroNegocio(404, "Evento nao encontrado.")
   await rbacService.garantirPermissao(antes.id_tenant, usuarioAutenticado, "eventos.agenda.editar")
+  recusarSeForReuniao(antes)
 
   // A validacao passou a rodar DEPOIS de carregar o evento porque agora precisa
   // do tenant, e o tenant tem de vir do EVENTO, nunca do corpo da requisicao —
@@ -227,6 +261,7 @@ async function excluir(id, usuarioAutenticado) {
   const antes = await eventoRepository.buscarPorId(id)
   if (!antes) throw erroNegocio(404, "Evento nao encontrado.")
   await rbacService.garantirPermissao(antes.id_tenant, usuarioAutenticado, "eventos.agenda.excluir")
+  recusarSeForReuniao(antes)
 
   // Levantado ANTES da exclusao. A lista de quem recebeu o evento no Google se
   // apoia no evento ainda estar visivel; buscando depois, em segundo plano, ela

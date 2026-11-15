@@ -10,6 +10,8 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { useMediaQuery, useTheme } from "@mui/material"
 import { useAuthStore } from "../store/authStore"
 import { usePermissaoStore } from "../store/permissaoStore"
+import { useBeneficioStore } from "../store/beneficioStore"
+import { useReuniaoStore } from "../store/reuniaoStore"
 import { useSidebarPreferences } from "./useSidebarPreferences"
 import {
   menuPorPapel,
@@ -21,14 +23,22 @@ import {
  * Remove do menu o que o usuario nao tem permissao de abrir, e os grupos que
  * ficam vazios por consequencia — um grupo "Relatorios" sem nenhum relatorio
  * dentro so ocuparia espaco para abrir e nao mostrar nada.
+ *
+ * Item com `beneficio` (o CRM) so aparece para quem e membro de uma startup
+ * com aquele beneficio ativo — e um recurso que a incubadora concede, nao uma
+ * permissao de papel.
+ *
+ * Item com `modulo` (Reunioes) so aparece quando o servidor tem o que ele
+ * precisa (o LiveKit) — e configuracao da instalacao, nao de ninguem.
  */
-function filtrarPorPermissao(menu, pode) {
+function filtrarPorPermissao(menu, pode, temBeneficio, temModulo) {
+  const visivel = (item) => pode(item.permissao) && temBeneficio(item.beneficio) && temModulo(item.modulo)
   return menu
     .map((item) => {
       if (!item.filhos) return item
-      return { ...item, filhos: item.filhos.filter((f) => pode(f.permissao)) }
+      return { ...item, filhos: item.filhos.filter(visivel) }
     })
-    .filter((item) => (item.filhos ? item.filhos.length > 0 : pode(item.permissao)))
+    .filter((item) => (item.filhos ? item.filhos.length > 0 : visivel(item)))
 }
 
 // Grupos abertos da ultima Sidebar montada (ver o comentario em useSidebar).
@@ -57,12 +67,17 @@ export function useSidebar({ onNavegar } = {}) {
   const papel = useMemo(() => resolverPapel(usuario), [usuario])
   const chaves = usePermissaoStore((s) => s.chaves)
   const pode = usePermissaoStore((s) => s.pode)
+  const beneficios = useBeneficioStore((s) => s.beneficios)
+  const temBeneficio = useBeneficioStore((s) => s.tem)
+  const reunioesDisponiveis = useReuniaoStore((s) => s.disponivel)
+  const temModulo = useReuniaoStore((s) => s.tem)
   const menu = useMemo(
-    () => filtrarPorPermissao(menuPorPapel(papel), pode),
-    // `chaves` entra na lista porque `pode` e estavel (zustand) e nao
-    // dispararia o recalculo sozinho quando as permissoes chegassem.
+    () => filtrarPorPermissao(menuPorPapel(papel), pode, temBeneficio, temModulo),
+    // `chaves`, `beneficios` e `reunioesDisponiveis` entram na lista porque
+    // `pode` e `tem` sao estaveis (zustand) e nao disparariam o recalculo
+    // quando os dados chegassem.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [papel, pode, chaves]
+    [papel, pode, chaves, temBeneficio, beneficios, temModulo, reunioesDisponiveis]
   )
   const itensPlanos = useMemo(() => achatarMenu(menu), [menu])
 

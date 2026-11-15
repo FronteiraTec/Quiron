@@ -42,7 +42,13 @@
 		# `unsafe-inline` em style-src e exigencia do Emotion/MUI, que injeta
 		# <style> em tempo de execucao. Em script-src NAO ha excecao: e o que
 		# transforma um XSS em erro de console em vez de token roubado.
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		#
+		# Reunioes por video (docs/reunioes.md, secao 9): o navegador fala com o
+		# LiveKit Cloud por WebSocket (sinalizacao) e HTTPS (escolha da regiao),
+		# entao os dois entram no connect-src. O video em si e WebRTC, que a CSP
+		# nao governa. O `media-src blob:` e o teste de gravacao, que toca o
+		# audio gravado a partir da memoria do navegador.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' wss://*.livekit.cloud https://*.livekit.cloud; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
 
 		# Nao anuncie a versao do servidor.
 		-Server

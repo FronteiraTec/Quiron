@@ -31,6 +31,16 @@ router.delete("/:id/membros/:idUsuario", ctrl.removerMembro)
 router.get("/:id/mentores", require("../controllers/mentorController").listarPorStartup)
 router.get("/:id/fases-concluidas", ctrl.listarFasesConcluidas)
 
+// Beneficios concedidos pela incubadora (migracao 026). Revogar desliga o
+// acesso e preserva os dados.
+const beneficioCtrl = require("../controllers/beneficioController")
+router.get("/:id/beneficios", beneficioCtrl.listarDaStartup)
+router.put("/:id/beneficios/:beneficio", beneficioCtrl.definir) // body: { ativo }
+
+// O faturamento (vendas ganhas no Mini CRM), so em soma: e o que a incubadora
+// ve do CRM da startup. Clientes e negociacoes nao saem daqui.
+router.get("/:id/faturamento", require("../controllers/faturamentoController").daStartup)
+
 const canvasCtrl = require("../controllers/startupCanvasController")
 router.get("/:id/canvas", canvasCtrl.listar)
 router.put("/:id/canvas/:bloco", canvasCtrl.salvarBloco)
