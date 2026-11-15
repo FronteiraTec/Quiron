@@ -18,6 +18,8 @@
  *               visivel a qualquer um que tenha o menu daquele papel.
  *   beneficio-> beneficio que a incubadora concede a startup (ex.: "CRM"). O
  *               item so aparece para membro de startup com ele ativo.
+ *   modulo   -> modulo que depende de configuracao do servidor (ex.:
+ *               "reunioes", que exige o LiveKit). Sem ela, o item some.
  *
  * SOBRE `permissao`: e so para nao OFERECER o que responderia 403 — quem
  * autoriza e o backend, em `garantirPermissao`. Itens de dado proprio (Minha
@@ -57,6 +59,7 @@ import {
   EmojiEvents,
   CoPresent,
   Handshake,
+  VideoCall,
 } from "@mui/icons-material"
 
 // Larguras do menu (compartilhadas com a Navbar e o conteudo).
@@ -125,6 +128,9 @@ const MENU_ADMIN = [
     icone: <Event />,
     filhos: [
       { id: "eventos-agenda", texto: "Agenda", icone: <CalendarMonth />, rota: "/eventos", badgeKey: "eventos" },
+      // Reunioes por video (docs/reunioes.md). Sem `permissao`: o convidado
+      // sempre ve as suas. So aparece com o LiveKit configurado (`modulo`).
+      { id: "reunioes", texto: "Reuniões", icone: <VideoCall />, rota: "/reunioes", modulo: "reunioes", novo: true },
       { id: "eventos-presenca", texto: "Presença", icone: <HowToReg />, rota: "/eventos/presenca", permissao: "eventos.presenca.visualizar" },
     ],
   },
@@ -207,6 +213,9 @@ const MENU_MENTOR = [
     ],
   },
   { id: "eventos", texto: "Eventos", icone: <Event />, rota: "/eventos", badgeKey: "eventos" },
+  // Ao lado da Agenda, e nao dentro dela: aqui Eventos e item simples, e
+  // transforma-lo em grupo mudaria o menu (e os favoritos) de todo mentor.
+  { id: "reunioes", texto: "Reuniões", icone: <VideoCall />, rota: "/reunioes", modulo: "reunioes", novo: true },
   // Mini CRM: so para quem tambem e membro de uma startup com o beneficio.
   { id: "crm", texto: "CRM", icone: <Handshake />, rota: "/crm", beneficio: "CRM", novo: true },
   { id: "engajamento", texto: "Engajamento", icone: <EmojiEvents />, rota: "/engajamento", novo: true },
@@ -239,6 +248,8 @@ const MENU_USUARIO = [
   // o cadastro da incubadora, e o incubado responde cada um pelo passo da
   // Jornada (/passos/:idNo/responder), nao por uma lista.
   { id: "eventos", texto: "Eventos", icone: <Event />, rota: "/eventos", badgeKey: "eventos" },
+  // As mentorias para as quais o incubado foi convidado, com a sala de video.
+  { id: "reunioes", texto: "Reuniões", icone: <VideoCall />, rota: "/reunioes", modulo: "reunioes", novo: true },
   { id: "engajamento", texto: "Engajamento", icone: <EmojiEvents />, rota: "/engajamento", novo: true },
 ]
 

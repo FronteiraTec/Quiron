@@ -10,6 +10,7 @@
  * divergissem, o relatorio contradiria a tela que o incubado ve.
  */
 const { query } = require("../config/db")
+const { sqlPublicoEventos } = require("./eventoRepository")
 
 // ---------------------------------------------------------------------------
 // Bloco compartilhado: o estado de cada PASSO ativo para cada startup.
@@ -350,38 +351,21 @@ async function gargalosPrograma(idTenant) {
 // RELATORIO 4 — Engajamento e eventos
 // ---------------------------------------------------------------------------
 
-// Publico-alvo de cada evento do periodo.
+// Publico-alvo de cada evento do periodo: uma linha por (evento, pessoa,
+// startup) — sem isso, "taxa de presenca" nao tem denominador.
 //
-// Um evento sem linhas em evento_startups e GERAL: vale para todas as startups
-// incubadas. Com linhas, so para as listadas (ver schema.sql). O publico e a
-// soma dos membros ativos dessas startups — sem isso, "taxa de presenca" nao
-// tem denominador.
-//
-// MESMO CRITERIO de eventoRepository.listarPublico, que monta a lista da tela
-// de presenca. Mexeu aqui, mexa la: a tela marca quem esta na lista dela, e
-// este relatorio conta quem esta na lista daqui. Divergir faz a taxa de
-// presenca contar um denominador que ninguem consegue marcar.
+// A REGRA E A DE eventoRepository.sqlPublicoEventos, a mesma que monta a lista
+// da tela de presenca: a tela marca quem esta na lista dela, e este relatorio
+// conta quem esta na lista de la. Antes eram duas copias do criterio; agora e
+// uma consulta so. Evento geral vale para todas as startups, direcionado so
+// para as listadas, e o de uma reuniao (migracao 027) para os convidados.
 //
 // $1 = id_tenant, $2 = dias
-const SQL_PUBLICO_EVENTOS = `
-  SELECT ev.id_evento, sm.id_usuario, sm.id_startup
-    FROM evento ev
-    JOIN startup s
-      ON s.id_tenant = $1 AND s.status <> 'ENCERRADA'
-    JOIN startup_membros sm
-      ON sm.id_startup = s.id_startup AND sm.ativo = TRUE
-   WHERE ev.id_tenant = $1
-     AND ev.ativo = TRUE
-     AND ev.inicio_ts >= NOW() - make_interval(days => $2)
-     AND ev.inicio_ts <= NOW()
-     AND (
-       NOT EXISTS (SELECT 1 FROM evento_startups es WHERE es.id_evento = ev.id_evento)
-       OR EXISTS (
-         SELECT 1 FROM evento_startups es
-          WHERE es.id_evento = ev.id_evento AND es.id_startup = s.id_startup
-       )
-     )
-`
+const SQL_PUBLICO_EVENTOS = sqlPublicoEventos(`
+  ev.id_tenant = $1
+  AND ev.ativo = TRUE
+  AND ev.inicio_ts >= NOW() - make_interval(days => $2)
+  AND ev.inicio_ts <= NOW()`)
 
 /**
  * Uma linha por evento ja realizado no periodo: publico, confirmacoes e

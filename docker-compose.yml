@@ -121,10 +121,11 @@ services:
   permissoes:
     image: ${IMAGEM_BACKEND:?}
     user: root
-    command: ["chown", "-R", "node:node", "/app/uploads"]
+    command: ["chown", "-R", "node:node", "/app/uploads", "/app/audio"]
     restart: "no"
     volumes:
       - uploads:/app/uploads
+      - audio:/app/audio
     networks:
       - interna
 
@@ -161,10 +162,25 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       GOOGLE_SCOPE_CALENDAR: ${GOOGLE_SCOPE_CALENDAR:-}
       TZ_AGENDA: ${TZ_AGENDA:-America/Sao_Paulo}
+      # Reunioes por video. Vazias = modulo invisivel (ver .env.exemplo).
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
       UPLOAD_DIR: /app/uploads
       CONVERSOR_URL: http://conversor:3000
+      # O audio das reunioes gravadas (docs/reunioes.md, decisao 4): fica no
+      # volume `audio`, separado dos uploads, e nenhuma rota o serve.
+      AUDIO_DIR: /app/audio
+      AUDIO_DISCO_MIN_MB: ${AUDIO_DISCO_MIN_MB:-5120}
+      # Bases que o servidor libera para o provedor "compativel" (ex.: um
+      # Whisper na rede local). Ver src/reunioes/urlBase.js.
+      IA_URL_BASE_PERMITIDAS: ${IA_URL_BASE_PERMITIDAS:-}
+      # A API so le a janela para a tela dizer "fica pronta ate as 07:00".
+      PROCESSAMENTO_JANELA: ${PROCESSAMENTO_JANELA:-19:00-07:00}
+      PROCESSAMENTO_FIM_DE_SEMANA: ${PROCESSAMENTO_FIM_DE_SEMANA:-true}
     volumes:
       - uploads:/app/uploads
+      - audio:/app/audio
     depends_on:
       postgres:
         condition: service_healthy
@@ -217,6 +233,52 @@ services:
       timeout: 5s
       retries: 5
 
+  # O LOTE NOTURNO das reunioes: transcricao (e, na Etapa 5, o relatorio).
+  # Nao sobe no `up` — o perfil o deixa de fora, e o deploy nao muda. Quem o
+  # inicia e o cron do servidor, pelo scripts/processamento.sh, so dentro da
+  # janela e com a maquina ociosa; ele trabalha e sai sozinho.
+  #
+  # Mesma imagem do backend, outro comando (como a `migracao`). Teto de
+  # memoria proprio: o ffmpeg e o arquivo em memoria nao podem disputar a RAM
+  # com a API de producao.
+  processamento:
+    image: ${IMAGEM_BACKEND:?}
+    command: ["node", "src/workers/processamento.js"]
+    restart: "no"
+    profiles: ["processamento"]
+    deploy:
+      resources:
+        limits:
+          memory: ${LIMITE_PROCESSAMENTO:-256m}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      # Decifra a chave de API que a incubadora cadastrou.
+      SECRET_KEY: ${SECRET_KEY:?gere com openssl rand -base64 32}
+      JWT_SECRET: ${JWT_SECRET:?gere com openssl rand -base64 48}
+      FRONTEND_URL: "${FRONTEND_URL:?ex. https://app.seudominio.com}"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      TZ_AGENDA: ${TZ_AGENDA:-America/Sao_Paulo}
+      AUDIO_DIR: /app/audio
+      PROCESSAMENTO_JANELA: ${PROCESSAMENTO_JANELA:-19:00-07:00}
+      PROCESSAMENTO_FIM_DE_SEMANA: ${PROCESSAMENTO_FIM_DE_SEMANA:-true}
+      PROCESSAMENTO_CARGA_MAX: ${PROCESSAMENTO_CARGA_MAX:-0.6}
+      PROCESSAMENTO_MEMORIA_MIN_MB: ${PROCESSAMENTO_MEMORIA_MIN_MB:-500}
+      IA_URL_BASE_PERMITIDAS: ${IA_URL_BASE_PERMITIDAS:-}
+    volumes:
+      - audio:/app/audio
+    networks:
+      - interna
+
   frontend:
     image: ${IMAGEM_FRONTEND:?}
     restart: always
@@ -267,3 +329,4 @@ networks:
 volumes:
   pgdata:
   uploads:
+  audio:

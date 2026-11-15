@@ -13,6 +13,12 @@
  * FORMATO DO PACOTE: base64 de  [iv (12 bytes)][tag (16 bytes)][texto cifrado].
  * Tudo numa string so porque a coluna e uma so — o iv e a tag nao sao segredo,
  * so precisam chegar junto para a decifragem.
+ *
+ * CONTEXTO (opcional): um texto que entra como dado autenticado (AAD) e nao
+ * fica no pacote. Decifrar exige o MESMO contexto. A chave de IA de uma
+ * incubadora e cifrada com `ia:<id_tenant>:<finalidade>`: copiar o pacote para
+ * a linha de outra incubadora faz a decifragem falhar, em vez de entregar a
+ * chave de uma para a outra. Sem contexto, o pacote e o de sempre.
  */
 const crypto = require("crypto")
 
@@ -46,13 +52,15 @@ function chave() {
  * Cifra um texto. Devolve null para entrada vazia — a coluna aceita null e
  * cifrar "nada" so produziria um pacote que decifra em string vazia.
  * @param {string|null|undefined} texto
+ * @param {string} [contexto] - dado autenticado; decifrar exige o mesmo.
  * @returns {string|null} Pacote em base64.
  */
-function cifrar(texto) {
+function cifrar(texto, contexto) {
   if (!texto) return null
 
   const iv = crypto.randomBytes(TAMANHO_IV)
   const cifrador = crypto.createCipheriv(ALGORITMO, chave(), iv)
+  if (contexto) cifrador.setAAD(Buffer.from(String(contexto), "utf8"))
   const cifrado = Buffer.concat([cifrador.update(String(texto), "utf8"), cifrador.final()])
 
   return Buffer.concat([iv, cifrador.getAuthTag(), cifrado]).toString("base64")
@@ -67,9 +75,10 @@ function cifrar(texto) {
  * de um envio em segundo plano so viraria stack trace no log.
  *
  * @param {string|null|undefined} pacote - base64 de [iv][tag][cifrado].
+ * @param {string} [contexto] - o mesmo passado a cifrar().
  * @returns {string|null}
  */
-function decifrar(pacote) {
+function decifrar(pacote, contexto) {
   if (!pacote) return null
 
   try {
@@ -80,6 +89,7 @@ function decifrar(pacote) {
 
     const decifrador = crypto.createDecipheriv(ALGORITMO, chave(), iv)
     decifrador.setAuthTag(tag)
+    if (contexto) decifrador.setAAD(Buffer.from(String(contexto), "utf8"))
 
     return Buffer.concat([decifrador.update(cifrado), decifrador.final()]).toString("utf8")
   } catch {

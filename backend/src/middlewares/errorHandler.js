@@ -19,6 +19,12 @@ function errorHandler(err, req, res, next) {
     return res.status(doMulter.status).json({ erro: doMulter.mensagem })
   }
 
+  // O body-parser (express.json / express.raw) avisa o corpo grande demais
+  // com uma frase em ingles; o pedaco de audio das reunioes cai aqui.
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ erro: "O conteúdo enviado é maior que o limite permitido." })
+  }
+
   const status = err.status || 500
 
   // Loga apenas erros inesperados (500) para nao poluir o log.

@@ -11,6 +11,10 @@
  *   tarefa atribuida  -> o novo responsavel
  *   tarefa concluida  -> quem a criou
  *   material compartilhado -> os membros ativos da startup que o recebeu
+ *   reuniao por video -> quem foi convidado (na criacao e ao entrar na lista)
+ *   transcricao pronta -> o anfitriao da reuniao
+ *   transcricao falhou -> o anfitriao, e quem configura a IA quando a culpa
+ *                         e da configuracao (chave recusada, modelo errado)
  *
  * DISPARO EM SEGUNDO PLANO. Todas as funcoes exportadas retornam imediatamente
  * e nunca lancam: notificar e efeito colateral do fato, nao parte dele. Um SMTP
@@ -24,6 +28,7 @@ const tenantRepository = require("../repositories/tenantRepository")
 const usuarioRepository = require("../repositories/usuarioRepository")
 const mensagemRepository = require("../repositories/mensagemRepository")
 const tarefaRepository = require("../repositories/tarefaRepository")
+const rbacRepository = require("../repositories/rbacRepository")
 const { enviarEmail, layout, escapar } = require("../utils/email")
 
 // URL base do frontend, usada nos links dos avisos.
@@ -492,7 +497,126 @@ function materialCompartilhado(compartilhamento) {
   })
 }
 
+// ---------------------------------------------------------------------------
+// REUNIAO POR VIDEO -> os convidados
+// ---------------------------------------------------------------------------
+
+/**
+ * Convida para uma reuniao por video (migracao 027).
+ *
+ * NAO usa `eventoCriado`, apesar de a reuniao ser um evento: aquele aviso e
+ * "ha um evento novo na incubadora" e manda para a agenda; este e "voce foi
+ * chamado para uma conversa" e manda para a reuniao, onde esta o botao de
+ * entrar. E serve para os dois momentos — a criacao e a pessoa acrescentada
+ * depois —, que `eventoCriado` nao cobre.
+ *
+ * Quem convidou nao recebe: acabou de fazer isso.
+ *
+ * @param {{reuniao: object, idsUsuarios: number[], idAutor: number}} dados
+ */
+function reuniaoConvite({ reuniao, idsUsuarios, idAutor }) {
+  emSegundoPlano(`reuniao convite=${reuniao?.id_reuniao}`, async () => {
+    const ids = (idsUsuarios || []).filter((id) => Number(id) !== Number(idAutor))
+    if (ids.length === 0) return
+
+    const [pessoas, autor] = await Promise.all([
+      Promise.all(ids.map((id) => usuarioRepository.buscarPorId(id))),
+      idAutor ? usuarioRepository.buscarPorId(idAutor) : null,
+    ])
+    const destinatarios = emails(pessoas.filter(Boolean))
+    if (destinatarios.length === 0) return
+
+    const titulo = escapar(reuniao.titulo)
+    const quando = formatarData(reuniao.inicio_ts)
+
+    await enviarEmail({
+      para: destinatarios,
+      assunto: `Convite para reuniao: ${reuniao.titulo}`,
+      remetente: await resolverRemetente(reuniao.id_tenant),
+      html: layout({
+        titulo: "Voce foi convidado para uma reuniao",
+        paragrafos: [
+          autor
+            ? `<strong>${escapar(autor.nome)}</strong> convidou voce para a reuniao <strong>${titulo}</strong>.`
+            : `Voce foi convidado para a reuniao <strong>${titulo}</strong>.`,
+          quando ? `<strong>Quando:</strong> ${quando}` : "",
+          reuniao.startup_nome ? `<strong>Startup:</strong> ${escapar(reuniao.startup_nome)}` : "",
+          "A reuniao e por video, dentro do Quiron. A sala abre 15 minutos antes do horario.",
+        ].filter(Boolean),
+        acao: { texto: "Abrir a reuniao", url: `${FRONTEND_URL}/reunioes/${reuniao.id_reuniao}` },
+        rodape: "Voce recebeu este aviso porque foi convidado para esta reuniao no Quiron.",
+      }),
+    })
+  })
+}
+
+// ---------------------------------------------------------------------------
+// TRANSCRICAO DA REUNIAO -> anfitriao (e quem configura a IA, na falha)
+// ---------------------------------------------------------------------------
+
+/** A transcricao da reuniao ficou pronta (o lote da noite terminou). */
+function transcricaoPronta({ reuniao, incompleta }) {
+  emSegundoPlano(`transcricao pronta reuniao=${reuniao?.id_reuniao}`, async () => {
+    const anfitriao = await usuarioRepository.buscarPorId(reuniao.id_anfitriao)
+    if (!anfitriao?.email) return
+    await enviarEmail({
+      para: [anfitriao.email],
+      assunto: `Transcricao pronta: ${reuniao.titulo}`,
+      remetente: await resolverRemetente(reuniao.id_tenant),
+      html: layout({
+        titulo: incompleta ? "A transcricao ficou pronta, com lacunas" : "A transcricao ficou pronta",
+        paragrafos: [
+          `A transcricao da reuniao <strong>${escapar(reuniao.titulo)}</strong> ja pode ser lida.`,
+          incompleta && reuniao.transcricao_obs ? `<strong>Atencao:</strong> ${escapar(reuniao.transcricao_obs)}` : "",
+        ].filter(Boolean),
+        acao: { texto: "Ver a reuniao", url: `${FRONTEND_URL}/reunioes/${reuniao.id_reuniao}` },
+        rodape: "Voce recebeu este aviso porque e o anfitriao desta reuniao no Quiron.",
+      }),
+    })
+  })
+}
+
+/**
+ * A transcricao falhou de vez. `daConfiguracao` = a culpa e da configuracao
+ * de IA da incubadora (chave recusada, sem credito, modelo inexistente): quem
+ * pode corrigi-la tambem recebe.
+ */
+function transcricaoFalhou({ reuniao, mensagem, daConfiguracao }) {
+  emSegundoPlano(`transcricao falhou reuniao=${reuniao?.id_reuniao}`, async () => {
+    const ids = new Set([Number(reuniao.id_anfitriao)])
+    if (daConfiguracao) {
+      for (const p of await tenantRepository.listarUsuarios(reuniao.id_tenant)) {
+        if (p.ativo && (await rbacRepository.usuarioTemPermissao(reuniao.id_tenant, p.id_usuario, "configuracoes.ia.editar"))) {
+          ids.add(Number(p.id_usuario))
+        }
+      }
+    }
+    const pessoas = (await Promise.all([...ids].map((id) => usuarioRepository.buscarPorId(id)))).filter(Boolean)
+    const destinatarios = emails(pessoas)
+    if (destinatarios.length === 0) return
+    await enviarEmail({
+      para: destinatarios,
+      assunto: `A transcricao nao foi feita: ${reuniao.titulo}`,
+      remetente: await resolverRemetente(reuniao.id_tenant),
+      html: layout({
+        titulo: "A transcricao da reuniao nao foi feita",
+        paragrafos: [
+          `O processamento noturno nao conseguiu transcrever a reuniao <strong>${escapar(reuniao.titulo)}</strong>.`,
+          `<strong>Motivo:</strong> ${escapar(mensagem)}`,
+          daConfiguracao
+            ? "Confira a integracao de transcricao em Configuracoes &gt; Inteligencia Artificial. Depois de corrigir, a coordenacao pode pedir a transcricao de novo na tela da reuniao."
+            : "",
+        ].filter(Boolean),
+        acao: { texto: "Ver a reuniao", url: `${FRONTEND_URL}/reunioes/${reuniao.id_reuniao}` },
+        rodape: "Voce recebeu este aviso pelo seu papel nesta reuniao ou na configuracao de IA da incubadora.",
+      }),
+    })
+  })
+}
+
 module.exports = {
+  transcricaoPronta,
+  transcricaoFalhou,
   entregaEnviada,
   entregaAvaliada,
   eventoCriado,
@@ -501,4 +625,5 @@ module.exports = {
   tarefaAtribuida,
   tarefaConcluida,
   materialCompartilhado,
+  reuniaoConvite,
 }

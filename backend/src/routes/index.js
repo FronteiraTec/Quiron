@@ -58,6 +58,16 @@ router.use("/agenda-config", require("./agendaConfigRoutes"))
 router.use("/google-agenda", require("./googleAgendaRoutes"))
 router.use("/auditlogs", require("./auditLogRoutes"))
 
+// Reunioes por video (migracao 027, docs/reunioes.md): toda reuniao e um evento
+// da Agenda, com sala no LiveKit Cloud. O webhook do LiveKit e PUBLICO (quem o
+// protege e a assinatura) e por isso mora num modulo a parte — e antes dos
+// modulos montados na raiz, que exigem token.
+router.use("/reunioes", require("./reuniaoRoutes"))
+router.use("/livekit", require("./livekitRoutes"))
+// Integracoes de IA da incubadora: o provedor de transcricao das reunioes
+// (Etapa 4) e, depois, o do relatorio. A chave de API entra e nunca sai.
+router.use("/ia-config", require("./iaConfigRoutes"))
+
 // Mensagens internas: o canal da propria incubadora (startup inteira,
 // mentores, uma role ou pessoas especificas) que alimenta o sino da Navbar.
 router.use("/mensagens", require("./mensagemRoutes"))
