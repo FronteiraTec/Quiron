@@ -56,6 +56,13 @@ import Mensagens from "./pages/Mensagens"
 import Tarefas from "./pages/Tarefas"
 import Avaliacoes from "./pages/Avaliacoes"
 import EspacoMentor from "./pages/EspacoMentor"
+import CrmLayout from "./pages/crm/CrmLayout"
+import CrmPainel from "./pages/crm/CrmPainel"
+import CrmClientes from "./pages/crm/CrmClientes"
+import CrmClienteDetalhe from "./pages/crm/CrmClienteDetalhe"
+import CrmOportunidades from "./pages/crm/CrmOportunidades"
+import CrmOportunidadeDetalhe from "./pages/crm/CrmOportunidadeDetalhe"
+import CrmTarefas from "./pages/crm/CrmTarefas"
 import NotFound from "./pages/NotFound"
 import ProtectedRoute from "./components/ProtectedRoute"
 import RootRoute from "./components/RootRoute"
@@ -309,6 +316,27 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Mini CRM: clientes, oportunidades, tarefas e historico da
+                startup. ProtectedRoute e nao AdminOuRootRoute: quem entra e
+                MEMBRO de startup com o beneficio CRM concedido pela
+                incubadora — o backend confere as duas coisas a cada pedido, e
+                o CrmLayout mostra o aviso de "nao liberado" a quem nao tem. */}
+            <Route
+              path="/crm"
+              element={
+                <ProtectedRoute>
+                  <CrmLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<CrmPainel />} />
+              <Route path="clientes" element={<CrmClientes />} />
+              <Route path="clientes/:idCliente" element={<CrmClienteDetalhe />} />
+              <Route path="oportunidades" element={<CrmOportunidades />} />
+              <Route path="oportunidades/:idOportunidade" element={<CrmOportunidadeDetalhe />} />
+              <Route path="tarefas" element={<CrmTarefas />} />
+            </Route>
 
             {/* Mentores: distribuicao das startups entre os mentores. O vinculo
                 editado aqui e o que recorta a fila de avaliacao de cada um.

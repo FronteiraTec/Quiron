@@ -66,6 +66,30 @@ const CATALOGO_PERMISSOES = [
         ],
       },
       {
+        recurso: "beneficios",
+        rotulo: "Benefícios",
+        // O que a incubadora libera para cada startup (migracao 026) — hoje,
+        // o Mini CRM. Conceder e revogar sao uma chave so: os dois sao a mesma
+        // decisao, tomada por quem gere o programa. Revogar nao apaga os dados.
+        //
+        // NAO da acesso ao CRM em si: os dados comerciais sao da startup, e so
+        // os membros dela os alcancam (crmAcessoService).
+        acoes: [
+          { acao: "visualizar", rotulo: "Visualizar" },
+          { acao: "gerenciar", rotulo: "Conceder e revogar" },
+        ],
+      },
+      {
+        recurso: "faturamento",
+        rotulo: "Faturamento",
+        // O total vendido que a startup registra no Mini CRM, so em soma (por
+        // periodo e mes a mes), no cadastro dela. E a unica coisa do CRM que a
+        // incubadora enxerga — clientes e negociacoes continuam da startup.
+        // Chave propria porque nem todo mundo que acompanha a startup precisa
+        // saber quanto ela vende: o mentor nao nasce com ela.
+        acoes: [{ acao: "visualizar", rotulo: "Ver o faturamento (vendas ganhas no CRM)" }],
+      },
+      {
         recurso: "canvas",
         rotulo: "Business Model Canvas",
         acoes: [

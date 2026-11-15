@@ -83,6 +83,13 @@ router.use("/selos", require("./seloRoutes"))
 // pagina que a pessoa cola no LinkedIn, aberta a quem nao tem login.
 router.use("/", require("./credencialRoutes"))
 
+// Beneficios que a incubadora concede a startups (migracao 026), vistos por
+// quem e membro delas. Conceder e revogar ficam em /startups/:id/beneficios.
+router.use("/beneficios", require("./beneficioRoutes"))
+// Mini CRM: clientes, oportunidades, tarefas comerciais e historico, por
+// startup. So alcanca membro ativo de startup com o beneficio CRM ativo.
+router.use("/crm", require("./crmRoutes"))
+
 // Relatorios: leituras agregadas do que os outros modulos ja registram
 // (progresso na trilha, fila de avaliacao, gargalos, presenca em eventos).
 router.use("/relatorios", require("./relatorioRoutes"))

@@ -40,6 +40,23 @@ HTTP  →  Routes  →  Controllers  →  Services  →  Repositories  →  Post
 | `mentorMaterialRepository` | `mentor_material` (biblioteca pessoal do mentor, migração 020) |
 | `mentorCompartilhamentoRepository` | `mentor_compartilhamento` (material → startup, trilha e etapa) |
 | `materialIncubadoraRepository` | `mentor_material_incubadora` (o que a incubadora publica para os mentores, migração 021) |
+| `beneficioRepository` | `startup_beneficio` (o que a incubadora concede a cada startup, migração 026) e o portão de acesso ao CRM |
+| `crmEtapaRepository` | `crm_etapa` (as etapas abertas do funil de cada startup) |
+| `crmClienteRepository` | `crm_cliente` |
+| `crmOportunidadeRepository` | `crm_oportunidade` |
+| `crmTarefaRepository` | `crm_tarefa` (tarefas comerciais da startup — não confundir com `tarefa`, a gestão interna da incubadora) |
+| `crmEventoRepository` | `crm_evento` (o histórico: só insere e lê; o banco recusa UPDATE e DELETE) |
+| `crmPainelRepository` | leituras agregadas do painel do CRM |
+
+### Mini CRM (migração 026)
+
+Toda rota do CRM leva a startup na URL (`/crm/:idStartup/...`) e nenhuma confia
+nela: cada service começa por `crmAcessoService.exigirAcesso`, que confere no
+banco que quem pede é **membro ativo** da startup e que o benefício CRM está
+**ativo**. O histórico (`crm_evento`) é gravado pelo service na mesma transação
+da escrita que o originou — o autor sai da sessão e a data do `NOW()` do banco.
+As frases e as comparações de campo ficam em `src/crm/historico.js`, testadas
+sem banco.
 
 ## Como adicionar uma nova feature (ex.: Startups)
 

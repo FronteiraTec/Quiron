@@ -112,6 +112,10 @@ async function listarPorTenant(idTenant, idsPermitidos = null) {
     `SELECT s.id_startup, s.uuid, s.nome, s.cnpj, s.email, s.status, s.tipo, s.situacao,
             s.cidade, s.uf, s.campos_extras, s.criado_ts,
             ${CAMPOS_VOCABULARIO},
+            -- Os beneficios ativos (migracao 026), para a coluna e o filtro da lista.
+            ARRAY(SELECT sb.beneficio::text FROM startup_beneficio sb
+                   WHERE sb.id_startup = s.id_startup AND sb.ativo
+                   ORDER BY 1) AS beneficios,
             COALESCE(tf.total_fases, 0) AS total_fases,
             COALESCE(sfok.fases_aprovadas, 0) AS fases_aprovadas,
             prox.nome AS fase_atual_nome

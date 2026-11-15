@@ -46,6 +46,9 @@ Vale guardar isso num `backend/.env.teste` e carregar com
 | `test/materiaisIncubadora.test.js` | sim | materiais que a incubadora publica para os mentores: o mentor lê e baixa, não publica; o incubado não vê; arquivar tira de vista; trocar e excluir levam o arquivo antigo |
 | `test/questionarioProva.test.js` | sim | questionário em modo prova: correção tudo-ou-nada (caixas só pontuam com exatamente as corretas, em branco é erro), gabarito incoerente recusado, o incubado abre a prova e recebe a nota sem o gabarito, o mentor vê a correção completa |
 | `test/startupUuid.test.js` | sim | a startup pelo UUID na URL: abre a mesma startup que o id, vale nas rotas filhas, não é atalho de acesso, e as listas que viram link levam o UUID |
+| `test/crmHistorico.test.js` | não | Mini CRM: frases e comparações do histórico (o que não mudou não vira evento), CPF/CNPJ, eventos de cada troca de status da tarefa |
+| `test/crm.test.js` | sim | Mini CRM ponta a ponta: quem concede o benefício, só membro da startup entra (nem admin nem mentor), isolamento entre startups, cada mudança no histórico com antes/depois e autor da sessão, tarefas na linha do tempo, ganho/perda/reabertura, painel, histórico imutável (API e trigger), revogação que fecha o acesso e preserva os dados |
+| `test/crmFaturamento.test.js` | sim | o faturamento da startup no cadastro dela: só soma as vendas ganhas (perdida, reaberta e excluída não entram), não devolve cliente nem negociação, exige `startups.faturamento.visualizar` (o mentor que acompanha não vê sem ela), startup sem CRM responde “não usa”, revogado continua mostrando o histórico |
 | `test/autorizacao.test.js` | sim | **as regressões da auditoria** |
 
 Os helpers ficam em `backend/apoio-teste/` e **não** dentro de `test/`: o Node
@@ -116,6 +119,9 @@ precisa de banco, de servidor nem de navegador de verdade (o ambiente é
 | `src/components/sidebar/SidebarSearch.test.jsx` | o atalho `/` só rouba a tecla fora de campo de texto e fora de área editável |
 | `src/data/espacoMentorMeta.test.js` | filtros, formatos e agrupamento por etapa do Espaço do Mentor (biblioteca, compartilhados e o que a Jornada mostra) |
 | `src/components/espacoMentor/telasEspacoMentor.test.jsx` | o diálogo de compartilhar envia a etapa, o material, a finalidade e a orientação escolhidos (e não oferece o que o servidor recusaria); a Jornada lista e abre o material recebido; a aba "Materiais da incubadora" é leitura para o mentor e publicação para a coordenação |
+| `src/data/crmMeta.test.js` | formatos do Mini CRM: data lida pelo texto, instante no fuso de quem lê, estado do prazo da tarefa, CPF/CNPJ |
+| `src/components/crm/telasCrm.test.jsx` | a linha do tempo (autor, frase, texto da anotação, paginação pelo cursor) e o kanban (soma da coluna, mover entre etapas, soltar em Ganho pede o encerramento) |
+| `src/components/startup/FaturamentoStartup.test.jsx` | a seção de faturamento no cadastro: frase (e não zeros) para startup sem CRM, totais e uma barra por mês, aviso de revogado, some sem a permissão |
 
 ### O que ele NÃO cobre, de propósito
 

@@ -10,11 +10,15 @@
  * tela e um dado que vai divergir na primeira mudanca.
  *
  * Recebe a startup ja carregada pelo pai (GET /startups/:id devolve os contatos
- * junto), entao nao busca nada.
+ * junto), entao nao busca nada — com uma excecao: a secao de FATURAMENTO, que
+ * vem do Mini CRM por rota propria e so aparece para quem tem a chave
+ * `startups.faturamento.visualizar` (ver FaturamentoStartup).
  */
 import { Box, Typography, Grid, Divider, Chip, Link } from "@mui/material"
-import { Person, Email, Phone, LocationOn, Notes } from "@mui/icons-material"
+import { Person, Email, Phone, LocationOn, Notes, TrendingUp } from "@mui/icons-material"
 import { useStartupConfigStore } from "../../store/startupConfigStore"
+import { usePermissaoStore } from "../../store/permissaoStore"
+import FaturamentoStartup from "./FaturamentoStartup"
 import { formatarCnpj, formatarCep, formatarCelular } from "../../utils/mascaras"
 import { formatarCampoExtra } from "../../utils/camposExtras"
 
@@ -50,6 +54,7 @@ function Secao({ icone, titulo, children }) {
 
 export default function AbaCadastro({ startup }) {
   const campos = useStartupConfigStore((s) => s.campos) || []
+  const podeVerFaturamento = usePermissaoStore((s) => s.pode("startups.faturamento.visualizar"))
   const contatos = startup.contatos || []
   const extras = startup.campos_extras || {}
 
@@ -96,6 +101,15 @@ export default function AbaCadastro({ startup }) {
           </Dado>
         </Grid>
       </Secao>
+
+      {podeVerFaturamento && (
+        <>
+          <Divider sx={{ mb: 3 }} />
+          <Secao icone={<TrendingUp fontSize="small" color="primary" />} titulo="Faturamento">
+            <FaturamentoStartup idStartup={startup.id_startup} />
+          </Secao>
+        </>
+      )}
 
       <Divider sx={{ mb: 3 }} />
 
